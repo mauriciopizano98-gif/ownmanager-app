@@ -482,7 +482,7 @@ async function cargarConfig(){
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
     sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta').eq('estacion_id',estId).order('nombre')) ]);
   S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id};
-  S.config = { estacionId:est.id, nombre:est.nombre, turnos:est.turnos||[], precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[],
+  S.config = { estacionId:est.id, nombre:est.nombre, turnos:est.turnos||[], precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[],
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
   for(const i of S.config.islas) for(const m of i.mangueras) m.producto=m.producto;
@@ -1549,7 +1549,10 @@ async function adminConfig(){
   box.append(precBox);
   if(!dueno){ box.append(h('p',{class:'hint'},'El resto de la configuración (alertas, terminales, orden de mangueras) la cambia el dueño.')); return; }
   const max=h('input',{type:'number',value:c.maxLitrosTurno||8000,id:'cfg-max'}); const tol=h('input',{type:'number',step:'1',min:'0',value:c.toleranciaPesos??50,id:'cfg-tol'});
-  box.append(h('div',{class:'card stack'}, h('h3',{},'Alertas'), h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Litros máximos por manguera en un turno'),max), h('label',{class:'f'},h('span',{class:'l'},'Tolerancia en pesos (diferencia que no requiere explicación)'),tol)), h('button',{class:'btn primary',onclick:async()=>{ try{ await sel(sb.from('estaciones').update({max_litros_turno:Number(max.value)||8000, tolerancia_pesos:Number(tol.value)||0}).eq('id',c.estacionId)); c.maxLitrosTurno=Number(max.value)||8000; c.toleranciaPesos=Number(tol.value)||0; toast('Guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar')));
+  const correos=h('input',{type:'text',value:(c.correosAviso||[]).join(', '),id:'cfg-correos',placeholder:'correo1@…, correo2@…'});
+  box.append(h('div',{class:'card stack'}, h('h3',{},'Alertas'), h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Litros máximos por manguera en un turno'),max), h('label',{class:'f'},h('span',{class:'l'},'Tolerancia en pesos (diferencia que no requiere explicación)'),tol)),
+    h('label',{class:'f'},h('span',{class:'l'},'Correos que reciben el reporte de turno y la verificación nocturna (separados por coma)'),correos),
+    h('button',{class:'btn primary',onclick:async()=>{ const lista=correos.value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)); try{ await sel(sb.from('estaciones').update({max_litros_turno:Number(max.value)||8000, tolerancia_pesos:Number(tol.value)||0, correos_aviso:lista}).eq('id',c.estacionId)); c.maxLitrosTurno=Number(max.value)||8000; c.toleranciaPesos=Number(tol.value)||0; c.correosAviso=lista; correos.value=lista.join(', '); toast('Guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar')));
   // terminales bancarias
   c.terminales=c.terminales||[]; const nuevaT=h('input',{type:'text',placeholder:'Nombre de la terminal / banco',id:'tm-nueva'});
   const guardaT=()=>sel(sb.from('estaciones').update({terminales:c.terminales}).eq('id',c.estacionId));
