@@ -1,0 +1,12 @@
+# Android / Capacitor
+android-app/node_modules/
+android-app/android/.gradle/
+android-app/android/build/
+android-app/android/app/build/
+android-app/android/capacitor-cordova-android-plugins/build/
+android-app/android/.idea/
+android-app/android/local.properties
+android-app/android/app/release.keystore
+*.jks
+*.keystore
+.DS_Store
