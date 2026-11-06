@@ -1,4 +1,4 @@
-# OwnManager · app Android
+# Own Manager · app Android
 
 Proyecto Capacitor que empaqueta la app publicada (GitHub Pages) como aplicación
 Android: pantalla siempre encendida, vertical, sin barras del sistema, cámara y

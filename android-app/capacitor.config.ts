@@ -4,7 +4,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // Actualizar la app = publicar en Pages; el APK no cambia.
 const config: CapacitorConfig = {
   appId: 'com.ownmanager.corte',
-  appName: 'OwnManager',
+  appName: 'Own Manager',
   webDir: 'www',
   server: {
     url: 'https://mauriciopizano98-gif.github.io/ownmanager-app/',
