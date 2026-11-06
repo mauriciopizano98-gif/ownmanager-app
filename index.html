@@ -243,6 +243,37 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .spin{width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+/* Loader de marca Own Manager: cubo quieto, gota que se llena con el degradado termográfico y late; barra de pulso debajo. */
+:root{--om-stroke:#0F172A; --om-g1:#D97706; --om-g2:#D97706; --om-g3:#F59E0B}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--om-stroke:#CCFF00; --om-g1:#00F5D4; --om-g2:#CCFF00; --om-g3:#FFFF00} }
+:root[data-theme="dark"]{--om-stroke:#CCFF00; --om-g1:#00F5D4; --om-g2:#CCFF00; --om-g3:#FFFF00}
+.om-login, body[data-om-login], .om-splash[data-dark]{--om-stroke:#CCFF00; --om-g1:#00F5D4; --om-g2:#CCFF00; --om-g3:#FFFF00}
+.om-loader{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--om-stroke)}
+.om-loader.chico{display:inline-flex;flex-direction:row;gap:8px;align-items:center;color:inherit}
+.om-loader svg{display:block;width:120px;height:120px;overflow:visible}
+.om-loader.chico svg{width:22px;height:22px}
+.om-loader .cubo{fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
+.om-loader.chico .cubo{stroke-width:5}
+.om-loader .gota-g{transform-box:fill-box;transform-origin:50% 55%;animation:om-beat 1.6s ease-in-out infinite}
+.om-loader .gota-rel{transform-box:fill-box;transform-origin:50% 100%;animation:om-fill 2.2s ease-in-out infinite}
+.om-loader .pulso{width:120px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--om-g1),var(--om-g2),var(--om-g3),var(--om-g2),var(--om-g1));background-size:220% 100%;animation:om-slide 1.4s linear infinite}
+.om-loader .txt{font:500 12.5px/1.4 var(--font-mono);color:var(--muted);text-align:center;letter-spacing:.01em;min-height:18px;font-variant-numeric:tabular-nums}
+.om-loader.chico .txt{font:600 inherit;font-family:var(--font-body);color:inherit;min-height:0;text-align:left}
+.om-loader.listo .gota-g,.om-loader.listo .gota-rel{animation:none}
+.om-loader.listo .pulso{animation:none;background:var(--ok);background-size:100% 100%}
+@keyframes om-beat{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes om-fill{0%{transform:scaleY(.08)}62%{transform:scaleY(1)}86%{transform:scaleY(1)}100%{transform:scaleY(.08)}}
+@keyframes om-slide{from{background-position:0 0}to{background-position:220% 0}}
+@media (prefers-reduced-motion:reduce){.om-loader .gota-g,.om-loader .gota-rel,.om-loader .pulso{animation:none}.om-loader .gota-rel{transform:scaleY(1)}}
+/* Barra de pulso bajo la cabecera (carga del tablero) */
+.top{position:sticky}
+.om-topbar{position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--om-g1),var(--om-g2),var(--om-g3),var(--om-g2),var(--om-g1));background-size:220% 100%;animation:om-slide 1.1s linear infinite;opacity:0;transition:opacity .2s;pointer-events:none;z-index:1}
+.om-topbar.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.om-topbar{animation:none}}
+/* Splash de entrada */
+.om-splash{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity .22s ease}
+.om-splash.off{opacity:0;pointer-events:none}
+.om-splash .om-loader svg{width:140px;height:140px}
 .progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .progress i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 
@@ -340,7 +371,7 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 <header class="top"><div class="in">
   <div class="brand" id="brand"></div>
   <div class="who" id="who"></div>
-</div></header>
+</div><div class="om-topbar" id="om-topbar" aria-hidden="true"></div></header>
 <main class="wrap" id="app"></main>
 <footer class="foot"><img class="mono" src="" alt="" id="foot-mono"><img class="lima" src="" alt="" id="foot-lima"><span>Own Manager</span></footer>
 
@@ -410,8 +441,37 @@ let guardadoT=null; function programarGuardado(){ clearTimeout(guardadoT); guard
 const CFG = window.OM_CONFIG || {};
 const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
 function errSrv(e){ if(e instanceof Error && !e.raw) return e; const m=(e&&(e.hint||e.details||e.message))||String(e); const err=new Error(m); err.code=e&&e.code; err.raw=e; return err; }
-async function rpc(fn, args){ const {data,error}=await sb.rpc(fn,args||{}); if(error) throw errSrv(error); return data; }
-async function sel(q){ const {data,error}=await q; if(error) throw errSrv(error); return data; }
+// ---- Loader de marca Own Manager (cubo + gota que se llena + barra de pulso)
+let omSeq=0;
+function omLoader(o){ o=o||{}; const id='omg'+(++omSeq); const chico=o.tam==='chico';
+  const svg=`<svg viewBox="0 0 100 100" aria-hidden="true"><defs>
+    <linearGradient id="${id}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" style="stop-color:var(--om-g1)"/><stop offset=".55" style="stop-color:var(--om-g2)"/><stop offset="1" style="stop-color:var(--om-g3)"/></linearGradient>
+    <clipPath id="${id}c"><path d="M48.5 13 C52 20.5 56.5 24 56.5 28.5 A8 8 0 1 1 40.5 28.5 C40.5 24 45 20.5 48.5 13 Z"/></clipPath></defs>
+    <g class="cubo">
+      <path d="M20.5 35 L39 24.5 M58 24.5 L76.5 35 L76.5 65.5 L48.5 80.5 L20.5 65.5 L20.5 35 L48.5 50.5 L76.5 35 M48.5 50.5 L48.5 80.5"/>
+      <g transform="translate(20.5 35) skewY(28.9)"><ellipse cx="14" cy="17.5" rx="6.6" ry="9"/></g>
+      <g transform="translate(48.5 52) skewY(-28.9)"><path d="M5 26 V13.5 C5 10 9.6 9 11 12 V24.5 M11 13.5 C11 10 16 9 17.5 12 V22.5 M17.5 13.2 C17.5 10 22.6 9.2 24 12 V20.5"/></g>
+    </g>
+    <g class="gota-g"><g clip-path="url(#${id}c)"><rect class="gota-rel" x="38" y="11" width="21" height="27" fill="url(#${id})"/></g>
+      <path class="cubo" d="M48.5 13 C52 20.5 56.5 24 56.5 28.5 A8 8 0 1 1 40.5 28.5 C40.5 24 45 20.5 48.5 13 Z"/>
+      <path class="cubo" d="M44.6 28.3 A3.8 3.8 0 0 0 48 32.1" style="stroke-width:2"/></g>
+  </svg>`;
+  const el=h('div',{class:'om-loader'+(chico?' chico':''),role:'status','aria-live':'polite'}); el.innerHTML=svg;
+  const txt=h('span',{class:'txt',id:o.id||''},o.texto||''); if(!chico) el.append(h('div',{class:'pulso'})); el.append(txt);
+  el.texto=t=>{ txt.textContent=t||''; return el; };
+  el.listo=t=>{ el.classList.add('listo'); if(t!=null) txt.textContent=t; return el; };
+  return el;
+}
+// Barra de pulso bajo la cabecera mientras el tablero espera al servidor (con retardo para no parpadear).
+let omPend=0, omPendT=null;
+function omCarga(delta){ omPend=Math.max(0,omPend+delta); const bar=$('#om-topbar'); if(!bar) return;
+  if(omPend>0){ if(!omPendT) omPendT=setTimeout(()=>{ omPendT=null; if(omPend>0 && typeof esTablero==='function' && esTablero()) bar.classList.add('on'); },150); }
+  else { clearTimeout(omPendT); omPendT=null; bar.classList.remove('on'); } }
+function mostrarSplash(){ const sp=h('div',{class:'om-splash',id:'om-splash'}); sp.append(omLoader({})); document.body.append(sp); const t0=Date.now(); let fuera=false;
+  const quitar=()=>{ if(fuera) return; fuera=true; const espera=Math.max(0,600-(Date.now()-t0)); setTimeout(()=>{ sp.classList.add('off'); setTimeout(()=>sp.remove(),260); },espera); };
+  setTimeout(quitar,1500); return {quitar}; }
+async function rpc(fn, args){ omCarga(1); try{ const {data,error}=await sb.rpc(fn,args||{}); if(error) throw errSrv(error); return data; } finally{ omCarga(-1); } }
+async function sel(q){ omCarga(1); try{ const {data,error}=await q; if(error) throw errSrv(error); return data; } finally{ omCarga(-1); } }
 function tokenGuardado(){ try{ return sessionStorage.getItem('om_token')||null; }catch(e){ return null; } }
 function guardarToken(t, me){ try{ if(t){ sessionStorage.setItem('om_token',t); sessionStorage.setItem('om_me',JSON.stringify(me)); } else { sessionStorage.removeItem('om_token'); sessionStorage.removeItem('om_me'); } }catch(e){} }
 // Fotos: URL firmada por id de foto (cache por sesión)
@@ -491,13 +551,15 @@ function restaurarManguera(l){ l.omitida=false; l.origen=null; l.final=null; l.l
 
 // ---- arranque
 async function boot(){
+  const splash=mostrarSplash();
   render(); // primer cuadro sin datos
-  if(!CFG.SUPABASE_URL || !CFG.SUPABASE_KEY){ renderNoDb('Falta configurar la conexión al servidor (config.js).'); return; }
+  if(!CFG.SUPABASE_URL || !CFG.SUPABASE_KEY){ renderNoDb('Falta configurar la conexión al servidor (config.js).'); splash.quitar(); return; }
   sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT'){ S.usuario=null; S.rol=null; S.config=null; S.me=null; S.corte=null; S.token=null; guardarToken(null); go('login'); } });
   const { data:{ session } } = await sb.auth.getSession();
   S.sesion = session||null;
-  if(!session){ S.screen='login'; render(); return; }
+  if(!session){ S.screen='login'; render(); splash.quitar(); return; }
   await entrarConCuenta();
+  splash.quitar();
 }
 async function entrarConCuenta(){
   try{
@@ -749,10 +811,10 @@ function renderCorte(){
 }
 function renderFotosListas(c){
   app.innerHTML='';
-  const prog=h('p',{class:'hint',id:'ia-prog'},'Leyendo los contadores en las fotos…');
+  const loader=omLoader({id:'ia-prog',texto:'Leyendo los contadores en las fotos…'}); loader.id='ia-loader';
   app.append(h('div',{class:'card stack',style:'text-align:center'}, h('div',{style:'font-size:44px'},'📸'), h('h1',{},'Fotos guardadas'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
     h('p',{},'Ya terminaste en bombas. La parte 2 (lecturas, tarjetas, efectivo y clientes) la haces con calma en la computadora, entrando con tu mismo PIN.'),
-    h('div',{class:'row',style:'justify-content:center'},h('span',{class:'spin',id:'ia-spin'}),prog),
+    h('div',{style:'display:flex;justify-content:center;padding:6px 0'},loader),
     h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo · siguiente despachador')));
   setWho();
 }
@@ -893,7 +955,7 @@ async function sha256Blob(blob){ const d=await crypto.subtle.digest('SHA-256', a
 async function subirEvidencia(pendientes){
   const c=S.corte;
   if(c.despachadorId!==S.me.id){ toast('Este corte es de otro despachador; solo quien lo abrió puede subir sus fotos.',5000); render(); return; }
-  const btn=$('.btn.ok'); if(btn){ btn.disabled=true; btn.innerHTML=''; btn.append(h('span',{class:'spin'}),' Guardando fotos…'); }
+  const btn=$('.btn.ok'); if(btn){ btn.disabled=true; btn.innerHTML=''; btn.append(omLoader({tam:'chico',texto:'Guardando fotos…'})); }
   try{
     S.blobs=S.blobs||{};
     const mes=c.fecha.slice(0,7);
@@ -917,6 +979,7 @@ async function leerConIA(c, persistir){
   const pendientes=c.lecturas.filter(l=>l.fotoId && l.final==null); const total=pendientes.length; let hechas=0;
   const token=S.token;
   for(const l of pendientes){
+    { const pg=$('#ia-prog'); if(pg) pg.textContent=`Leyendo totalizador ${l.manguera}… (${hechas+1} de ${total})`; marcarIA(`Leyendo totalizador ${l.manguera}…`, true); }
     try{
       const {data,error}=await sb.functions.invoke('leer-medidor',{ body:{ token, corte_id:c.id, manguera_id:l.mangueraId } });
       if(error) throw error;
@@ -929,12 +992,11 @@ async function leerConIA(c, persistir){
       if(!S._iaErrorAvisado){ S._iaErrorAvisado=true; toast('La IA no pudo leer: '+det, 9000); } }
     hechas++;
     if(S.corte&&S.corte.id===c.id&&S.screen==='corte') pintarLecturaFila(l);
-    const pg=$('#ia-prog'); if(pg) pg.textContent=`Leyendo los contadores en las fotos… ${hechas} de ${total}`;
   }
-  const pg=$('#ia-prog'); if(pg){ pg.textContent=`Contadores leídos (${hechas} de ${total}). En la computadora solo hay que confirmarlos.`; const sp=$('#ia-spin'); if(sp) sp.remove(); }
+  const ld=$('#ia-loader'); if(ld && ld.listo) ld.listo(`Contadores leídos (${hechas} de ${total}). En la computadora solo hay que confirmarlos.`); else { const pg=$('#ia-prog'); if(pg) pg.textContent=`Contadores leídos (${hechas} de ${total}).`; }
   marcarIA('');
 }
-function marcarIA(msg, busy){ const el=$('#ia-status'); if(!el) return; el.innerHTML=''; if(!msg){ el.hidden=true; return; } el.hidden=false; if(busy) el.append(h('span',{class:'spin'}),' '); el.append(msg); }
+function marcarIA(msg, busy){ const el=$('#ia-status'); if(!el) return; el.innerHTML=''; if(!msg){ el.hidden=true; return; } el.hidden=false; if(busy) el.append(omLoader({tam:'chico',texto:msg})); else el.append(msg); }
 
 // 2) Lecturas
 function renderLecturas(){
@@ -1203,7 +1265,7 @@ function donutSVG(partes){ const total=partes.reduce((s,p)=>s+p.v,0); const r=40
   return `<svg viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Composición del cobro">${segs}<text x="60" y="57" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="Inter,sans-serif">cobrado</text><text x="60" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="var(--fg)" font-family="Inter,sans-serif">${total?'100%':'—'}</text></svg>`; }
 async function historial(c){ try{ const xs=((await rpc('mis_cortes',{p_token:S.token}))||[]).filter(x=>x.estado==='enviado'&&x.isla_id===c.islaId&&x.turno===c.turno&&x.id!==c.id&&x.totales).slice(0,12); if(!xs.length) return {n:0}; const lit=xs.reduce((s,x)=>s+(Number(x.totales.litros)||0),0)/xs.length; const conD=xs.filter(x=>x.dinero&&x.dinero.declarado>0); const pe=conD.length?conD.reduce((s,x)=>s+(x.dinero.efectivo?.total||0)/x.dinero.declarado,0)/conD.length:null; return {n:xs.length,litros:lit,pctEfectivo:pe}; }catch(e){ return {n:0}; } }
 async function renderResumen(body, c, d, venta, tol, irA){
-  const esperando=h('div',{class:'row'},h('span',{class:'spin'}),h('span',{class:'muted'},'Calculando la calificación…')); body.append(esperando);
+  const esperando=h('div',{class:'row muted'},omLoader({tam:'chico',texto:'Calculando la calificación…'})); body.append(esperando);
   const hist=await historial(c); esperando.remove(); if(secDinero!=='resumen'||S.corte!==c) return;
   const t=calcDinero(d); const q=calcularCalidad(c,d,venta,t,tol,hist);
   const actual=S.desp.find(x=>x.id===c.despachadorId); if(actual&&actual.nombre!==c.despachadorNombre){ c.despachadorNombre=actual.nombre; programarGuardado(); }
@@ -1226,7 +1288,7 @@ async function renderResumen(body, c, d, venta, tol, irA){
   // 5) factores
   const fact=h('div',{class:'list'}, ...q.factores.map(x=>h('div',{class:'fact '+(x.ok===true?'ok':(x.ok===false?'bad':''))}, h('span',{class:'ic'},x.ok===true?'✓':(x.ok===false?'!':'·')), h('span',{class:'tx'},x.txt), h('b',{class:'num'},x.pts<0?x.pts:''))));
   // 6) análisis IA
-  const ia=h('div',{class:'ia'}, h('div',{class:'row'},h('span',{class:'spin'}),h('span',{class:'muted'},'Preparando sugerencias para '+nombre+'…')));
+  const ia=h('div',{class:'ia'}, h('div',{class:'row muted'},omLoader({tam:'chico',texto:'Preparando sugerencias para '+nombre+'…'})));
   body.append(cmp, h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'¿Cómo se cobró?'),comp), h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Calidad de las fotos'),fotos), h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Cómo se calculó la calificación'),fact), h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Sugerencias para '+nombre),ia));
   const com=h('textarea',{id:'com',rows:'2',placeholder:'Explica la diferencia (obligatorio si pasa la tolerancia)'},d.comentario||''); com.addEventListener('input',()=>{ d.comentario=com.value; programarGuardado(); });
   if(q.dif!=null && Math.abs(q.dif)>tol) body.append(h('label',{class:'f'},h('span',{class:'l'},'Explicación de la diferencia'),com));
@@ -1355,7 +1417,7 @@ function confirmarEnvio(){
   if(dif!=null && Math.abs(dif)>tol && !(d.comentario||'').trim()){ toast('Explica la diferencia antes de enviar.'); return; }
   const tot={}; let litros=0; for(const l of c.lecturas){ tot[l.producto]=(tot[l.producto]||0)+l.litros; litros+=l.litros; }
   const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
-  const btn=h('button',{class:'btn ok big block',onclick:async()=>{ btn.disabled=true; btn.innerHTML=''; btn.append(h('span',{class:'spin'}),' Enviando…'); await enviarCorte(tot,litros,sheet,venta,t,dif); }},'Enviar corte');
+  const btn=h('button',{class:'btn ok big block',onclick:async()=>{ btn.disabled=true; btn.innerHTML=''; btn.append(omLoader({tam:'chico',texto:'Sellando corte…'})); await enviarCorte(tot,litros,sheet,venta,t,dif,btn); }},'Enviar corte');
   sheet.append(h('div',{class:'in stack'}, h('h2',{},'Revisa antes de enviar'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${fmtFecha(c.fecha)} · ${c.despachadorNombre}`),
     h('div',{class:'tscroll'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Manguera'),h('th',{class:'r'},'Inicial'),h('th',{class:'r'},'Final'),h('th',{class:'r'},'Litros'))),
       h('tbody',{},...c.lecturas.map(l=>h('tr',{},h('td',{},`${l.manguera} ${l.producto}`),h('td',{class:'r'},fmtL(l.inicial)),h('td',{class:'r'},fmtL(l.final)),h('td',{class:'r'},h('b',{},fmtL(l.litros)))))))),
@@ -1366,7 +1428,7 @@ function confirmarEnvio(){
     btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Volver a revisar')));
   document.body.append(sheet);
 }
-async function enviarCorte(tot,litros,sheet,venta,t,dif){
+async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
   const c=S.corte; const d=c.dinero||{};
   const dinero={ tarjetas:{credito:t.credito, debito:t.debito, detalle:(Array.isArray(d.tarjetas)?d.tarjetas:[]).map(v=>({terminal:v.terminal,tipo:v.tipo,importe:Number(v.importe)||0}))}, efectivo:{billetes:d.efectivo?.billetes||{}, monedas:d.efectivo?.monedas||{}, extra:{billetes:d.efectivo?.extra?.billetes||{}, monedas:d.efectivo?.extra?.monedas||{}}, total:t.efectivo}, clientes:(d.clientes||[]).map(x=>({id:x.id,nombre:x.nombre,importe:Number(x.importe)||0,otro:!!x.otro})), depositos:(d.depositos||[]).map(x=>({id:x.id,hora:x.hora,total:x.total})), declarado:t.declarado, diferencia:dif, comentario:(d.comentario||'').trim(), analisis:d.analisis||null };
   clearTimeout(guardadoT);
@@ -1376,6 +1438,7 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif){
     await rpc('guardar_avance',{p_token:S.token, p_corte:c.id, p_lecturas:lecturasParaServidor(c), p_dinero:dineroParaServidor(c), p_aceites:aceitesParaServidor(c), p_paso:'resumen'});
     r=await rpc('enviar_corte',{p_token:S.token, p_corte:c.id});
   }catch(e){ toast('No se pudo enviar: '+(e.message||e.code),6000); sheet.remove(); render(); return; }
+  if(btn){ btn.innerHTML=''; btn.append(h('span',{style:'font-size:20px;line-height:1'},'✓'),' Corte sellado'); await new Promise(r=>setTimeout(r,450)); }
   const hash=r.hash||''; const enviadoEn=new Date().toISOString();
   Object.assign(c,{ estado:'enviado', enviadoEn, horaEnvio:fmtHora(enviadoEn), hash, totales:r.totales||{porProducto:tot,litros}, venta:r.venta||null, dinero, paso:'enviado' });
   sheet.remove(); S.corte=null; S.frames=[];
@@ -1666,6 +1729,7 @@ async function cerrarPorInactividad(){
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=='visible') return; if(S.esperandoArchivo){ S.esperandoArchivo=false; tocar(); return; } if(S.me && Date.now()-ultimaActividad>=INACTIVO_MS) cerrarPorInactividad(); else tocar(); });
 window.addEventListener('focus',()=>{ if(S.esperandoArchivo){ S.esperandoArchivo=false; tocar(); } });
 // ---- go
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render }; // solo para la prueba de humo
 boot();
 })();
 </script>
