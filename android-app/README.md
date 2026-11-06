@@ -29,3 +29,5 @@ Lo compila GitHub Actions (`.github/workflows/android.yml`), no una computadora:
 ## Íconos
 
 `npm run icons` regenera los íconos (fondo #1F4FB0, "OM" en blanco) en `android/app/src/main/res/mipmap-*`.
+
+<!-- compilación solicitada 2026-11-06T00:20:02Z -->
