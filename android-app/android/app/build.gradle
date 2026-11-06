@@ -22,7 +22,7 @@ android {
     signingConfigs {
         release {
             def ksFile = file('release.keystore')
-            def ksPass = System.getenv("KEYSTORE_PASSWORD")
+            def ksPass = (System.getenv("KEYSTORE_PASSWORD") ?: "").trim()
             if (ksFile.exists() && ksPass != null) {
                 storeFile ksFile
                 storePassword ksPass
