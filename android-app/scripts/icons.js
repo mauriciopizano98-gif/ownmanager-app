@@ -1,36 +1,40 @@
-// Genera los íconos de la app (fondo #1F4FB0, iniciales "OM" en blanco) en todos los tamaños.
+// Genera los íconos de la app a partir del logo (assets/logo-original.jpg): cubo "om" con gota.
 // Uso: npm run icons
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 const RES = path.join(__dirname, '..', 'android', 'app', 'src', 'main', 'res');
-const AZUL = '#1F4FB0';
+const LOGO = path.join(__dirname, '..', 'assets', 'logo-original.jpg');
+const FONDO = '#1F2323';                       // color de fondo del logo
 const sizes = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
 
-const svg = (size, fg) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 108 108">
-  ${fg ? '' : `<rect width="108" height="108" rx="${size > 0 ? 22 : 0}" fill="${AZUL}"/>`}
-  <text x="54" y="54" dy="0.36em" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#FFFFFF">OM</text>
-</svg>`;
-// el "foreground" del ícono adaptativo lleva el contenido dentro del área segura (66/108)
-const svgFg = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 108 108">
-  <text x="54" y="54" dy="0.36em" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="32" fill="#FFFFFF">OM</text>
-</svg>`;
-const svgRound = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 108 108">
-  <circle cx="54" cy="54" r="54" fill="${AZUL}"/>
-  <text x="54" y="54" dy="0.36em" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#FFFFFF">OM</text>
-</svg>`;
+// Recorte del motivo dentro del original de 2000×2000 (con un poco de aire alrededor)
+const RECORTE = { left: 600, top: 560, width: 800, height: 820 };
+
+async function motivo(size, escala) {
+  // el motivo ocupa `escala` del lienzo, centrado, sobre fondo transparente
+  const lado = Math.round(size * escala);
+  const m = await sharp(LOGO).extract(RECORTE).resize(lado, lado, { fit: 'inside' }).png().toBuffer();
+  const meta = await sharp(m).metadata();
+  return sharp({ create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: m, left: Math.round((size - meta.width) / 2), top: Math.round((size - meta.height) / 2) }]).png().toBuffer();
+}
+const fondo = (size, radio) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${radio}" fill="${FONDO}"/></svg>`);
 
 (async () => {
   for (const [dpi, size] of Object.entries(sizes)) {
     const dir = path.join(RES, `mipmap-${dpi}`);
     fs.mkdirSync(dir, { recursive: true });
-    await sharp(Buffer.from(svg(size, false))).resize(size, size).png().toFile(path.join(dir, 'ic_launcher.png'));
-    await sharp(Buffer.from(svgRound(size))).resize(size, size).png().toFile(path.join(dir, 'ic_launcher_round.png'));
-    await sharp(Buffer.from(svgFg(size))).resize(size, size).png().toFile(path.join(dir, 'ic_launcher_foreground.png'));
+    // ícono clásico (cuadrado redondeado) y redondo
+    const m = await motivo(size, 0.78);
+    await sharp(fondo(size, Math.round(size * 0.2))).composite([{ input: m }]).png().toFile(path.join(dir, 'ic_launcher.png'));
+    await sharp(fondo(size, Math.round(size / 2))).composite([{ input: await motivo(size, 0.7) }]).png().toFile(path.join(dir, 'ic_launcher_round.png'));
+    // foreground adaptativo: el motivo dentro del área segura (66 de 108)
+    await sharp(await motivo(size, 0.52)).toFile(path.join(dir, 'ic_launcher_foreground.png'));
   }
-  // color de fondo del ícono adaptativo y del splash
   const valuesDir = path.join(RES, 'values');
-  const colorsFile = path.join(valuesDir, 'ic_launcher_background.xml');
-  fs.writeFileSync(colorsFile, `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${AZUL}</color>\n</resources>\n`);
+  fs.mkdirSync(valuesDir, { recursive: true });
+  fs.writeFileSync(path.join(valuesDir, 'ic_launcher_background.xml'),
+    `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${FONDO}</color>\n</resources>\n`);
   console.log('íconos generados en', RES);
 })().catch((e) => { console.error(e); process.exit(1); });
