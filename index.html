@@ -572,7 +572,7 @@ function renderCuenta(){
     await entrarConCuenta(); };
   btn.addEventListener('click',entrar); pass.addEventListener('keydown',e=>{ if(e.key==='Enter') entrar(); });
   document.body.setAttribute('data-om-login','');
-  app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:OM_LIMA,alt:'Own Manager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro. Cada activo. Bajo tu control.'), h('div',{class:'bar'}), h('p',{class:'hint',style:'margin-top:14px;text-align:center'},'Entra con la cuenta de la estación: el teléfono de las islas o la computadora de la oficina. La app toma el nombre, el logo y las islas de esa estación; los despachadores se identifican después con su PIN.')),
+  app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:OM_LIMA,alt:'Own Manager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro bajo tu control'), h('div',{class:'bar'})),
     h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),pass), msg, btn)));
 }
 function pinScreen(d){
