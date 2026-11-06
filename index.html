@@ -809,7 +809,6 @@ function renderFotosListas(c){
   app.innerHTML='';
   const loader=omLoader({id:'ia-prog',texto:'Leyendo los contadores en las fotos…'}); loader.id='ia-loader';
   app.append(h('div',{class:'card stack',style:'text-align:center'}, h('div',{style:'font-size:44px'},'📸'), h('h1',{},'Fotos guardadas'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
-    h('p',{},'Ya terminaste en bombas. La parte 2 (lecturas, tarjetas, efectivo y clientes) la haces con calma en la computadora, entrando con tu mismo PIN.'),
     h('div',{style:'display:flex;justify-content:center;padding:6px 0'},loader),
     h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo · siguiente despachador')));
   setWho();
