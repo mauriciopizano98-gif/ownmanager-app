@@ -481,7 +481,8 @@ async function firmarFotos(fotos){ // fotos: [{id, ruta}]
     data.forEach((d,i)=>{ if(d&&d.signedUrl) S.fotoURLs[pend[i].id]=d.signedUrl; }); }
   catch(e){ console.warn('fotos', e); }
 }
-function esTablero(){ return S.rol==='dueno' || S.rol==='oficina'; }
+function esTablero(){ return S.rol==='dueno' || S.rol==='oficina' || S.rol==='central'; }
+function esCentral(){ return S.rol==='dueno' || S.rol==='central'; }
 // Convierte lo que devuelve el servidor (mi_corte o consulta de tablero) a la forma que usa la UI.
 function corteDesdeServidor(j){
   const c = j.corte || j; const lect = j.lecturas || c.lecturas || []; const fotos = j.fotos || c.fotos || [];
@@ -506,7 +507,7 @@ function aceitesParaServidor(c){ const v=(c.aceites&&c.aceites.vendidas)||{}; re
 function dineroParaServidor(c){ const d=clone(c.dinero||{}); d._aceites=(c.aceites&&c.aceites.vendidas)||{}; d._calidad=c.calidad||null; return d; }
 function setWho(){ who.innerHTML='';
   if(S.me){ who.append(h('span',{class:'avatar'},iniciales(S.me.nombre)), h('span',{class:'name'},S.me.nombre), h('button',{class:'btn sm ghost',onclick:logout},'Salir')); }
-  else if(S.usuario){ who.append(h('span',{class:'chip acc'},esTablero()?(S.rol==='dueno'?'Dueño':'Oficina'):'Kiosco'), h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); }
+  else if(S.usuario){ who.append(h('span',{class:'chip acc'},esTablero()?({dueno:'Dueño',oficina:'Oficina',central:'Central'})[S.rol]:'Kiosco'), h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); }
 }
 function abrirTablero(){ if(esTablero()){ S.adminOk=true; go('admin'); } }
 function iniciales(n){ return n.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase(); }
@@ -1454,13 +1455,14 @@ async function avisar(c){ }
 let adminTab='hoy';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const tabsDef=[['hoy','Hoy'],['cortes','Cortes'],['depositos','Depósitos'],['anulados','Anulados'],['config','Configuración']];
+  const tabsDef=[['hoy','Hoy'],['cortes','Cortes'],['depositos','Depósitos'],['anulados','Anulados'],['pagos','Pagos'],['proveedores','Proveedores'],['config','Configuración']];
   if(S.rol==='dueno') tabsDef.splice(3,0,['aceites','Aceites'],['desp','Despachadores']);
   const tabs=h('div',{class:'tabs'},...tabsDef.map(([k,l])=>h('button',{class:k===adminTab?'on':'',onclick:()=>{adminTab=k;render();}},l)));
-  const head=h('div',{}, h('p',{class:'eyebrow'},ESTACION), h('h1',{},'Tablero de cortes'));
-  if(S.rol==='dueno' && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
+  const esOficinaTab = adminTab==='pagos'||adminTab==='proveedores';
+  const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Oficina':ESTACION), h('h1',{},esOficinaTab?(adminTab==='pagos'?'Pagos a proveedores':'Proveedores'):'Tablero de cortes'));
+  if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   app.append(head, h('div',{style:'margin:12px 0'},tabs));
-  ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados})[adminTab]();
+  ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores})[adminTab]();
 }
 async function cortesTablero(filtro){
   let q=sb.from('cortes').select('*, despachadores(nombre)').eq('estacion_id',S.config.estacionId);
@@ -1699,6 +1701,174 @@ async function adminConfig(){
   box.append(isl);
   box.append(h('div',{class:'card stack'}, h('h3',{},'Integridad de los cortes'), h('p',{class:'small muted'},'Recalcula el sello de todos los cortes enviados y avisa si alguno fue alterado por fuera de la app.'), h('button',{class:'btn block',onclick:async e=>{ e.target.disabled=true; try{ const r=await rpc('verificar_integridad',{p_estacion:c.estacionId}); toast(r&&r.length?`⚠ ${r.length} corte(s) con sello que no coincide`:'✓ Todos los cortes enviados coinciden con su sello.',6000); }catch(err){ toast('No se pudo: '+(err.message||err.code),5000); } e.target.disabled=false; }},'Verificar ahora')));
 }
+// ===== OFICINA · Pagos a proveedores y Proveedores (dueño, central, oficina) =====
+// Todo pasa por la función del servidor "registrar-comprobante" (IA + Drive + registrar_pago) y por las RPC
+// buscar_pagos / crear_proveedor / anular_pago / resumen_proveedor, siempre como el usuario que entró.
+const OF = { negocio:'', texto:'', desde:'', hasta:'', cuentas:null, wizard:null };
+async function fnOficina(body){
+  const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('Sesión vencida: vuelve a entrar.');
+  omCarga(1);
+  try{
+    const r = await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/registrar-comprobante`, { method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify(body) });
+    const j = await r.json().catch(()=>({ ok:false, error:'El servidor no respondió bien ('+r.status+').' }));
+    if(j.ok===undefined) j.ok=r.ok; return j;
+  } finally{ omCarga(-1); }
+}
+async function cuentasOficina(force){
+  if(OF.cuentas && !force) return OF.cuentas;
+  const rows = await sel(sb.from('cuentas_bancarias').select('id, banco, alias, ultimos4, negocio_id, negocios(id, nombre)').eq('activa',true).order('alias'));
+  OF.cuentas = rows.map(c=>({ id:c.id, banco:c.banco, alias:c.alias, ultimos4:c.ultimos4, negocioId:c.negocio_id, negocio:c.negocios?c.negocios.nombre:'' }));
+  return OF.cuentas;
+}
+function negociosOficina(cuentas){ const m={}; for(const c of cuentas) m[c.negocioId]=c.negocio; return Object.entries(m).map(([id,nombre])=>({id,nombre})).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }
+const driveLink = id => `https://drive.google.com/file/d/${id}/view`;
+const archivoABase64 = f => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=()=>rej(new Error('No se pudo leer el archivo.')); r.readAsDataURL(f); });
+const fmtMonto = n => fmtMXN(Number(n));
+
+// ---- Pagos
+async function adminPagos(){
+  let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
+  if(!cuentas.length){ app.append(h('div',{class:'card empty'}, h('b',{},'Sin cuentas bancarias a la vista'), 'Pide al dueño que dé de alta las cuentas de tu negocio en OwnManager.')); return; }
+  const negocios=negociosOficina(cuentas);
+  const top=h('div',{class:'row between',style:'margin-bottom:10px'});
+  const selNeg=h('select',{style:'max-width:280px'}, h('option',{value:''},'Todos los negocios'), ...negocios.map(n=>h('option',{value:n.id,selected:n.id===OF.negocio},n.nombre)));
+  selNeg.addEventListener('change',()=>{ OF.negocio=selNeg.value; render(); });
+  if(negocios.length>1) top.append(selNeg); else top.append(h('p',{class:'eyebrow'},negocios[0].nombre));
+  top.append(h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'＋ Registrar pago'));
+  app.append(top);
+  if(OF.wizard){ await renderWizardPago(cuentas); }
+  // Búsqueda
+  const txt=h('input',{type:'search',placeholder:'Proveedor, folio, concepto, factura o monto',value:OF.texto,style:'flex:1;min-width:200px'});
+  const desde=h('input',{type:'date',value:OF.desde}); const hasta=h('input',{type:'date',value:OF.hasta});
+  const buscar=()=>{ OF.texto=txt.value.trim(); OF.desde=desde.value; OF.hasta=hasta.value; render(); };
+  txt.addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); });
+  app.append(h('div',{class:'card stack'}, h('div',{class:'row'}, txt, desde, hasta, h('button',{class:'btn',onclick:buscar},'Buscar'))));
+  let rows=[]; try{ rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:OF.negocio||null, p_desde:OF.desde||null, p_hasta:OF.hasta||null, p_limite:200 }); }
+  catch(e){ app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},OF.texto||OF.desde||OF.hasta?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto||OF.desde||OF.hasta?'Prueba con otra palabra o quita las fechas.':'Pulsa "Registrar pago", sube el comprobante del banco y la IA llena los datos.')); return; }
+  const tot=rows.filter(r=>r.estado!=='anulado').reduce((s,r)=>s+Number(r.monto),0);
+  app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} pago${rows.length===1?'':'s'} · ${fmtMonto(tot)} (sin anulados)`));
+  const list=h('div',{class:'list'});
+  for(const r of rows){
+    const chip = r.estado==='conciliado'? h('span',{class:'chip ok'},'conciliado') : r.estado==='anulado'? h('span',{class:'chip err'},'anulado') : h('span',{class:'chip acc'},'registrado');
+    const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null, r.concepto].filter(Boolean).join(' · ');
+    const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
+      h('div',{class:'row',style:'margin-top:6px'}, h('a',{class:'btn sm ghost',href:driveLink(r.comprobante_drive_id),target:'_blank',rel:'noopener'},'Ver comprobante'),
+        S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null)),
+      h('div',{style:'text-align:right'}, h('b',{style:r.estado==='anulado'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.monto)), h('div',{},chip)));
+    list.append(it);
+  }
+  app.append(list);
+}
+function anularPagoUI(r){
+  const motivo=h('textarea',{rows:'3',placeholder:'Por qué se anula (obligatorio)'});
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Anular pago'), h('p',{class:'muted'},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${fmtMonto(r.monto)}`),
+    h('p',{class:'small muted'},'El pago no se borra: queda marcado como anulado, con quién, cuándo y por qué. El comprobante sigue en Drive.'), motivo,
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Cancelar'),
+      h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; } try{ await rpc('anular_pago',{p_pago:r.id,p_motivo:motivo.value.trim()}); sheet.remove(); toast('Pago anulado.'); render(); }catch(e){ toast('No se pudo anular: '+(e.message||e.code),5000); } }},'Anular'))));
+  document.body.append(sheet);
+}
+
+// ---- Asistente: subir comprobante → IA → confirmar → registrar
+async function renderWizardPago(cuentas){
+  const w=OF.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px;border-color:var(--accent)'});
+  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ OF.wizard=null; render(); }},'Cerrar');
+  app.append(card);
+  if(w.paso==='archivo'){
+    const inp=h('input',{type:'file',accept:'application/pdf,image/*',style:'display:none'});
+    inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
+      if(f.size>8*1024*1024){ toast('El archivo pasa de 8 MB.'); return; }
+      w.archivo={ nombre:f.name, mime:f.type||'application/pdf', b64:await archivoABase64(f) }; w.paso='leyendo'; render();
+      const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, nombre_archivo:f.name }).catch(e=>({ok:false,error:e.message}));
+      if(!j.ok){ w.paso='archivo'; w.error=j.error; render(); return; }
+      const ia=j.extraido||{};
+      w.analisis=j; w.form={ cuentaId:j.cuenta?j.cuenta.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:ia.beneficiario||ia.nombre_corto||'',
+        fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
+        factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
+      w.paso='confirmar'; render(); });
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 1 de 2'), cerrar),
+      h('p',{class:'muted'},'Sube el comprobante del banco (PDF o foto). La IA lee cuenta, beneficiario, fecha, importe y folio; tú solo confirmas.'),
+      w.error? h('div',{class:'alert err',style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err)'},w.error):null,
+      h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir comprobante'), inp);
+    return;
+  }
+  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo el comprobante…'), cerrar), h('p',{class:'muted'},w.archivo.nombre+' · la IA está extrayendo los datos. Unos segundos.')); return; }
+  if(w.paso==='confirmar'){
+    const a=w.analisis, f=w.form, ia=a.extraido||{};
+    const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta de retiro —'), ...(a.cuentas_disponibles||[]).map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.alias}${c.ultimos4?' ···'+c.ultimos4:''} · ${c.negocio}`)));
+    cta.addEventListener('change',()=>f.cuentaId=cta.value);
+    const posibles=a.proveedores_posibles||[];
+    const prov=h('select',{}, ...posibles.map(p=>h('option',{value:p.id,selected:p.id===f.proveedorId},p.nombre+(p.rfc?' · '+p.rfc:''))), h('option',{value:'__nuevo',selected:!f.proveedorId},posibles.length?'Otro / nuevo proveedor…':'Nuevo proveedor'));
+    const provNombre=h('input',{type:'text',placeholder:'Nombre del proveedor',value:f.proveedorNombre,style:prov.value==='__nuevo'?'':'display:none'});
+    prov.addEventListener('change',()=>{ f.proveedorId=prov.value==='__nuevo'?'':prov.value; provNombre.style.display=prov.value==='__nuevo'?'':'none'; });
+    provNombre.addEventListener('input',()=>f.proveedorNombre=provNombre.value);
+    const fecha=h('input',{type:'date',value:f.fecha}); fecha.addEventListener('input',()=>f.fecha=fecha.value);
+    const monto=h('input',{type:'number',step:'0.01',min:'0',inputmode:'decimal',value:f.monto}); monto.addEventListener('input',()=>f.monto=monto.value);
+    const refe=h('input',{type:'text',value:f.referencia,placeholder:'Folio / clave de rastreo'}); refe.addEventListener('input',()=>f.referencia=refe.value);
+    const conc=h('input',{type:'text',value:f.concepto,placeholder:'Concepto de pago'}); conc.addEventListener('input',()=>f.concepto=conc.value);
+    const fact=h('input',{type:'text',value:f.factura,placeholder:'Folio de la factura que paga (opcional)'}); fact.addEventListener('input',()=>f.factura=fact.value);
+    const met=h('select',{}, ...[['transferencia','Transferencia'],['spei','SPEI'],['cheque','Cheque'],['efectivo','Efectivo'],['tarjeta','Tarjeta'],['otro','Otro']].map(([v,l])=>h('option',{value:v,selected:v===f.metodo},l))); met.addEventListener('change',()=>f.metodo=met.value);
+    const msg=h('div',{class:'small muted'});
+    const conf=Number(ia.confianza??0.5);
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 2 de 2'), cerrar),
+      h('p',{class:'small muted'},`${w.archivo.nombre} · leído por IA${ia.banco?' · '+ia.banco:''}${ia.cuenta_retiro?' · retiro ···'+ia.cuenta_retiro.slice(-4):''}${conf<0.7?' · revisa bien los datos (lectura dudosa)':''}`),
+      a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
+      ia.notas? h('p',{class:'small muted'},'Nota de la IA: '+ia.notas):null,
+      h('label',{class:'f'},h('span',{class:'l'},'Cuenta de retiro (define el negocio)'),cta),
+      h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(ia.beneficiario?' · el banco dice: '+ia.beneficiario:'')),prov, provNombre),
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Fecha de operación'),fecha), h('label',{class:'f'},h('span',{class:'l'},'Importe'),monto)),
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Folio / referencia'),refe), h('label',{class:'f'},h('span',{class:'l'},'Método'),met)),
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Concepto'),conc), h('label',{class:'f'},h('span',{class:'l'},'Factura'),fact)),
+      msg,
+      h('button',{class:'btn primary big block',onclick:async e=>{
+        if(!f.cuentaId){ msg.textContent='Elige la cuenta de retiro.'; return; }
+        if(!f.proveedorId && !f.proveedorNombre.trim()){ msg.textContent='Escribe el nombre del proveedor.'; return; }
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(f.fecha)){ msg.textContent='Revisa la fecha.'; return; }
+        if(!(Number(f.monto)>0)){ msg.textContent='Revisa el importe.'; return; }
+        const b=e.currentTarget; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
+        const j=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, cuenta_id:f.cuentaId,
+          proveedor_id:f.proveedorId||null, proveedor_nombre:f.proveedorId?null:f.proveedorNombre.trim(), fecha:f.fecha, monto:Number(f.monto),
+          referencia:f.referencia.trim()||null, concepto:f.concepto.trim()||null, factura:f.factura.trim()||null, metodo:f.metodo, extraido_ia:ia }).catch(err=>({ok:false,error:err.message}));
+        if(!j.ok){ b.disabled=false; msg.textContent=''; w.error=j.error; if(j.codigo==='comprobante_duplicado'){ w.paso='archivo'; } render(); return; }
+        w.paso='listo'; w.resultado=j; OF.cuentas=null; render(); }},'Registrar pago'),
+      w.error? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null);
+    return;
+  }
+  if(w.paso==='listo'){
+    const r=w.resultado;
+    card.append(h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
+      h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
+      h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro')));
+  }
+}
+
+// ---- Proveedores
+let provAbierto=null;
+async function adminProveedores(){
+  let rows=[]; try{ rows=await sel(sb.from('proveedores').select('id, nombre, rfc, alias, activo').eq('activo',true).order('nombre')); }
+  catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar: '+(e.message||e.code))); return; }
+  const nombre=h('input',{type:'text',placeholder:'Nombre del proveedor (como viene en la factura)'}); const rfc=h('input',{type:'text',placeholder:'RFC (opcional)',style:'max-width:180px'});
+  app.append(h('div',{class:'card stack'}, h('h3',{},'Nuevo proveedor'), h('div',{class:'row'}, nombre, rfc, h('button',{class:'btn primary',onclick:async()=>{ if(!nombre.value.trim()){ toast('Escribe el nombre.'); return; } try{ await rpc('crear_proveedor',{p_nombre:nombre.value.trim(),p_rfc:rfc.value.trim()||null}); toast('Proveedor guardado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }},'Guardar')),
+    h('p',{class:'hint'},'También se crean solos al registrar un pago con un proveedor nuevo. Si el banco lo nombra distinto, ese nombre se guarda como alias.')));
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},'Todavía no hay proveedores'))); return; }
+  const list=h('div',{class:'list'});
+  for(const p of rows){
+    const it=h('div',{class:'item'}, h('div',{class:'l'}, h('b',{},p.nombre), h('span',{class:'small muted'},[p.rfc, (p.alias||[]).length?'alias: '+p.alias.join(', '):null].filter(Boolean).join(' · ')||'—')), h('span',{class:'small muted'},provAbierto===p.id?'▲':'▼'));
+    it.addEventListener('click',async()=>{ provAbierto=provAbierto===p.id?null:p.id; render(); });
+    list.append(it);
+    if(provAbierto===p.id){
+      const det=h('div',{class:'card stack',style:'margin:-4px 0 4px'}); list.append(det);
+      try{ const r=await rpc('resumen_proveedor',{p_proveedor:p.id}); const pagos=await rpc('buscar_pagos',{p_proveedor:p.id,p_limite:10});
+        det.append(h('div',{class:'grid2'}, h('div',{},h('span',{class:'small muted'},'Pagos'),h('div',{},h('b',{},String(r.pagos||0)))), h('div',{},h('span',{class:'small muted'},'Total pagado'),h('div',{},h('b',{},fmtMonto(r.total||0)))), h('div',{},h('span',{class:'small muted'},'Último pago'),h('div',{},h('b',{},r.ultimo?fmtFecha(r.ultimo):'—'))), h('div',{},h('span',{class:'small muted'},'Sin conciliar'),h('div',{},h('b',{},String(r.sin_conciliar||0))))));
+        for(const x of pagos) det.append(h('div',{class:'money'}, h('span',{},`${fmtFecha(x.fecha)} · ${x.negocio}`, h('span',{class:'small muted'},x.referencia?' · folio '+x.referencia:'')), h('span',{}, h('b',{},fmtMonto(x.monto)),' ', h('a',{class:'small',href:driveLink(x.comprobante_drive_id),target:'_blank',rel:'noopener'},'ver'))));
+        if(esCentral()){ const al=h('input',{type:'text',placeholder:'Agregar alias (otro nombre con que aparece en el banco)'}); det.append(h('div',{class:'row'}, al, h('button',{class:'btn sm',onclick:async()=>{ const v=al.value.trim(); if(!v) return; try{ await sel(sb.from('proveedores').update({alias:[...(p.alias||[]),v]}).eq('id',p.id)); toast('Alias agregado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }},'Agregar'))); }
+      }catch(e){ det.append(h('p',{class:'small muted'},'No se pudo cargar el detalle: '+(e.message||e.code))); }
+    }
+  }
+  app.append(list);
+}
+
 // La rueda del mouse no debe cambiar valores numéricos (al girar sobre un campo con foco, se quita el foco)
 document.addEventListener('wheel', e=>{ const a=document.activeElement; if(a && a.tagName==='INPUT' && a.type==='number' && (e.target===a || a.contains(e.target))) a.blur(); }, {passive:true});
 document.addEventListener('keydown', e=>{ const a=e.target; if(a && a.tagName==='INPUT' && a.type==='number' && (e.key==='ArrowUp'||e.key==='ArrowDown')) e.preventDefault(); });
