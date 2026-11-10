@@ -139,6 +139,9 @@ body[data-om-login] .foot{display:none}
 .btn.sm{min-height:36px;padding:6px 12px;font-size:13px}
 
 /* Chips */
+.ro{display:flex;align-items:center;min-height:46px;padding:11px 12px;border:1px dashed var(--line);border-radius:var(--r-sm);background:transparent;color:var(--fg);font:500 16px var(--font-body);word-break:break-word}
+.ro:empty::before{content:'—';color:var(--muted)}
+.chip.edit{background:var(--warn-soft);color:var(--warn)}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--surface2);color:var(--muted);border:1px solid transparent}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
 .chip.warn{background:var(--warn-soft);color:var(--warn)}
@@ -479,6 +482,12 @@ function nowMX(){
   return { fecha:`${g('year')}-${g('month')}-${g('day')}`, hora:hh, min:Number(g('minute')), hhmm:`${String(hh).padStart(2,'0')}:${g('minute')}` };
 }
 function addDays(fecha, d){ const [y,m,dd]=fecha.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,dd+d)); return t.toISOString().slice(0,10); }
+const NOMBRE_CAMPO={fecha:'fecha',total:'total',monto:'importe',serie:'serie',folio:'folio',referencia:'referencia',concepto:'concepto'};
+function chipEditado(cambios, fem){
+  const partes=Object.entries(cambios||{}).map(([k,v])=>`${NOMBRE_CAMPO[k]||k}: ${v.de??'—'} → ${v.a??'—'}`);
+  return h('span',{class:'chip edit',title:partes.join('\n')||'Datos cambiados a mano'}, fem?'editada':'editado');
+}
+function fmtFechaLarga(f){ if(!f) return ''; const [y,m,d]=f.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).toLocaleDateString('es-MX',{timeZone:'UTC',day:'numeric',month:'long',year:'numeric'}); }
 function fmtFecha(f){ if(!f) return ''; const [y,m,d]=f.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).toLocaleDateString('es-MX',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short'}); }
 function fmtHora(iso){ if(!iso) return ''; return new Date(iso).toLocaleTimeString('es-MX',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}); }
 const VENTANA_CIERRE_MIN=240; // 4 h después del cierre, el corte sigue siendo de ese turno
@@ -1561,6 +1570,8 @@ async function renderAdmin(){
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  editar:'<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/>',
+  candado:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   chat:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4.2 3.4c-.4.3-.8 0-.8-.5V5.5Z"/>',
   factura:'<path d="M7 3h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
   buscar:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
@@ -1890,7 +1901,7 @@ async function consultaPagos(){
     const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
       h('div',{class:'row',style:'margin-top:6px'}, h('a',{class:'btn sm ghost',href:driveLink(r.comprobante_drive_id),target:'_blank',rel:'noopener'},'Ver comprobante'),
         S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null)),
-      h('div',{style:'text-align:right'}, h('b',{style:r.estado==='anulado'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.monto)), h('div',{},chip)));
+      h('div',{style:'text-align:right'}, h('b',{style:r.estado==='anulado'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.monto)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editado?chipEditado(r.cambios,false):null)));
     list.append(it);
   }
   app.append(list);
@@ -1902,6 +1913,26 @@ function anularPagoUI(r){
     h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Cancelar'),
       h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; } try{ await rpc('anular_pago',{p_pago:r.id,p_motivo:motivo.value.trim()}); sheet.remove(); toast('Pago anulado.'); render(); }catch(e){ aviso(e.message||e.code,'err',10000,'No se pudo anular'); } }},'Anular'))));
   document.body.append(sheet);
+}
+
+// ---- Paso 2: los datos del XML / la IA van bloqueados. "Editar" los abre, pero el registro queda marcado como editado.
+function campoRO(label, inp, valor){
+  // inp: el input real; valor: texto a mostrar cuando está bloqueado
+  const ro=h('div',{class:'ro'}, valor==null||valor===''?'':String(valor));
+  return { el:h('label',{class:'f'}, h('span',{class:'l'},label), ro, inp), ro, inp, set(bloqueado){ ro.style.display=bloqueado?'':'none'; inp.style.display=bloqueado?'none':''; } };
+}
+function bloqueoDatos(w, campos, que){
+  // campos: [{...campoRO}] · que: 'factura' | 'pago'
+  const nota=h('div',{class:'small',style:'display:flex;align-items:center;gap:8px;color:var(--muted)'});
+  const btn=h('button',{class:'btn sm ghost',type:'button'}, ico(w.editando?'candado':'editar'), w.editando?'Dejar como estaba':'Editar');
+  const aplicar=()=>{ for(const c of campos) c.set(!w.editando);
+    nota.replaceChildren(ico(w.editando?'editar':'candado'), w.editando
+      ? h('span',{style:'color:var(--warn)'},`Estás editando. Si cambias algún dato, ${que==='factura'?'la factura quedará marcada como editada':'el pago quedará marcado como editado'} y se guardará qué cambió.`)
+      : h('span',{},`Datos tomados ${que==='factura'?'del XML / lectura de IA':'por la IA del comprobante'}. Solo confirma; si algo no coincide con el documento, usa Editar.`));
+    btn.replaceChildren(ico(w.editando?'candado':'editar'), w.editando?'Dejar como estaba':'Editar'); };
+  btn.addEventListener('click',()=>{ w.editando=!w.editando; if(!w.editando && w.original){ Object.assign(w.form, w.original); for(const c of campos){ if(c.reset) c.reset(); } } aplicar(); });
+  aplicar();
+  return { fila:h('div',{class:'row',style:'justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap'}, nota, btn) };
 }
 
 // ---- Asistente: subir comprobante → IA → confirmar → registrar
@@ -1920,6 +1951,7 @@ async function renderWizardPago(cuentas, fijo){
       w.analisis=j; w.form={ cuentaId:j.cuenta?j.cuenta.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:ia.beneficiario||ia.nombre_corto||'',
         fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
         factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
+      w.original={ fecha:w.form.fecha, monto:w.form.monto, referencia:w.form.referencia, concepto:w.form.concepto }; w.editando=false;
       w.paso='confirmar'; render(); });
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Comprobante'), cerrar),
       h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir comprobante'), inp);
@@ -1943,15 +1975,20 @@ async function renderWizardPago(cuentas, fijo){
     const met=h('select',{}, ...[['transferencia','Transferencia'],['spei','SPEI'],['cheque','Cheque'],['efectivo','Efectivo'],['tarjeta','Tarjeta'],['otro','Otro']].map(([v,l])=>h('option',{value:v,selected:v===f.metodo},l))); met.addEventListener('change',()=>f.metodo=met.value);
     const msg=h('div',{class:'small muted'});
     const conf=Number(ia.confianza??0.5);
+    const cFecha=campoRO('Fecha de operación',fecha,f.fecha?fmtFechaLarga(f.fecha):''), cMonto=campoRO('Importe',monto,f.monto!==''?fmtMonto(f.monto):''),
+          cRefe=campoRO('Folio / referencia',refe,f.referencia), cConc=campoRO('Concepto',conc,f.concepto);
+    cFecha.reset=()=>{ fecha.value=f.fecha; }; cMonto.reset=()=>{ monto.value=f.monto; }; cRefe.reset=()=>{ refe.value=f.referencia; }; cConc.reset=()=>{ conc.value=f.concepto; };
+    const bloqueo=bloqueoDatos(w,[cFecha,cMonto,cRefe,cConc],'pago');
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
       h('p',{class:'small muted'},`${w.archivo.nombre} · leído por IA${ia.banco?' · '+ia.banco:''}${ia.cuenta_retiro?' · retiro ···'+ia.cuenta_retiro.slice(-4):''}${conf<0.7?' · revisa bien los datos (lectura dudosa)':''}`),
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       ia.notas? h('p',{class:'small muted'},'Nota de la IA: '+ia.notas):null,
       h('label',{class:'f'},h('span',{class:'l'},'Cuenta de retiro (define el negocio)'),cta),
       h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(ia.beneficiario?' · el banco dice: '+ia.beneficiario:'')),prov, provNombre),
-      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Fecha de operación'),fecha), h('label',{class:'f'},h('span',{class:'l'},'Importe'),monto)),
-      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Folio / referencia'),refe), h('label',{class:'f'},h('span',{class:'l'},'Método'),met)),
-      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Concepto'),conc), h('label',{class:'f'},h('span',{class:'l'},'Factura'),fact)),
+      bloqueo.fila,
+      h('div',{class:'grid2'}, cFecha.el, cMonto.el),
+      h('div',{class:'grid2'}, cRefe.el, h('label',{class:'f'},h('span',{class:'l'},'Método'),met)),
+      h('div',{class:'grid2'}, cConc.el, h('label',{class:'f'},h('span',{class:'l'},'Factura'),fact)),
       msg,
       h('button',{class:'btn primary big block',onclick:async e=>{
         if(!f.cuentaId){ msg.textContent='Elige la cuenta de retiro.'; return; }
@@ -2124,7 +2161,7 @@ async function consultaFacturas(){
     if(r.pago_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pago_drive_id),target:'_blank',rel:'noopener'},'Comprobante del pago'));
     if(S.rol==='dueno' && r.estado!=='cancelada') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>cancelarFacturaUI(r,sf)},'Cancelar'));
     list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},det), acciones),
-      h('div',{style:'text-align:right'}, h('b',{style:r.estado==='cancelada'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.total)), h('div',{},chip))));
+      h('div',{style:'text-align:right'}, h('b',{style:r.estado==='cancelada'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.total)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editada?chipEditado(r.cambios,true):null))));
   }
   app.append(list);
 }
@@ -2157,6 +2194,7 @@ async function renderWizardFactura(fijo){
       const j=await fnOficina({ accion:'analizar', xml_base64:w.xml?w.xml.b64:null, pdf_base64:w.pdf?w.pdf.b64:null, pdf_mime:w.pdf?w.pdf.mime:null }, 'registrar-factura').catch(e=>({ok:false,error:e.message}));
       if(!j.ok){ w.paso='archivos'; render(); aviso(j.error||('No se pudo leer la factura'+(j.codigo?' ('+j.codigo+')':'')+'.'),'err',10000,'No se puede registrar'); return; }
       const x=j.extraido||{}; w.analisis=j; w.form={ negocioId:j.negocio?j.negocio.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:x.emisor_nombre||'', fecha:x.fecha||nowMX().fecha, total:x.total!=null?String(x.total):'', serie:x.serie||'', folio:x.folio||'', concepto:x.concepto||'', notas:'' };
+      w.original={ fecha:w.form.fecha, total:w.form.total, serie:w.form.serie, folio:w.form.folio, concepto:w.form.concepto }; w.editando=false;
       w.paso='confirmar'; render(); }},'Leer la factura');
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Archivos'), cerrar),
       fila('XML de la factura (CFDI)', inXml, ()=>w.xml, v=>w.xml=v), fila('PDF o foto de la factura', inPdf, ()=>w.pdf, v=>w.pdf=v), inXml, inPdf, btnLeer);
@@ -2177,14 +2215,19 @@ async function renderWizardFactura(fijo){
     const conc=h('input',{type:'text',value:f.concepto,placeholder:'Qué se facturó'}); conc.addEventListener('input',()=>f.concepto=conc.value);
     const notas=h('input',{type:'text',value:f.notas,placeholder:'Opcional'}); notas.addEventListener('input',()=>f.notas=notas.value);
     const soloXml=a.origen==='xml'; const msg=h('div',{class:'small muted'});
+    const cFecha=campoRO('Fecha',fecha,f.fecha?fmtFechaLarga(f.fecha):''), cTotal=campoRO('Total',total,f.total!==''?fmtMonto(f.total):''),
+          cSerie=campoRO('Serie',serie,f.serie||'Sin serie'), cFolio=campoRO('Folio',folio,f.folio), cConc=campoRO('Concepto',conc,f.concepto);
+    cFecha.reset=()=>{ fecha.value=f.fecha; }; cTotal.reset=()=>{ total.value=f.total; }; cSerie.reset=()=>{ serie.value=f.serie; }; cFolio.reset=()=>{ folio.value=f.folio; }; cConc.reset=()=>{ conc.value=f.concepto; };
+    const bloqueo=bloqueoDatos(w,[cFecha,cTotal,cSerie,cFolio,cConc],'factura');
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
       h('p',{class:'small muted'}, soloXml? `Datos exactos del XML${x.uuid?' · UUID '+x.uuid:''}${x.emisor_rfc?' · RFC emisor '+x.emisor_rfc:''}` : `Leída por IA del PDF${Number(x.confianza??0.5)<0.7?' · lectura dudosa, revisa bien':''}`),
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       (a.negocios_disponibles||[]).length>1? h('label',{class:'f'},h('span',{class:'l'},'Negocio (receptor)'),neg):null,
       h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(x.emisor_nombre?' · emisor: '+x.emisor_nombre:'')),prov, provNombre),
-      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Fecha'),fecha), h('label',{class:'f'},h('span',{class:'l'},'Total'),total)),
-      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Serie'),serie), h('label',{class:'f'},h('span',{class:'l'},'Folio'),folio)),
-      h('label',{class:'f'},h('span',{class:'l'},'Concepto'),conc), h('label',{class:'f'},h('span',{class:'l'},'Notas'),notas), msg,
+      bloqueo.fila,
+      h('div',{class:'grid2'}, cFecha.el, cTotal.el),
+      h('div',{class:'grid2'}, cSerie.el, cFolio.el),
+      cConc.el, h('label',{class:'f'},h('span',{class:'l'},'Notas'),notas), msg,
       h('button',{class:'btn primary big block',onclick:async e=>{
         const negocioId=f.negocioId||((a.negocios_disponibles||[])[0]||{}).id; if(!negocioId){ msg.textContent='Elige el negocio.'; return; }
         if(!f.proveedorId && !f.proveedorNombre.trim()){ msg.textContent='Escribe el nombre del proveedor.'; return; }
