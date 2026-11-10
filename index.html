@@ -373,9 +373,16 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 
 /* ---- Tablero / Oficina: menú lateral con iconos y más aire */
 body[data-om-nav] .wrap{max-width:1180px}
-body[data-om-nav] .top .in{max-width:1180px;padding-block:12px}
-body[data-om-nav] .logo{height:92px;max-width:min(60vw,420px)}
-@media (max-width:760px){body[data-om-nav] .logo{height:64px;max-width:min(58vw,300px)}}
+body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max(22px,env(safe-area-inset-left,0px));padding-right:max(22px,env(safe-area-inset-right,0px))}
+.brand .modlogo{display:block;height:46px;width:auto;border-radius:10px;background:#000;padding:6px 10px;box-sizing:border-box}
+#who{display:flex;align-items:center;gap:10px}
+#who .empresa{width:46px;height:46px;border-radius:50%;background:#fff;border:2px solid var(--line);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex:none;box-shadow:var(--shadow)}
+#who .empresa img{width:100%;height:100%;object-fit:cover}
+#who .empresa.ini{background:var(--accent-soft);color:var(--accent);font:800 15px var(--font-display)}
+#who .emp-nm{display:flex;flex-direction:column;line-height:1.15;max-width:200px}
+#who .emp-nm b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#who .emp-nm small{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+@media (max-width:760px){.brand .modlogo{height:38px;padding:5px 8px}#who .emp-nm{display:none}#who .empresa{width:38px;height:38px}}
 .om-shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px;align-items:start}
 .om-shell .om-main{min-width:0}
 .sidenav{position:sticky;top:76px;display:flex;flex-direction:column;gap:4px}
@@ -561,9 +568,15 @@ function corteDesdeServidor(j){
 function lecturasParaServidor(c){ return c.lecturas.map(l=>({ manguera_id:l.mangueraId, inicial:l.inicial, final:l.final, origen:l.origen==='ia'?'ia':(l.final!=null?'manual':null), lectura_ia:l.lecturaIA, legible_ia:l.legibleIA, motivo_cero:l.omitida?'Bomba cerrada en este turno (sin venta)':(l.motivoCero||null), motivo_correccion:l.inicialCorregida?(l.motivo||null):null })); }
 function aceitesParaServidor(c){ const v=(c.aceites&&c.aceites.vendidas)||{}; return catAceites().filter(a=>Number(v[a.id])>0).map(a=>({aceite_id:a.uuid, piezas:Number(v[a.id])})); }
 function dineroParaServidor(c){ const d=clone(c.dinero||{}); d._aceites=(c.aceites&&c.aceites.vendidas)||{}; d._calidad=c.calidad||null; return d; }
+function avatarEmpresa(){ const c=S.config; if(!c) return null;
+  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco'})[S.rol]||'';
+  const nombre=(S.rol==='dueno'||S.rol==='central')? (S.usuario&&S.usuario.nombre)||c.nombre : c.nombre;
+  const av = c.logoData ? h('span',{class:'empresa',title:nombre}, h('img',{src:c.logoData,alt:nombre})) : h('span',{class:'empresa ini',title:nombre}, iniciales(nombre));
+  return h('span',{class:'row',style:'gap:10px'}, av, h('span',{class:'emp-nm'}, h('b',{},nombre), h('small',{},rol))); }
 function setWho(){ who.innerHTML='';
   if(S.me){ who.append(h('span',{class:'avatar'},iniciales(S.me.nombre)), h('span',{class:'name'},S.me.nombre), h('button',{class:'btn sm ghost',onclick:logout},'Salir')); }
-  else if(S.usuario){ who.append(h('span',{class:'chip acc'},esTablero()?({dueno:'Dueño',oficina:'Oficina',central:'Central'})[S.rol]:'Kiosco'), h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); }
+  else if(S.usuario){ const av=avatarEmpresa(); if(av) who.append(av); who.append(h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); }
+  if(S.usuario) document.body.setAttribute('data-om-sesion','1'); else document.body.removeAttribute('data-om-sesion');
 }
 function abrirTablero(){ if(S.rol==='oficina'){ go('oficina'); } else if(esTablero()){ S.adminOk=true; go('admin'); } }
 function iniciales(n){ return n.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase(); }
@@ -649,7 +662,7 @@ async function cargarConfig(){
 }
 // Cabecera: logo de la estación (si tiene) o su nombre; sin cuenta, la marca Own Manager.
 function setBrand(){ const b=$('#brand'); if(!b) return; b.innerHTML='';
-  if(S.usuario && S.config){ if(S.config.logoData) b.append(h('img',{class:'logo',src:S.config.logoData,alt:S.config.nombre})); else b.append(h('span',{class:'nm'},S.config.nombre, h('small',{},'Own Manager'))); }
+  if(S.usuario && S.config){ const mod=S.rol==='kiosco'?'kiosko':(S.rol==='oficina'?'oficina':'central'); b.append(h('img',{class:'modlogo',src:`marca/om-${mod}.webp`,alt:'Own Manager '+mod,onclick:()=>{ if(S.rol==='oficina'){ oficinaTab='chat'; go('oficina'); } else if(esTablero()){ adminTab='chat'; go('admin'); } }})); }
   else b.append(h('img',{class:'om',src:OM_LIMA,alt:''}), h('span',{class:'nm'},'Own Manager', h('small',{},'Corte por turno'))); }
 function medirLogo(){ const c=S.config; if(!c||!c.logoData) return; const im=new Image(); im.onload=()=>{ if(S.config===c) c.logoRatio=im.naturalHeight?im.naturalWidth/im.naturalHeight:null; }; im.src=c.logoData; }
 function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empty'}, h('b',{},'No se pudo entrar'), msg||'', h('button',{class:'btn block',style:'margin-top:10px',onclick:cerrarCuenta},'Cerrar cuenta'))); }
@@ -670,7 +683,6 @@ function renderLogin(){
   if(!S.destino || !['home','deposito'].includes(S.destino)) S.destino='home';
   const box=h('div',{class:'login'});
   const esDep=S.destino==='deposito';
-  box.append(h('div',{class:'modulo kiosko'}, h('img',{src:'marca/om-kiosko.webp',alt:'Own Manager Kiosko'})));
   box.append(h('div',{}, h('p',{class:'eyebrow'},ESTACION), h('h1',{},esDep?'Depósito a caja fuerte':'Corte mecánico por turno'), h('p',{class:'muted'},esDep?'Registra el efectivo que vas a meter a la caja fuerte. Elige tu nombre y teclea tu PIN.':'Elige tu nombre y teclea tu PIN para abrir el corte de tu isla.')));
   const modo=h('div',{class:'modo'},
     h('button',{class:esDep?'':'on',onclick:()=>{ S.destino='home'; render(); }}, h('span',{class:'ic'},'⛽'), h('span',{}, h('b',{},'Iniciar corte'), h('small',{},'de turno'))),
