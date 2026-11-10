@@ -252,6 +252,10 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .om-loader.chico{display:inline-flex;flex-direction:row;gap:8px;align-items:center;color:inherit}
 .om-loader svg{display:block;width:120px;height:120px;overflow:visible}
 .om-loader.chico svg{width:22px;height:22px}
+.om-loader.medio svg{width:64px;height:64px}
+.om-loader.medio .pulso{width:64px}
+.om-loader.medio .txt{font:500 13px/1.4 var(--font-body)}
+.om-cargando{display:flex;justify-content:center;padding:34px 0}
 .om-loader .cubo{fill:currentColor;stroke:none}
 .om-loader.chico .cubo{stroke:currentColor;stroke-width:1.2;stroke-linejoin:round}
 .om-loader .gota-g{transform-box:fill-box;transform-origin:50% 55%;animation:om-beat 1.6s ease-in-out infinite}
@@ -478,7 +482,7 @@ const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, { au
 function errSrv(e){ if(e instanceof Error && !e.raw) return e; const m=(e&&(e.hint||e.details||e.message))||String(e); const err=new Error(m); err.code=e&&e.code; err.raw=e; return err; }
 // ---- Loader de marca Own Manager (cubo + gota que se llena + barra de pulso)
 let omSeq=0;
-function omLoader(o){ o=o||{}; const id='omg'+(++omSeq); const chico=o.tam==='chico';
+function omLoader(o){ o=o||{}; const id='omg'+(++omSeq); const chico=o.tam==='chico'; const medio=o.tam==='medio';
   // Geometría real del isotipo (vectorizada de marca/om-isotipo-lima.jpg con marca/vector/vectorizar.py)
   const svg=`<svg viewBox="0 0 100 100" aria-hidden="true"><defs>
     <linearGradient id="${id}" x1="0" y1="1" x2="0" y2="0"><stop offset="0" style="stop-color:var(--om-g1)"/><stop offset=".55" style="stop-color:var(--om-g2)"/><stop offset="1" style="stop-color:var(--om-g3)"/></linearGradient>
@@ -487,7 +491,7 @@ function omLoader(o){ o=o||{}; const id='omg'+(++omSeq); const chico=o.tam==='ch
     <g class="gota-g"><g clip-path="url(#${id}c)"><rect class="gota-rel" x="38" y="2" width="24" height="34" fill="url(#${id})"/></g>
       <path class="cubo gota-trazo" fill-rule="evenodd" d="M49 35C43.3 34.4 38.9 29.4 39.2 23.7C39.3 20.7 41.7 15.3 46.1 8C47.4 5.8 49.2 3 49.4 2.9C49.8 2.6 50.4 2.6 50.8 2.9C51.1 3.2 53.6 7.2 55.1 9.8C58.7 16.1 60.7 20.8 60.9 23.4C61.1 26.5 59.9 29.5 57.6 31.9C56.3 33.2 55.1 33.9 53.4 34.5C52.2 34.9 50.4 35.1 49 35ZM51.5 32.8C52.6 32.7 54.3 31.9 55.3 31.2C57.4 29.6 58.7 27.1 58.8 24.5C58.9 22.1 57.6 18.6 54.2 12.6C53 10.4 50.2 5.7 50.1 5.7C49.8 5.7 45.7 12.7 44.1 15.9C41.6 20.8 40.9 23.2 41.4 25.6C42.2 30.4 46.7 33.6 51.5 32.8ZM48.9 30.3C46.2 29.9 43.9 27.3 43.7 24.4C43.7 23.8 43.7 23.7 43.8 23.5C44.1 23 44.6 22.9 45.2 23.1C45.6 23.3 45.7 23.5 45.8 24.2C46 26.5 47.6 28.2 49.7 28.4C50.4 28.4 50.5 28.5 50.8 28.8C51.2 29.3 51 30 50.5 30.3C50.2 30.4 49.6 30.4 48.9 30.3Z"/></g>
   </svg>`;
-  const el=h('div',{class:'om-loader'+(chico?' chico':''),role:'status','aria-live':'polite'}); el.innerHTML=svg;
+  const el=h('div',{class:'om-loader'+(chico?' chico':'')+(medio?' medio':''),role:'status','aria-live':'polite'}); el.innerHTML=svg;
   const txt=h('span',{class:'txt',id:o.id||''},o.texto||''); if(!chico) el.append(h('div',{class:'pulso'})); el.append(txt);
   el.texto=t=>{ txt.textContent=t||''; return el; };
   el.listo=t=>{ el.classList.add('listo'); if(t!=null) txt.textContent=t; return el; };
@@ -1789,8 +1793,10 @@ async function adminPagos(){
   const buscar=()=>{ OF.texto=txt.value.trim(); OF.desde=desde.value; OF.hasta=hasta.value; render(); };
   txt.addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); });
   app.append(h('div',{class:'card stack'}, h('div',{class:'row'}, txt, desde, hasta, h('button',{class:'btn',onclick:buscar},'Buscar'))));
+  const espera=omEsperando(['Cargando pagos…','Revisando comprobantes…','Casi listo…']); app.append(espera);
   let rows=[]; try{ rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:OF.negocio||null, p_desde:OF.desde||null, p_hasta:OF.hasta||null, p_limite:200 }); }
-  catch(e){ app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  espera.remove();
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},OF.texto||OF.desde||OF.hasta?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto||OF.desde||OF.hasta?'Prueba con otra palabra o quita las fechas.':'Pulsa "Registrar pago", sube el comprobante del banco y la IA llena los datos.')); return; }
   const tot=rows.filter(r=>r.estado!=='anulado').reduce((s,r)=>s+Number(r.monto),0);
   app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} pago${rows.length===1?'':'s'} · ${fmtMonto(tot)} (sin anulados)`));
@@ -1838,7 +1844,7 @@ async function renderWizardPago(cuentas){
       h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir comprobante'), inp);
     return;
   }
-  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo el comprobante…'), cerrar), h('p',{class:'muted'},w.archivo.nombre+' · la IA está extrayendo los datos. Unos segundos.')); return; }
+  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo el comprobante…'), cerrar), omEsperando(['La IA está leyendo '+w.archivo.nombre+'…','Buscando la cuenta de retiro…','Buscando al proveedor…'])); return; }
   if(w.paso==='confirmar'){
     const a=w.analisis, f=w.form, ia=a.extraido||{};
     const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta de retiro —'), ...(a.cuentas_disponibles||[]).map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.alias}${c.ultimos4?' ···'+c.ultimos4:''} · ${c.negocio}`)));
@@ -1891,8 +1897,10 @@ async function renderWizardPago(cuentas){
 // ---- Proveedores
 let provAbierto=null;
 async function adminProveedores(){
+  const espera=omEsperando(['Cargando proveedores…','Casi listo…']); app.append(espera);
   let rows=[]; try{ rows=await sel(sb.from('proveedores').select('id, nombre, rfc, alias, activo').eq('activo',true).order('nombre')); }
-  catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar: '+(e.message||e.code))); return; }
+  catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudieron cargar: '+(e.message||e.code))); return; }
+  espera.remove();
   const nombre=h('input',{type:'text',placeholder:'Nombre del proveedor (como viene en la factura)'}); const rfc=h('input',{type:'text',placeholder:'RFC (opcional)',style:'max-width:180px'});
   app.append(h('div',{class:'card stack'}, h('h3',{},'Nuevo proveedor'), h('div',{class:'row'}, nombre, rfc, h('button',{class:'btn primary',onclick:async()=>{ if(!nombre.value.trim()){ toast('Escribe el nombre.'); return; } try{ await rpc('crear_proveedor',{p_nombre:nombre.value.trim(),p_rfc:rfc.value.trim()||null}); toast('Proveedor guardado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }},'Guardar')),
     h('p',{class:'hint'},'También se crean solos al registrar un pago con un proveedor nuevo. Si el banco lo nombra distinto, ese nombre se guarda como alias.')));
@@ -1928,6 +1936,8 @@ async function renderOficina(){
   try{ await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos})[oficinaTab](); } finally{ app=prev; }
 }
 
+// Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
+function omEsperando(frases, tam){ const l=omLoader({tam:tam||'medio', texto:frases[0]}); let i=0; const t=setInterval(()=>{ if(!l.isConnected){ clearInterval(t); return; } i=(i+1)%frases.length; l.texto(frases[i]); }, 1800); return h('div',{class:'om-cargando'}, l); }
 // ---- Chat con IA (consulta pagos, facturas y documentos con los permisos de quien pregunta)
 const CHAT = { mensajes:[], ocupado:false };
 function saludoDelDia(){
@@ -1953,7 +1963,7 @@ async function oficinaChat(){
       hilo.append(h('div',{class:'bub '+(m.rol==='usuario'?'yo':'ia')}, m.texto));
       if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},(r.tipo==='factura'?'📄 ':'🧾 ')+r.titulo.slice(0,48)))));
     }
-    if(CHAT.ocupado) hilo.append(h('div',{class:'small muted',style:'align-self:flex-start;padding:4px 8px'},'Buscando…'));
+    if(CHAT.ocupado) hilo.append(h('div',{class:'bub ia',style:'padding:10px 14px'}, omLoader({tam:'chico',texto:['Buscando en pagos y facturas…','Revisando documentos…','Armando la respuesta…'][Math.floor(Date.now()/1800)%3]})));
     hilo.scrollTop=hilo.scrollHeight; };
   const inp=h('textarea',{rows:'2',placeholder:'Escribe aquí… (p. ej. ¿ya se le pagó a Gaspremia?)'});
   const enviar=async()=>{ const t=inp.value.trim(); if(!t||CHAT.ocupado) return; inp.value=''; CHAT.mensajes.push({rol:'usuario',texto:t}); CHAT.ocupado=true; pinta();
@@ -1979,8 +1989,10 @@ async function oficinaFacturas(){
   const buscar=()=>{ FA.texto=txt.value.trim(); FA.desde=desde.value; FA.hasta=hasta.value; FA.estado=est.value; render(); };
   txt.addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); }); est.addEventListener('change',buscar);
   app.append(h('div',{class:'card stack'}, h('div',{class:'row'}, txt, desde, hasta, est, h('button',{class:'btn',onclick:buscar},'Buscar'))));
+  const espera=omEsperando(['Cargando facturas…','Leyendo el archivo…','Casi listo…']); app.append(espera);
   let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:OF.negocio||null, p_desde:FA.desde||null, p_hasta:FA.hasta||null, p_estado:FA.estado||null, p_limite:200 }); }
-  catch(e){ app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  espera.remove();
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},FA.texto||FA.desde||FA.estado?'Sin resultados':'Todavía no hay facturas'), FA.texto||FA.desde||FA.estado?'Prueba con otra palabra o quita los filtros.':'Pulsa "Agregar factura" y sube el XML que te mandó el proveedor.')); return; }
   const tot=rows.filter(r=>r.estado!=='cancelada').reduce((s,r)=>s+Number(r.total),0), pend=rows.filter(r=>r.estado==='registrada').reduce((s,r)=>s+Number(r.total),0);
   app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} factura${rows.length===1?'':'s'} · ${fmtMonto(tot)} · sin pagar ${fmtMonto(pend)}`));
@@ -2034,7 +2046,7 @@ async function renderWizardFactura(){
       fila('XML de la factura (CFDI)', inXml, ()=>w.xml, v=>w.xml=v), fila('PDF o foto de la factura', inPdf, ()=>w.pdf, v=>w.pdf=v), inXml, inPdf, btnLeer);
     return;
   }
-  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo la factura…'), cerrar), h('p',{class:'muted'},w.xml?'Leyendo el XML del CFDI.':'Sin XML: la IA está leyendo el PDF. Unos segundos.')); return; }
+  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo la factura…'), cerrar), omEsperando(w.xml?['Leyendo el XML del CFDI…','Buscando al proveedor…','Comprobando el RFC receptor…']:['La IA está leyendo el PDF…','Extrayendo folio e importes…','Buscando al proveedor…'])); return; }
   if(w.paso==='confirmar'){
     const a=w.analisis, f=w.form, x=a.extraido||{};
     const neg=h('select',{}, h('option',{value:''},'— Elige el negocio —'), ...(a.negocios_disponibles||[]).map(n=>h('option',{value:n.id,selected:n.id===f.negocioId},n.nombre+(n.rfc?' · '+n.rfc:'')))); neg.addEventListener('change',()=>f.negocioId=neg.value);
