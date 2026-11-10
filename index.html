@@ -372,7 +372,9 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 
 /* ---- Tablero / Oficina: menú lateral con iconos y más aire */
 body[data-om-nav] .wrap{max-width:1180px}
-body[data-om-nav] .top .in{max-width:1180px}
+body[data-om-nav] .top .in{max-width:1180px;padding-block:12px}
+body[data-om-nav] .logo{height:92px;max-width:min(60vw,420px)}
+@media (max-width:760px){body[data-om-nav] .logo{height:64px;max-width:min(58vw,300px)}}
 .om-shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px;align-items:start}
 .om-shell .om-main{min-width:0}
 .sidenav{position:sticky;top:76px;display:flex;flex-direction:column;gap:4px}
