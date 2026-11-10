@@ -509,7 +509,7 @@ function setWho(){ who.innerHTML='';
   if(S.me){ who.append(h('span',{class:'avatar'},iniciales(S.me.nombre)), h('span',{class:'name'},S.me.nombre), h('button',{class:'btn sm ghost',onclick:logout},'Salir')); }
   else if(S.usuario){ who.append(h('span',{class:'chip acc'},esTablero()?({dueno:'Dueño',oficina:'Oficina',central:'Central'})[S.rol]:'Kiosco'), h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); }
 }
-function abrirTablero(){ if(esTablero()){ S.adminOk=true; go('admin'); } }
+function abrirTablero(){ if(S.rol==='oficina'){ go('oficina'); } else if(esTablero()){ S.adminOk=true; go('admin'); } }
 function iniciales(n){ return n.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase(); }
 function mangueras(islaId){ const isla=S.config.islas.find(i=>i.id===islaId); return isla? isla.mangueras : []; }
 function islaNombre(id){ const i=S.config.islas.find(x=>x.id===id); return i? i.nombre : `Isla ${id}`; }
@@ -567,7 +567,7 @@ async function entrarConCuenta(){
   }catch(e){ renderNoDb('No se pudo cargar la estación: '+(e.message||e.code)); return; }
   // sesión de despachador pendiente (recarga de página)
   const t=tokenGuardado(); if(t && S.rol==='kiosco'){ try{ const me=JSON.parse(sessionStorage.getItem('om_me')||'null'); await rpc('mis_cortes',{p_token:t}); S.token=t; S.me=me; }catch(e){ guardarToken(null); } }
-  if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
+  if(S.rol==='oficina'){ S.screen='oficina'; } else if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
   render();
 }
 async function cargarConfig(){
@@ -602,7 +602,7 @@ function render(){
   S.pinTeclado=null; document.body.removeAttribute('data-om-login'); setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
-  ({login:renderLogin, home:renderHome, corte:renderCorte, admin:renderAdmin, deposito:renderDeposito})[S.screen]();
+  ({login:renderLogin, home:renderHome, corte:renderCorte, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
 }
 
 // ---- LOGIN
@@ -1455,14 +1455,15 @@ async function avisar(c){ }
 let adminTab='hoy';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const tabsDef=[['hoy','Hoy'],['cortes','Cortes'],['depositos','Depósitos'],['anulados','Anulados'],['pagos','Pagos'],['proveedores','Proveedores'],['config','Configuración']];
+  const tabsDef=[['hoy','Hoy'],['cortes','Cortes'],['depositos','Depósitos'],['anulados','Anulados'],['chat','Chat'],['facturas','Facturas'],['pagos','Pagos'],['proveedores','Proveedores'],['config','Configuración']];
   if(S.rol==='dueno') tabsDef.splice(3,0,['aceites','Aceites'],['desp','Despachadores']);
   const tabs=h('div',{class:'tabs'},...tabsDef.map(([k,l])=>h('button',{class:k===adminTab?'on':'',onclick:()=>{adminTab=k;render();}},l)));
-  const esOficinaTab = adminTab==='pagos'||adminTab==='proveedores';
-  const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Oficina':ESTACION), h('h1',{},esOficinaTab?(adminTab==='pagos'?'Pagos a proveedores':'Proveedores'):'Tablero de cortes'));
+  const esOficinaTab = ['pagos','proveedores','facturas','chat'].includes(adminTab);
+  const titulos={pagos:'Pagos a proveedores', proveedores:'Proveedores', facturas:'Facturas de proveedores', chat:'Asistente'};
+  const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Central':ESTACION), h('h1',{},esOficinaTab?titulos[adminTab]:'Tablero de cortes'));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   app.append(head, h('div',{style:'margin:12px 0'},tabs));
-  ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores})[adminTab]();
+  ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:oficinaFacturas, chat:oficinaChat})[adminTab]();
 }
 async function cortesTablero(filtro){
   let q=sb.from('cortes').select('*, despachadores(nombre)').eq('estacion_id',S.config.estacionId);
@@ -1705,11 +1706,11 @@ async function adminConfig(){
 // Todo pasa por la función del servidor "registrar-comprobante" (IA + Drive + registrar_pago) y por las RPC
 // buscar_pagos / crear_proveedor / anular_pago / resumen_proveedor, siempre como el usuario que entró.
 const OF = { negocio:'', texto:'', desde:'', hasta:'', cuentas:null, wizard:null };
-async function fnOficina(body){
+async function fnOficina(body, nombre='registrar-comprobante'){
   const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('Sesión vencida: vuelve a entrar.');
   omCarga(1);
   try{
-    const r = await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/registrar-comprobante`, { method:'POST',
+    const r = await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/${nombre}`, { method:'POST',
       headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify(body) });
     const j = await r.json().catch(()=>({ ok:false, error:'El servidor no respondió bien ('+r.status+').' }));
     if(j.ok===undefined) j.ok=r.ok; return j;
@@ -1867,6 +1868,144 @@ async function adminProveedores(){
     }
   }
   app.append(list);
+}
+
+
+// ===== OFICINA · pantalla propia (rol oficina): Chat · Facturas · Pagos =====
+let oficinaTab='chat';
+async function renderOficina(){
+  if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
+  const tabsDef=[['chat','Chat'],['facturas','Facturas'],['pagos','Pagos']];
+  const titulos={chat:'Asistente', facturas:'Facturas de proveedores', pagos:'Pagos a proveedores'};
+  const tabs=h('div',{class:'tabs'},...tabsDef.map(([k,l])=>h('button',{class:k===oficinaTab?'on':'',onclick:()=>{oficinaTab=k;render();}},l)));
+  app.append(h('div',{}, h('p',{class:'eyebrow'},'Own Manager · Oficina'), h('h1',{},titulos[oficinaTab])), h('div',{style:'margin:12px 0'},tabs));
+  await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos})[oficinaTab]();
+}
+
+// ---- Chat con IA (consulta pagos, facturas y documentos con los permisos de quien pregunta)
+const CHAT = { mensajes:[], ocupado:false };
+async function oficinaChat(){
+  const box=h('div',{class:'card stack',style:'min-height:52vh;display:flex;flex-direction:column'});
+  const hilo=h('div',{class:'stack',style:'flex:1;overflow:auto;max-height:60vh'});
+  const pinta=()=>{ hilo.innerHTML='';
+    if(!CHAT.mensajes.length) hilo.append(h('div',{class:'muted',style:'padding:8px 0'}, h('b',{},'Pregúntame por pagos, facturas y documentos.'), h('p',{class:'small',style:'margin-top:6px'},'Ejemplos: "¿Ya se le pagó a Gaspremia?" · "¿Qué facturas de octubre siguen sin pagar?" · "Dame el comprobante del pago a Soldep de 511,502.70" · "¿Cuánto le hemos pagado a Pemex este mes?"')));
+    for(const m of CHAT.mensajes){
+      const mio=m.rol==='usuario';
+      const bub=h('div',{style:`max-width:92%;align-self:${mio?'flex-end':'flex-start'};padding:10px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.4;${mio?'background:var(--accent);color:var(--accent-fg)':'background:var(--surface2);border:1px solid var(--line)'}`}, m.texto);
+      hilo.append(bub);
+      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'row',style:'align-self:flex-start;gap:6px'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},(r.tipo==='factura'?'📄 ':'🧾 ')+r.titulo.slice(0,48)))));
+    }
+    if(CHAT.ocupado) hilo.append(h('div',{class:'small muted',style:'align-self:flex-start'},'Buscando…'));
+    hilo.scrollTop=hilo.scrollHeight; };
+  const inp=h('textarea',{rows:'2',placeholder:'Escribe tu pregunta…',style:'flex:1;resize:none'});
+  const enviar=async()=>{ const t=inp.value.trim(); if(!t||CHAT.ocupado) return; inp.value=''; CHAT.mensajes.push({rol:'usuario',texto:t}); CHAT.ocupado=true; pinta();
+    const j=await fnOficina({ mensajes:CHAT.mensajes.map(m=>({rol:m.rol,texto:m.texto})) }, 'chat-oficina').catch(e=>({ok:false,error:e.message}));
+    CHAT.ocupado=false;
+    CHAT.mensajes.push({rol:'asistente', texto: j.ok? j.respuesta : 'No pude responder: '+(j.error||'error'), referencias: j.ok? (j.referencias||[]) : []});
+    pinta(); inp.focus(); };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); enviar(); } });
+  box.append(hilo, h('div',{class:'row',style:'margin-top:10px;align-items:flex-end'}, inp, h('button',{class:'btn primary',onclick:enviar},'Enviar')));
+  app.append(box, h('p',{class:'hint'},'El asistente solo ve los pagos, facturas y documentos de tu negocio, y siempre te da el enlace al archivo cuando existe.'));
+  pinta(); if(!CHAT.mensajes.length) inp.focus();
+}
+
+// ---- Facturas de proveedores (XML del CFDI + PDF)
+const FA = { texto:'', desde:'', hasta:'', estado:'', wizard:null };
+async function oficinaFacturas(){
+  const top=h('div',{class:'row between',style:'margin-bottom:10px'}, h('p',{class:'small muted',style:'margin:0'},'Sube el XML de la factura (y el PDF si lo tienes); los datos salen exactos del XML.'), h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'＋ Agregar factura'));
+  app.append(top);
+  if(FA.wizard) await renderWizardFactura();
+  const txt=h('input',{type:'search',placeholder:'Proveedor, folio, UUID, concepto, RFC o total',value:FA.texto,style:'flex:1;min-width:200px'});
+  const desde=h('input',{type:'date',value:FA.desde}); const hasta=h('input',{type:'date',value:FA.hasta});
+  const est=h('select',{}, ...[['','Todas'],['registrada','Sin pagar'],['pagada','Pagadas'],['cancelada','Canceladas']].map(([v,l])=>h('option',{value:v,selected:v===FA.estado},l)));
+  const buscar=()=>{ FA.texto=txt.value.trim(); FA.desde=desde.value; FA.hasta=hasta.value; FA.estado=est.value; render(); };
+  txt.addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); }); est.addEventListener('change',buscar);
+  app.append(h('div',{class:'card stack'}, h('div',{class:'row'}, txt, desde, hasta, est, h('button',{class:'btn',onclick:buscar},'Buscar'))));
+  let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:OF.negocio||null, p_desde:FA.desde||null, p_hasta:FA.hasta||null, p_estado:FA.estado||null, p_limite:200 }); }
+  catch(e){ app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},FA.texto||FA.desde||FA.estado?'Sin resultados':'Todavía no hay facturas'), FA.texto||FA.desde||FA.estado?'Prueba con otra palabra o quita los filtros.':'Pulsa "Agregar factura" y sube el XML que te mandó el proveedor.')); return; }
+  const tot=rows.filter(r=>r.estado!=='cancelada').reduce((s,r)=>s+Number(r.total),0), pend=rows.filter(r=>r.estado==='registrada').reduce((s,r)=>s+Number(r.total),0);
+  app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} factura${rows.length===1?'':'s'} · ${fmtMonto(tot)} · sin pagar ${fmtMonto(pend)}`));
+  const list=h('div',{class:'list'});
+  for(const r of rows){
+    const sf=[r.serie,r.folio].filter(Boolean).join('')||(r.uuid_cfdi?r.uuid_cfdi.slice(0,8)+'…':'s/f');
+    const chip= r.estado==='pagada'? h('span',{class:'chip ok'},'pagada') : r.estado==='cancelada'? h('span',{class:'chip err'},'cancelada') : h('span',{class:'chip warn'},'sin pagar');
+    const det=[r.negocio, r.concepto, r.metodo_pago].filter(Boolean).join(' · ');
+    const acciones=h('div',{class:'row',style:'margin-top:6px'});
+    if(r.pdf_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pdf_drive_id),target:'_blank',rel:'noopener'},'PDF'));
+    if(r.xml_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.xml_drive_id),target:'_blank',rel:'noopener'},'XML'));
+    if(r.pago_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pago_drive_id),target:'_blank',rel:'noopener'},'Comprobante del pago'));
+    if(S.rol==='dueno' && r.estado!=='cancelada') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>cancelarFacturaUI(r,sf)},'Cancelar'));
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},det), acciones),
+      h('div',{style:'text-align:right'}, h('b',{style:r.estado==='cancelada'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.total)), h('div',{},chip))));
+  }
+  app.append(list);
+}
+function cancelarFacturaUI(r,sf){
+  const motivo=h('textarea',{rows:'3',placeholder:'Por qué se cancela (obligatorio)'});
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Cancelar factura'), h('p',{class:'muted'},`${r.proveedor} · ${sf} · ${fmtMonto(r.total)}`), motivo,
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Volver'), h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; } try{ await rpc('cancelar_factura',{p_factura:r.id,p_motivo:motivo.value.trim()}); sheet.remove(); toast('Factura cancelada.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }},'Cancelar factura'))));
+  document.body.append(sheet);
+}
+async function renderWizardFactura(){
+  const w=FA.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px;border-color:var(--accent)'}); app.append(card);
+  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ FA.wizard=null; render(); }},'Cerrar');
+  if(w.paso==='archivos'){
+    w.xml=w.xml||null; w.pdf=w.pdf||null;
+    const inp=h('input',{type:'file',accept:'.xml,application/xml,text/xml,application/pdf,image/*',multiple:true,style:'display:none'});
+    const estado=h('p',{class:'small muted'},'Sin archivos todavía.');
+    const pintaEstado=()=>{ estado.textContent=[w.xml?'XML: '+w.xml.nombre:null, w.pdf?'PDF: '+w.pdf.nombre:null].filter(Boolean).join(' · ')||'Sin archivos todavía.'; btnLeer.disabled=!(w.xml||w.pdf); };
+    inp.addEventListener('change',async()=>{ for(const f of inp.files){ const esXml=/\.xml$/i.test(f.name)||/xml/.test(f.type); if(esXml) w.xml={nombre:f.name, b64:await archivoABase64(f)}; else w.pdf={nombre:f.name, mime:f.type||'application/pdf', b64:await archivoABase64(f)}; } pintaEstado(); });
+    const btnLeer=h('button',{class:'btn primary big block',disabled:true,onclick:async()=>{ w.paso='leyendo'; render();
+      const j=await fnOficina({ accion:'analizar', xml_base64:w.xml?w.xml.b64:null, pdf_base64:w.pdf?w.pdf.b64:null, pdf_mime:w.pdf?w.pdf.mime:null }, 'registrar-factura').catch(e=>({ok:false,error:e.message}));
+      if(!j.ok){ w.paso='archivos'; w.error=j.error; render(); return; }
+      const x=j.extraido||{}; w.analisis=j; w.form={ negocioId:j.negocio?j.negocio.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:x.emisor_nombre||'', fecha:x.fecha||nowMX().fecha, total:x.total!=null?String(x.total):'', serie:x.serie||'', folio:x.folio||'', concepto:x.concepto||'', notas:'' };
+      w.paso='confirmar'; render(); }},'Leer la factura');
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Agregar factura · 1 de 2'), cerrar), h('p',{class:'muted'},'Elige el XML (obligatorio si lo tienes) y el PDF. Puedes seleccionar los dos a la vez.'),
+      w.error? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null,
+      h('button',{class:'btn block',onclick:()=>abrirArchivo(inp)},'Elegir archivos'), inp, estado, btnLeer);
+    pintaEstado(); return;
+  }
+  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo la factura…'), cerrar), h('p',{class:'muted'},w.xml?'Leyendo el XML del CFDI.':'Sin XML: la IA está leyendo el PDF. Unos segundos.')); return; }
+  if(w.paso==='confirmar'){
+    const a=w.analisis, f=w.form, x=a.extraido||{};
+    const neg=h('select',{}, h('option',{value:''},'— Elige el negocio —'), ...(a.negocios_disponibles||[]).map(n=>h('option',{value:n.id,selected:n.id===f.negocioId},n.nombre+(n.rfc?' · '+n.rfc:'')))); neg.addEventListener('change',()=>f.negocioId=neg.value);
+    const posibles=a.proveedores_posibles||[];
+    const prov=h('select',{}, ...posibles.map(p=>h('option',{value:p.id,selected:p.id===f.proveedorId},p.nombre+(p.rfc?' · '+p.rfc:''))), h('option',{value:'__nuevo',selected:!f.proveedorId},posibles.length?'Otro / nuevo proveedor…':'Nuevo proveedor: '+(f.proveedorNombre||'')));
+    const provNombre=h('input',{type:'text',placeholder:'Nombre del proveedor',value:f.proveedorNombre,style:prov.value==='__nuevo'?'':'display:none'});
+    prov.addEventListener('change',()=>{ f.proveedorId=prov.value==='__nuevo'?'':prov.value; provNombre.style.display=prov.value==='__nuevo'?'':'none'; }); provNombre.addEventListener('input',()=>f.proveedorNombre=provNombre.value);
+    const fecha=h('input',{type:'date',value:f.fecha}); fecha.addEventListener('input',()=>f.fecha=fecha.value);
+    const total=h('input',{type:'number',step:'0.01',min:'0',inputmode:'decimal',value:f.total}); total.addEventListener('input',()=>f.total=total.value);
+    const serie=h('input',{type:'text',value:f.serie,placeholder:'Serie'}); serie.addEventListener('input',()=>f.serie=serie.value);
+    const folio=h('input',{type:'text',value:f.folio,placeholder:'Folio'}); folio.addEventListener('input',()=>f.folio=folio.value);
+    const conc=h('input',{type:'text',value:f.concepto,placeholder:'Qué se facturó'}); conc.addEventListener('input',()=>f.concepto=conc.value);
+    const notas=h('input',{type:'text',value:f.notas,placeholder:'Opcional'}); notas.addEventListener('input',()=>f.notas=notas.value);
+    const soloXml=a.origen==='xml'; const msg=h('div',{class:'small muted'});
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Agregar factura · 2 de 2'), cerrar),
+      h('p',{class:'small muted'}, soloXml? `Datos exactos del XML${x.uuid?' · UUID '+x.uuid:''}${x.emisor_rfc?' · RFC emisor '+x.emisor_rfc:''}` : `Leída por IA del PDF${Number(x.confianza??0.5)<0.7?' · lectura dudosa, revisa bien':''}`),
+      a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
+      (a.negocios_disponibles||[]).length>1? h('label',{class:'f'},h('span',{class:'l'},'Negocio (receptor)'),neg):null,
+      h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(x.emisor_nombre?' · emisor: '+x.emisor_nombre:'')),prov, provNombre),
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Fecha'),fecha), h('label',{class:'f'},h('span',{class:'l'},'Total'),total)),
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Serie'),serie), h('label',{class:'f'},h('span',{class:'l'},'Folio'),folio)),
+      h('label',{class:'f'},h('span',{class:'l'},'Concepto'),conc), h('label',{class:'f'},h('span',{class:'l'},'Notas'),notas), msg,
+      h('button',{class:'btn primary big block',onclick:async e=>{
+        const negocioId=f.negocioId||((a.negocios_disponibles||[])[0]||{}).id; if(!negocioId){ msg.textContent='Elige el negocio.'; return; }
+        if(!f.proveedorId && !f.proveedorNombre.trim()){ msg.textContent='Escribe el nombre del proveedor.'; return; }
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(f.fecha)){ msg.textContent='Revisa la fecha.'; return; }
+        if(!(Number(f.total)>=0)){ msg.textContent='Revisa el total.'; return; }
+        const b=e.currentTarget; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
+        const j=await fnOficina({ accion:'registrar', xml_base64:w.xml?w.xml.b64:null, pdf_base64:w.pdf?w.pdf.b64:null, pdf_mime:w.pdf?w.pdf.mime:null, negocio_id:negocioId,
+          proveedor_id:f.proveedorId||null, proveedor_nombre:f.proveedorId?null:f.proveedorNombre.trim(), proveedor_rfc:x.emisor_rfc||null, fecha:f.fecha, total:Number(f.total), serie:f.serie.trim()||null, folio:f.folio.trim()||null, concepto:f.concepto.trim()||null, notas:f.notas.trim()||null }, 'registrar-factura').catch(err=>({ok:false,error:err.message}));
+        if(!j.ok){ b.disabled=false; msg.textContent=''; w.error=j.error; if(j.codigo==='factura_duplicada') w.paso='archivos'; render(); return; }
+        w.paso='listo'; w.resultado=j; render(); }},'Registrar factura'),
+      w.error? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null);
+    return;
+  }
+  if(w.paso==='listo'){ const r=w.resultado;
+    card.append(h('div',{class:'sechead'}, h('h3',{},'✅ Factura registrada'), cerrar), h('p',{class:'muted'},`${r.proveedor} → ${r.negocio}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
+      r.pago_ligado? h('p',{class:'small',style:'color:var(--ok)'},'Se ligó sola al pago del '+fmtFecha(r.pago_ligado)+' por el mismo importe.'):null,
+      h('div',{class:'row'}, r.drive? h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'):null, h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'Agregar otra'))); }
 }
 
 // La rueda del mouse no debe cambiar valores numéricos (al girar sobre un campo con foco, se quita el foco)
