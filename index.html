@@ -153,7 +153,7 @@ body[data-om-login] .foot{display:none}
 label.f{display:block}
 label.f span.l{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
 .passwrap{position:relative}.passwrap input{width:100%;padding-right:46px;box-sizing:border-box}.passwrap .ojo{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--muted);cursor:pointer;padding:6px;line-height:0;border-radius:8px}.passwrap .ojo:hover{color:var(--fg)}
-input[type=text],input[type=email],input[type=number],input[type=password],select,textarea{width:100%;font:500 16px var(--font-body);color:var(--fg);background:var(--surface2);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 12px;min-height:46px}
+input[type=text],input[type=search],input[type=email],input[type=number],input[type=password],input[type=date],input[type=month],select,textarea{width:100%;font:500 16px var(--font-body);color:var(--fg);background:var(--surface2);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 12px;min-height:46px}
 input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);border-color:var(--focus)}
 input.num{font-variant-numeric:tabular-nums;font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:.01em}
 input.bad{border-color:var(--err);background:var(--err-soft)}
@@ -415,8 +415,16 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .sidenav .sub button .ic svg{width:16px;height:16px}
 .sidenav button .car{margin-left:auto;font-size:11px;opacity:.6}
 .buscar{display:flex;gap:8px;align-items:center}
-.buscar input{flex:1;min-width:0;font-size:15px;padding:12px 14px;border-radius:14px}
-.buscar .btn{padding:12px 16px;border-radius:14px;font-size:18px;line-height:1}
+.buscar input{flex:1;min-width:0;font-size:15px;padding:12px 14px;border-radius:14px;appearance:none;-webkit-appearance:none}
+.buscar input::-webkit-search-decoration,.buscar input::-webkit-search-cancel-button{-webkit-appearance:none}
+.buscar .btn{width:46px;height:46px;padding:0;border-radius:14px;flex:0 0 auto;color:var(--muted)}
+.buscar .btn svg{width:20px;height:20px}
+.buscar .btn:hover{color:var(--fg)}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.filtros select,.filtros input{width:auto;min-height:38px;padding:7px 12px;font-size:14px;border-radius:999px;background:var(--surface);color:var(--fg)}
+.filtros select.on,.filtros input.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.filtros .quitar{background:none;border:0;color:var(--muted);font:600 13px var(--font-body);cursor:pointer;padding:6px 8px}
+.filtros .quitar:hover{color:var(--fg)}
 @media (max-width:760px){.sidenav .sub{display:contents}.sidenav .sub button{padding:8px 12px;font-size:11.5px}.sidenav .sub button .ic{width:auto}.sidenav .sub button .ic svg{width:20px;height:20px}.sidenav button .car{display:none}}
 .om-shell h1{margin:0 0 4px}
 .om-shell .om-main>.card,.om-shell .om-main>.list,.om-shell .om-main>p{margin-top:12px}
@@ -1872,7 +1880,34 @@ function barraBuscar(valor, placeholder, onbuscar){
   const txt=h('input',{type:'search',placeholder:placeholder,value:valor});
   const go=()=>onbuscar(txt.value.trim());
   txt.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
-  return h('div',{class:'buscar',style:'margin:10px 0 12px'}, txt, h('button',{class:'btn',title:'Buscar',onclick:go},'🔍'));
+  return h('div',{class:'buscar',style:'margin:10px 0 10px'}, txt, h('button',{class:'btn',title:'Buscar',onclick:go},ico('buscar')));
+}
+// ---- Filtros combinables (empresa + periodo) compartidos por todas las consultas
+const FL={ negocio:'', periodo:'todo', mes:'', fecha:'' };
+function rangoFiltro(){
+  const hoy=nowMX().fecha; const [y,m]=hoy.split('-').map(Number);
+  const mesDe=(yy,mm)=>({ desde:`${yy}-${String(mm).padStart(2,'0')}-01`, hasta:`${yy}-${String(mm).padStart(2,'0')}-${String(new Date(Date.UTC(yy,mm,0)).getUTCDate()).padStart(2,'0')}` });
+  if(FL.periodo==='actual') return mesDe(y,m);
+  if(FL.periodo==='pasado') return m===1?mesDe(y-1,12):mesDe(y,m-1);
+  if(FL.periodo==='mes' && /^\d{4}-\d{2}$/.test(FL.mes)){ const [a,b]=FL.mes.split('-').map(Number); return mesDe(a,b); }
+  if(FL.periodo==='fecha' && /^\d{4}-\d{2}-\d{2}$/.test(FL.fecha)) return { desde:FL.fecha, hasta:FL.fecha };
+  return { desde:null, hasta:null };
+}
+function hayFiltros(){ return !!FL.negocio || (FL.periodo!=='todo' && (FL.periodo==='actual'||FL.periodo==='pasado'||(FL.periodo==='mes'&&FL.mes)||(FL.periodo==='fecha'&&FL.fecha))); }
+function barraFiltros(negocios, opts){
+  opts=opts||{}; const fila=h('div',{class:'filtros'});
+  if(negocios && negocios.length>1){
+    const sel=h('select',{class:FL.negocio?'on':'',title:'Empresa'}, h('option',{value:''},'Todas las empresas'), ...negocios.map(n=>h('option',{value:n.id,selected:n.id===FL.negocio},n.nombre)));
+    sel.addEventListener('change',()=>{ FL.negocio=sel.value; render(); }); fila.append(sel);
+  }
+  if(!opts.sinPeriodo){
+    const per=h('select',{class:FL.periodo!=='todo'?'on':'',title:'Periodo'}, ...[['todo','Cualquier fecha'],['actual','Mes actual'],['pasado','Mes pasado'],['mes','Elegir mes…'],['fecha','Fecha exacta…']].map(([v,l])=>h('option',{value:v,selected:v===FL.periodo},l)));
+    per.addEventListener('change',()=>{ FL.periodo=per.value; if(per.value==='mes'&&!FL.mes) FL.mes=nowMX().fecha.slice(0,7); if(per.value==='fecha'&&!FL.fecha) FL.fecha=nowMX().fecha; render(); }); fila.append(per);
+    if(FL.periodo==='mes'){ const im=h('input',{type:'month',value:FL.mes,class:'on'}); im.addEventListener('change',()=>{ FL.mes=im.value; render(); }); fila.append(im); }
+    if(FL.periodo==='fecha'){ const idt=h('input',{type:'date',value:FL.fecha,class:'on'}); idt.addEventListener('change',()=>{ FL.fecha=idt.value; render(); }); fila.append(idt); }
+  }
+  if(hayFiltros()) fila.append(h('button',{class:'quitar',onclick:()=>{ FL.negocio=''; FL.periodo='todo'; FL.mes=''; FL.fecha=''; render(); }},'Quitar filtros'));
+  return fila;
 }
 // ---- Pagos
 async function agregarPago(){
@@ -1884,14 +1919,12 @@ async function agregarPago(){
 async function consultaPagos(){
   let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
   const negocios=negociosOficina(cuentas);
-  if(negocios.length>1){ const selNeg=h('select',{style:'max-width:280px;margin-bottom:6px'}, h('option',{value:''},'Todos los negocios'), ...negocios.map(n=>h('option',{value:n.id,selected:n.id===OF.negocio},n.nombre)));
-    selNeg.addEventListener('change',()=>{ OF.negocio=selNeg.value; render(); }); app.append(selNeg); }
-  app.append(barraBuscar(OF.texto, 'Buscar', v=>{ OF.texto=v; render(); }));
+  app.append(barraBuscar(OF.texto, 'Buscar', v=>{ OF.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando pagos…','Revisando comprobantes…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:OF.negocio||null, p_limite:200 }); }
+  let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},OF.texto?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto?'Prueba con otra palabra.':'')); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(OF.texto||hayFiltros())?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto?'Prueba con otra palabra.':hayFiltros()?'Prueba quitando algún filtro.':'')); return; }
   const tot=rows.filter(r=>r.estado!=='anulado').reduce((s,r)=>s+Number(r.monto),0);
   app.append(h('p',{class:'small muted',style:'margin:0 0 6px'},`${rows.length} pago${rows.length===1?'':'s'} · ${fmtMonto(tot)} (sin anulados)`));
   const list=h('div',{class:'list'});
@@ -2015,12 +2048,13 @@ async function renderWizardPago(cuentas, fijo){
 const CO={texto:''}; const EC={texto:''};
 async function consultaComprobantes(){
   app.append(h('p',{class:'small muted',style:'margin:0 0 8px'},'Expediente de pago: un solo PDF con la factura y su comprobante bancario, listo para el contador o el proveedor.'));
-  app.append(barraBuscar(CO.texto, 'Buscar', v=>{ CO.texto=v; render(); }));
+  let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
+  app.append(barraBuscar(CO.texto, 'Buscar', v=>{ CO.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Buscando facturas pagadas…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:CO.texto||null, p_negocio:OF.negocio||null, p_estado:'pagada', p_limite:200 }); }
+  let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_facturas',{ p_texto:CO.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_estado:'pagada', p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},CO.texto?'Sin resultados':'Todavía no hay facturas pagadas'), CO.texto?'':'Cuando una factura tenga su pago ligado, aquí aparece su expediente.')); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(CO.texto||hayFiltros())?'Sin resultados':'Todavía no hay facturas pagadas'), (CO.texto||hayFiltros())?'':'Cuando una factura tenga su pago ligado, aquí aparece su expediente.')); return; }
   const list=h('div',{class:'list'});
   for(const r of rows){
     const sf=[r.serie,r.folio].filter(Boolean).join('')||(r.uuid_cfdi?r.uuid_cfdi.slice(0,8)+'…':'s/f');
@@ -2039,13 +2073,16 @@ async function consultaComprobantes(){
   app.append(list);
 }
 async function consultaEstados(){
-  app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }));
+  let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
+  app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando estados de cuenta…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, importado, saldo_inicial, saldo_final, cuentas_bancarias(alias, banco, ultimos4, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(200)); }
+  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, importado, saldo_inicial, saldo_final, cuentas_bancarias(alias, banco, ultimos4, negocio_id, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(200)); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   espera.remove();
   if(EC.texto){ const t=EC.texto.toLowerCase(); rows=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(t)); }
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},EC.texto?'Sin resultados':'Todavía no hay estados de cuenta'), EC.texto?'':'Los sube Central cada mes; aquí aparecen para consulta.')); return; }
+  if(FL.negocio) rows=rows.filter(r=>r.cuentas_bancarias&&r.cuentas_bancarias.negocio_id===FL.negocio);
+  { const rg=rangoFiltro(); if(rg.desde) rows=rows.filter(r=>r.periodo_fin>=rg.desde && r.periodo_inicio<=rg.hasta); }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(EC.texto||hayFiltros())?'Sin resultados':'Todavía no hay estados de cuenta'), (EC.texto||hayFiltros())?'':'Los sube Central cada mes; aquí aparecen para consulta.')); return; }
   const list=h('div',{class:'list'});
   for(const r of rows){ const c=r.cuentas_bancarias||{}; const n=(c.negocios&&c.negocios.nombre)||'';
     list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${c.alias||c.banco||'Cuenta'}${c.ultimos4?' ···'+c.ultimos4:''}`), h('span',{class:'small muted'},`${n} · ${fmtFecha(r.periodo_inicio)} – ${fmtFecha(r.periodo_fin)}${r.saldo_final!=null?' · saldo final '+fmtMonto(r.saldo_final):''}`)),
@@ -2142,9 +2179,10 @@ async function agregarFactura(){
   await renderWizardFactura(true);
 }
 async function consultaFacturas(){
-  app.append(barraBuscar(FA.texto, 'Buscar', v=>{ FA.texto=v; render(); }));
+  let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
+  app.append(barraBuscar(FA.texto, 'Buscar', v=>{ FA.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando facturas…','Leyendo el archivo…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:OF.negocio||null, p_limite:200 }); }
+  let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},FA.texto?'Sin resultados':'Todavía no hay facturas'), FA.texto?'Prueba con otra palabra.':'')); return; }
