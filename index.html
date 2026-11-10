@@ -1952,19 +1952,29 @@ async function renderWizardFactura(){
   const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ FA.wizard=null; render(); }},'Cerrar');
   if(w.paso==='archivos'){
     w.xml=w.xml||null; w.pdf=w.pdf||null;
-    const inp=h('input',{type:'file',accept:'.xml,application/xml,text/xml,application/pdf,image/*',multiple:true,style:'display:none'});
-    const estado=h('p',{class:'small muted'},'Sin archivos todavía.');
-    const pintaEstado=()=>{ estado.textContent=[w.xml?'XML: '+w.xml.nombre:null, w.pdf?'PDF: '+w.pdf.nombre:null].filter(Boolean).join(' · ')||'Sin archivos todavía.'; btnLeer.disabled=!(w.xml||w.pdf); };
-    inp.addEventListener('change',async()=>{ for(const f of inp.files){ const esXml=/\.xml$/i.test(f.name)||/xml/.test(f.type); if(esXml) w.xml={nombre:f.name, b64:await archivoABase64(f)}; else w.pdf={nombre:f.name, mime:f.type||'application/pdf', b64:await archivoABase64(f)}; } pintaEstado(); });
-    const btnLeer=h('button',{class:'btn primary big block',disabled:true,onclick:async()=>{ w.paso='leyendo'; render();
+    const inXml=h('input',{type:'file',accept:'.xml,application/xml,text/xml',style:'display:none'});
+    const inPdf=h('input',{type:'file',accept:'application/pdf,image/*',style:'display:none'});
+    const fila=(etiqueta,inp,get,set)=>{ const r=h('div',{class:'card stack',style:'padding:12px'}); const pinta=()=>{ r.innerHTML=''; const v=get();
+        r.append(h('div',{class:'row between'}, h('div',{}, h('b',{},etiqueta), h('div',{class:'small muted'}, v? v.nombre : 'Sin archivo')),
+          h('div',{class:'row'}, h('button',{class:'btn sm '+(v?'ghost':'primary'),onclick:()=>abrirArchivo(inp)}, v?'Cambiar':'Elegir'), v? h('button',{class:'btn sm ghost danger',onclick:()=>{ set(null); pinta(); btnLeer.disabled=!(w.xml||w.pdf); }},'Quitar'):null)));
+        if(v && v.url){ if(/^image\//.test(v.mime)) r.append(h('img',{src:v.url,style:'max-height:260px;max-width:100%;border:1px solid var(--line);border-radius:8px;margin-top:8px'}));
+          else r.append(h('iframe',{src:v.url+'#toolbar=0&view=FitH',style:'width:100%;height:320px;border:1px solid var(--line);border-radius:8px;margin-top:8px;background:#fff'})); }
+        if(v && v.texto) r.append(h('pre',{class:'small muted',style:'margin-top:8px;max-height:120px;overflow:auto;white-space:pre-wrap'},v.texto)); };
+      inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return; const b64=await archivoABase64(f); const esXml=inp===inXml;
+        const val={nombre:f.name, mime:f.type||(esXml?'text/xml':'application/pdf'), b64};
+        if(esXml){ try{ const t=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result)); fr.onerror=rej; fr.readAsText(f); }); const g=(re)=>(t.match(re)||[])[1]||''; val.texto=['UUID '+g(/UUID="([^"]+)"/i), 'Emisor '+g(/<(?:[\w-]+:)?Emisor[^>]*Nombre="([^"]+)"/i)+' · '+g(/<(?:[\w-]+:)?Emisor[^>]*Rfc="([^"]+)"/i), 'Receptor '+g(/<(?:[\w-]+:)?Receptor[^>]*Nombre="([^"]+)"/i)+' · '+g(/<(?:[\w-]+:)?Receptor[^>]*Rfc="([^"]+)"/i), 'Total $'+g(/<(?:[\w-]+:)?Comprobante[^>]*\sTotal="([^"]+)"/i)].join('\n'); }catch(e){} }
+        else { if(val.url) URL.revokeObjectURL(val.url); val.url=URL.createObjectURL(f); }
+        set(val); pinta(); btnLeer.disabled=!(w.xml||w.pdf); inp.value=''; });
+      pinta(); return r; };
+    const btnLeer=h('button',{class:'btn primary big block',disabled:!(w.xml||w.pdf),onclick:async()=>{ w.paso='leyendo'; render();
       const j=await fnOficina({ accion:'analizar', xml_base64:w.xml?w.xml.b64:null, pdf_base64:w.pdf?w.pdf.b64:null, pdf_mime:w.pdf?w.pdf.mime:null }, 'registrar-factura').catch(e=>({ok:false,error:e.message}));
       if(!j.ok){ w.paso='archivos'; w.error=j.error; render(); return; }
       const x=j.extraido||{}; w.analisis=j; w.form={ negocioId:j.negocio?j.negocio.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:x.emisor_nombre||'', fecha:x.fecha||nowMX().fecha, total:x.total!=null?String(x.total):'', serie:x.serie||'', folio:x.folio||'', concepto:x.concepto||'', notas:'' };
       w.paso='confirmar'; render(); }},'Leer la factura');
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Agregar factura · 1 de 2'), cerrar), h('p',{class:'muted'},'Elige el XML (obligatorio si lo tienes) y el PDF. Puedes seleccionar los dos a la vez.'),
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Agregar factura · 1 de 2'), cerrar), h('p',{class:'muted'},'El XML trae los datos exactos; el PDF es para verla. Revisa la vista previa antes de leer.'),
       w.error? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null,
-      h('button',{class:'btn block',onclick:()=>abrirArchivo(inp)},'Elegir archivos'), inp, estado, btnLeer);
-    pintaEstado(); return;
+      fila('XML de la factura (CFDI)', inXml, ()=>w.xml, v=>w.xml=v), fila('PDF o foto de la factura', inPdf, ()=>w.pdf, v=>w.pdf=v), inXml, inPdf, btnLeer);
+    return;
   }
   if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo la factura…'), cerrar), h('p',{class:'muted'},w.xml?'Leyendo el XML del CFDI.':'Sin XML: la IA está leyendo el PDF. Unos segundos.')); return; }
   if(w.paso==='confirmar'){
