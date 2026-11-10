@@ -149,6 +149,7 @@ body[data-om-login] .foot{display:none}
 /* Inputs */
 label.f{display:block}
 label.f span.l{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.passwrap{position:relative}.passwrap input{width:100%;padding-right:46px;box-sizing:border-box}.passwrap .ojo{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:0;color:var(--muted);cursor:pointer;padding:6px;line-height:0;border-radius:8px}.passwrap .ojo:hover{color:var(--fg)}
 input[type=text],input[type=email],input[type=number],input[type=password],select,textarea{width:100%;font:500 16px var(--font-body);color:var(--fg);background:var(--surface2);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 12px;min-height:46px}
 input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);border-color:var(--focus)}
 input.num{font-variant-numeric:tabular-nums;font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:.01em}
@@ -679,6 +680,10 @@ function renderLogin(){
   else box.append(h('div',{class:'people'}, ...activos.map(d=>h('button',{class:'person',onclick:()=>pinScreen(d)}, h('span',{class:'avatar'},iniciales(d.nombre)), h('span',{},d.nombre)))));
   app.append(box);
 }
+// Botón de ver/ocultar contraseña (icono de ojo) para un campo password
+function conOjo(inp){ const w=h('div',{class:'passwrap'}); const b=h('button',{type:'button',class:'ojo',title:'Mostrar contraseña','aria-label':'Mostrar contraseña'});
+  const pinta=()=>{ const ver=inp.type==='text'; b.innerHTML=ver?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6A2.5 2.5 0 0 0 13.4 13.4M6.6 6.7C4.3 8.2 2.8 10.2 2 12c1.8 4 5.6 7 10 7 1.7 0 3.3-.4 4.7-1.2M9.5 5.3C10.3 5.1 11.1 5 12 5c4.4 0 8.2 3 10 7-.5 1.1-1.2 2.2-2.1 3.1"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c1.8-4 5.6-7 10-7s8.2 3 10 7c-1.8 4-5.6 7-10 7S3.8 16 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'; b.title=ver?'Ocultar contraseña':'Mostrar contraseña'; };
+  b.addEventListener('click',()=>{ inp.type=inp.type==='password'?'text':'password'; pinta(); inp.focus(); }); pinta(); w.append(inp,b); return w; }
 function renderCuenta(){
   const email=h('input',{type:'email',autocomplete:'username',placeholder:'correo de la cuenta',id:'login-email'});
   const pass=h('input',{type:'password',autocomplete:'current-password',placeholder:'contraseña',id:'login-pass'});
@@ -691,7 +696,7 @@ function renderCuenta(){
   btn.addEventListener('click',entrar); pass.addEventListener('keydown',e=>{ if(e.key==='Enter') entrar(); });
   document.body.setAttribute('data-om-login','');
   app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:OM_LIMA,alt:'Own Manager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro bajo tu control'), h('div',{class:'bar'})),
-    h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),pass), msg, btn)));
+    h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),conOjo(pass)), msg, btn)));
 }
 function pinScreen(d){
   app.innerHTML=''; let pin=''; let ocupado=false;
