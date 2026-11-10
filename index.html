@@ -420,11 +420,15 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .buscar .btn{width:46px;height:46px;padding:0;border-radius:14px;flex:0 0 auto;color:var(--muted)}
 .buscar .btn svg{width:20px;height:20px}
 .buscar .btn:hover{color:var(--fg)}
-.concepto{display:inline-flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);margin-top:6px;max-width:100%}
-.concepto b{font-size:16px;letter-spacing:.04em}
-.concepto.grande{padding:12px 12px 12px 16px}.concepto.grande b{font-size:24px}
-.concepto.esp{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);padding:8px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
-.concepto.esp b{font-size:14px;letter-spacing:0}
+.concepto{display:flex;width:fit-content;max-width:100%;align-items:center;gap:8px;margin-top:6px;padding:3px 4px 3px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface2);font-size:12.5px;color:var(--muted)}
+.concepto b{display:inline!important;font-size:13px;color:var(--fg);letter-spacing:.03em}
+.concepto .btn.sm{min-height:26px;padding:2px 8px;font-size:12px;gap:4px;border-radius:999px}
+.concepto .btn.sm svg{width:14px;height:14px}
+.concepto.grande{padding:10px 10px 10px 16px;border-radius:14px;font-size:14px;margin-top:4px}
+.concepto.grande b{font-size:22px}
+.concepto.grande .btn.sm{min-height:36px;padding:6px 12px;font-size:13px}
+.concepto.esp{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:8px 12px;flex-direction:column;align-items:flex-start;gap:2px}
+.concepto.esp b{font-size:13px;letter-spacing:0;color:var(--warn)}
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
 .filtros select,.filtros input{width:auto;min-height:38px;padding:7px 12px;font-size:14px;border-radius:999px;background:var(--surface);color:var(--fg)}
 .filtros select.on,.filtros input.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
