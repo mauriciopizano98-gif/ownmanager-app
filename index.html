@@ -420,6 +420,11 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .buscar .btn{width:46px;height:46px;padding:0;border-radius:14px;flex:0 0 auto;color:var(--muted)}
 .buscar .btn svg{width:20px;height:20px}
 .buscar .btn:hover{color:var(--fg)}
+.concepto{display:inline-flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);margin-top:6px;max-width:100%}
+.concepto b{font-size:16px;letter-spacing:.04em}
+.concepto.grande{padding:12px 12px 12px 16px}.concepto.grande b{font-size:24px}
+.concepto.esp{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);padding:8px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.concepto.esp b{font-size:14px;letter-spacing:0}
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
 .filtros select,.filtros input{width:auto;min-height:38px;padding:7px 12px;font-size:14px;border-radius:999px;background:var(--surface);color:var(--fg)}
 .filtros select.on,.filtros input.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -1578,6 +1583,7 @@ async function renderAdmin(){
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  copiar:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   editar:'<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/>',
   candado:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   chat:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4.2 3.4c-.4.3-.8 0-.8-.5V5.5Z"/>',
@@ -1882,6 +1888,13 @@ function barraBuscar(valor, placeholder, onbuscar){
   txt.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
   return h('div',{class:'buscar',style:'margin:10px 0 10px'}, txt, h('button',{class:'btn',title:'Buscar',onclick:go},ico('buscar')));
 }
+async function copiar(texto){ try{ await navigator.clipboard.writeText(texto); toast('Copiado: '+texto); }catch(e){ toast('No se pudo copiar; selecciónalo y cópialo.'); } }
+// Concepto de pago de una factura: lo que se escribe en la transferencia. Si el proveedor pide referencia especial, se muestra esa instrucción.
+function bloqueConcepto(r, grande){
+  if(r.referencia_especial) return h('div',{class:'concepto esp'}, h('span',{class:'small'},'Este proveedor pide referencia especial'), h('b',{},r.referencia_especial));
+  if(!r.concepto_pago) return null;
+  return h('div',{class:'concepto'+(grande?' grande':'')}, h('span',{class:'small'},'Concepto de pago'), h('b',{},r.concepto_pago), h('button',{class:'btn sm ghost',title:'Copiar',onclick:e=>{ e.stopPropagation(); copiar(r.concepto_pago); }},ico('copiar'),'Copiar'));
+}
 // ---- Filtros combinables (empresa + periodo) compartidos por todas las consultas
 const FL={ negocio:'', periodo:'todo', mes:'', fecha:'' };
 function rangoFiltro(){
@@ -1913,7 +1926,8 @@ function barraFiltros(negocios, opts){
 async function agregarPago(){
   let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
   if(!cuentas.length){ app.append(h('div',{class:'card empty'}, h('b',{},'Sin cuentas bancarias a la vista'), 'Pide al dueño que dé de alta las cuentas de tu negocio en OwnManager.')); return; }
-  if(!OF.wizard || OF.wizard.paso==='listo') OF.wizard={paso:'archivo'};
+  // La pantalla de 'listo' se muestra una vez; al volver a entrar a la sección se empieza de nuevo.
+  if(!OF.wizard || (OF.wizard.paso==='listo' && OF.wizard.visto)) OF.wizard={paso:'archivo'}; else if(OF.wizard.paso==='listo') OF.wizard.visto=true;
   await renderWizardPago(cuentas, true);
 }
 async function consultaPagos(){
@@ -1930,7 +1944,7 @@ async function consultaPagos(){
   const list=h('div',{class:'list'});
   for(const r of rows){
     const chip = r.estado==='conciliado'? h('span',{class:'chip ok'},'conciliado') : r.estado==='anulado'? h('span',{class:'chip err'},'anulado') : h('span',{class:'chip acc'},'registrado');
-    const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null, r.concepto].filter(Boolean).join(' · ');
+    const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null, r.concepto, r.factura_concepto_pago?'paga la factura '+r.factura_concepto_pago:null].filter(Boolean).join(' · ');
     const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
       h('div',{class:'row',style:'margin-top:6px'}, h('a',{class:'btn sm ghost',href:driveLink(r.comprobante_drive_id),target:'_blank',rel:'noopener'},'Ver comprobante'),
         S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null)),
@@ -1983,7 +1997,7 @@ async function renderWizardPago(cuentas, fijo){
       const ia=j.extraido||{};
       w.analisis=j; w.form={ cuentaId:j.cuenta?j.cuenta.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:ia.beneficiario||ia.nombre_corto||'',
         fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
-        factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
+        factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', facturaId:j.factura_sugerida?j.factura_sugerida.id:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
       w.original={ fecha:w.form.fecha, monto:w.form.monto, referencia:w.form.referencia, concepto:w.form.concepto }; w.editando=false;
       w.paso='confirmar'; render(); });
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Comprobante'), cerrar),
@@ -1998,13 +2012,24 @@ async function renderWizardPago(cuentas, fijo){
     const posibles=a.proveedores_posibles||[];
     const prov=h('select',{}, ...posibles.map(p=>h('option',{value:p.id,selected:p.id===f.proveedorId},p.nombre+(p.rfc?' · '+p.rfc:''))), h('option',{value:'__nuevo',selected:!f.proveedorId},posibles.length?'Otro / nuevo proveedor…':'Nuevo proveedor'));
     const provNombre=h('input',{type:'text',placeholder:'Nombre del proveedor',value:f.proveedorNombre,style:prov.value==='__nuevo'?'':'display:none'});
-    prov.addEventListener('change',()=>{ f.proveedorId=prov.value==='__nuevo'?'':prov.value; provNombre.style.display=prov.value==='__nuevo'?'':'none'; });
+    prov.addEventListener('change',()=>{ f.proveedorId=prov.value==='__nuevo'?'':prov.value; provNombre.style.display=prov.value==='__nuevo'?'':'none'; armarFacturas(); });
     provNombre.addEventListener('input',()=>f.proveedorNombre=provNombre.value);
     const fecha=h('input',{type:'date',value:f.fecha}); fecha.addEventListener('input',()=>f.fecha=fecha.value);
-    const monto=h('input',{type:'number',step:'0.01',min:'0',inputmode:'decimal',value:f.monto}); monto.addEventListener('input',()=>f.monto=monto.value);
+    const monto=h('input',{type:'number',step:'0.01',min:'0',inputmode:'decimal',value:f.monto}); monto.addEventListener('input',()=>{ f.monto=monto.value; armarFacturas(); });
     const refe=h('input',{type:'text',value:f.referencia,placeholder:'Folio / clave de rastreo'}); refe.addEventListener('input',()=>f.referencia=refe.value);
     const conc=h('input',{type:'text',value:f.concepto,placeholder:'Concepto de pago'}); conc.addEventListener('input',()=>f.concepto=conc.value);
     const fact=h('input',{type:'text',value:f.factura,placeholder:'Folio de la factura que paga (opcional)'}); fact.addEventListener('input',()=>f.factura=fact.value);
+    const pend=a.facturas_pendientes||[]; const sug=a.factura_sugerida||null;
+    const selFact=h('select',{}); const notaFact=h('span',{class:'small muted'});
+    const armarFacturas=()=>{ const mias=pend.filter(x=>x.proveedor_id===f.proveedorId);
+      selFact.replaceChildren(h('option',{value:''},mias.length?'— Sin factura por ahora —':'Este proveedor no tiene facturas sin pagar'), ...mias.map(x=>h('option',{value:x.id,selected:x.id===f.facturaId},`${x.concepto_pago||'s/f'} · ${fmtFecha(x.fecha)} · ${fmtMonto(x.total)}`)));
+      selFact.style.display=mias.length?'':'none'; fact.style.display=mias.length?'none':'';
+      if(!mias.some(x=>x.id===f.facturaId)) f.facturaId='';
+      const el=mias.find(x=>x.id===f.facturaId);
+      notaFact.textContent= el && sug && sug.id===el.id ? (sug.por==='concepto'?'El concepto del comprobante trae el de esta factura.':'Coincide por importe; revisa que sea la factura correcta.')
+        : el ? (Math.abs(Number(el.total)-Number(f.monto))<0.01?'':'El importe no coincide con el total de la factura ('+fmtMonto(el.total)+').') : ''; };
+    selFact.addEventListener('change',()=>{ f.facturaId=selFact.value; const el=pend.find(x=>x.id===f.facturaId); f.factura=el?(el.concepto_pago||''):f.factura; armarFacturas(); });
+    armarFacturas();
     const met=h('select',{}, ...[['transferencia','Transferencia'],['spei','SPEI'],['cheque','Cheque'],['efectivo','Efectivo'],['tarjeta','Tarjeta'],['otro','Otro']].map(([v,l])=>h('option',{value:v,selected:v===f.metodo},l))); met.addEventListener('change',()=>f.metodo=met.value);
     const msg=h('div',{class:'small muted'});
     const conf=Number(ia.confianza??0.5);
@@ -2021,7 +2046,7 @@ async function renderWizardPago(cuentas, fijo){
       bloqueo.fila,
       h('div',{class:'grid2'}, cFecha.el, cMonto.el),
       h('div',{class:'grid2'}, cRefe.el, h('label',{class:'f'},h('span',{class:'l'},'Método'),met)),
-      h('div',{class:'grid2'}, cConc.el, h('label',{class:'f'},h('span',{class:'l'},'Factura'),fact)),
+      h('div',{class:'grid2'}, cConc.el, h('label',{class:'f'},h('span',{class:'l'},'Factura que paga'),selFact,fact,notaFact)),
       msg,
       h('button',{class:'btn primary big block',onclick:async e=>{
         if(!f.cuentaId){ msg.textContent='Elige la cuenta de retiro.'; return; }
@@ -2031,7 +2056,7 @@ async function renderWizardPago(cuentas, fijo){
         const b=e.currentTarget; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
         const j=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, cuenta_id:f.cuentaId,
           proveedor_id:f.proveedorId||null, proveedor_nombre:f.proveedorId?null:f.proveedorNombre.trim(), fecha:f.fecha, monto:Number(f.monto),
-          referencia:f.referencia.trim()||null, concepto:f.concepto.trim()||null, factura:f.factura.trim()||null, metodo:f.metodo, extraido_ia:ia }).catch(err=>({ok:false,error:err.message}));
+          referencia:f.referencia.trim()||null, concepto:f.concepto.trim()||null, factura:f.factura.trim()||null, factura_id:f.facturaId||null, metodo:f.metodo, extraido_ia:ia }).catch(err=>({ok:false,error:err.message}));
         if(!j.ok){ b.disabled=false; msg.textContent=''; if(j.codigo==='comprobante_duplicado'){ w.paso='archivo'; } render(); aviso(j.error||'No se pudo registrar el pago.','err',10000,'No se puede registrar'); return; }
         w.paso='listo'; w.resultado=j; OF.cuentas=null; render(); aviso(`${j.proveedor} · ${j.archivo}`,'ok',6000,'Pago registrado'); }},'Registrar pago'));
     return;
@@ -2040,6 +2065,7 @@ async function renderWizardPago(cuentas, fijo){
     const r=w.resultado;
     add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
       h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
+      r.factura_ligada? h('p',{class:'small',style:'color:'+(r.factura_ligada.cuadra?'var(--ok)':'var(--warn)')},'Quedó ligado a la factura '+(r.factura_ligada.concepto_pago||'')+(r.factura_ligada.cuadra?'.':' · el importe no coincide con el total de la factura ('+fmtMonto(r.factura_ligada.total)+').')) : h('p',{class:'small muted'},'No se ligó a ninguna factura; cuando llegue la factura con ese concepto se ligará sola.'),
       h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='pagos'; else adminTab='pagos'; render(); }},'Ver pagos')));
   }
 }
@@ -2093,7 +2119,7 @@ async function consultaEstados(){
 let provAbierto=null;
 async function adminProveedores(){
   const espera=omEsperando(['Cargando proveedores…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await sel(sb.from('proveedores').select('id, nombre, rfc, alias, activo').eq('activo',true).order('nombre')); }
+  let rows=[]; try{ rows=await sel(sb.from('proveedores').select('id, nombre, rfc, alias, activo, referencia_especial').eq('activo',true).order('nombre')); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudieron cargar: '+(e.message||e.code))); return; }
   espera.remove();
   const nombre=h('input',{type:'text',placeholder:'Nombre del proveedor (como viene en la factura)'}); const rfc=h('input',{type:'text',placeholder:'RFC (opcional)',style:'max-width:180px'});
@@ -2102,7 +2128,7 @@ async function adminProveedores(){
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},'Todavía no hay proveedores'))); return; }
   const list=h('div',{class:'list'});
   for(const p of rows){
-    const it=h('div',{class:'item'}, h('div',{class:'l'}, h('b',{},p.nombre), h('span',{class:'small muted'},[p.rfc, (p.alias||[]).length?'alias: '+p.alias.join(', '):null].filter(Boolean).join(' · ')||'—')), h('span',{class:'small muted'},provAbierto===p.id?'▲':'▼'));
+    const it=h('div',{class:'item'}, h('div',{class:'l'}, h('b',{},p.nombre), h('span',{class:'small muted'},[p.rfc, (p.alias||[]).length?'alias: '+p.alias.join(', '):null].filter(Boolean).join(' · ')||'—'), p.referencia_especial?h('span',{class:'small',style:'color:var(--warn)'},'Referencia especial: '+p.referencia_especial):null), h('span',{class:'small muted'},provAbierto===p.id?'▲':'▼'));
     it.addEventListener('click',async()=>{ provAbierto=provAbierto===p.id?null:p.id; render(); });
     list.append(it);
     if(provAbierto===p.id){
@@ -2110,6 +2136,9 @@ async function adminProveedores(){
       try{ const r=await rpc('resumen_proveedor',{p_proveedor:p.id}); const pagos=await rpc('buscar_pagos',{p_proveedor:p.id,p_limite:10});
         det.append(h('div',{class:'grid2'}, h('div',{},h('span',{class:'small muted'},'Pagos'),h('div',{},h('b',{},String(r.pagos||0)))), h('div',{},h('span',{class:'small muted'},'Total pagado'),h('div',{},h('b',{},fmtMonto(r.total||0)))), h('div',{},h('span',{class:'small muted'},'Último pago'),h('div',{},h('b',{},r.ultimo?fmtFecha(r.ultimo):'—'))), h('div',{},h('span',{class:'small muted'},'Sin conciliar'),h('div',{},h('b',{},String(r.sin_conciliar||0))))));
         for(const x of pagos) det.append(h('div',{class:'money'}, h('span',{},`${fmtFecha(x.fecha)} · ${x.negocio}`, h('span',{class:'small muted'},x.referencia?' · folio '+x.referencia:'')), h('span',{}, h('b',{},fmtMonto(x.monto)),' ', h('a',{class:'small',href:driveLink(x.comprobante_drive_id),target:'_blank',rel:'noopener'},'ver'))));
+        if(esCentral()){ const re=h('input',{type:'text',value:p.referencia_especial||'',placeholder:'Referencia especial para pagarle (vacío = serie + folio de la factura)'});
+          det.append(h('div',{class:'row'}, re, h('button',{class:'btn sm',onclick:async()=>{ try{ await sel(sb.from('proveedores').update({referencia_especial:re.value.trim()||null}).eq('id',p.id)); toast(re.value.trim()?'Referencia especial guardada.':'Se usará serie + folio.'); render(); }catch(e){ aviso(e.message||e.code,'err'); } }},'Guardar')),
+            h('p',{class:'hint'},'Solo para proveedores que exigen su propia referencia (G500, Metrocarrier…). Para los demás, el concepto de pago es la serie y el folio de la factura.')); }
         if(esCentral()){ const al=h('input',{type:'text',placeholder:'Agregar alias (otro nombre con que aparece en el banco)'}); det.append(h('div',{class:'row'}, al, h('button',{class:'btn sm',onclick:async()=>{ const v=al.value.trim(); if(!v) return; try{ await sel(sb.from('proveedores').update({alias:[...(p.alias||[]),v]}).eq('id',p.id)); toast('Alias agregado.'); render(); }catch(e){ aviso(e.message||e.code,'err'); } }},'Agregar'))); }
       }catch(e){ det.append(h('p',{class:'small muted'},'No se pudo cargar el detalle: '+(e.message||e.code))); }
     }
@@ -2175,7 +2204,7 @@ async function oficinaChat(){
 // ---- Facturas de proveedores (XML del CFDI + PDF)
 const FA = { texto:'', desde:'', hasta:'', estado:'', wizard:null };
 async function agregarFactura(){
-  if(!FA.wizard || FA.wizard.paso==='listo') FA.wizard={paso:'archivos'};
+  if(!FA.wizard || (FA.wizard.paso==='listo' && FA.wizard.visto)) FA.wizard={paso:'archivos'}; else if(FA.wizard.paso==='listo') FA.wizard.visto=true;
   await renderWizardFactura(true);
 }
 async function consultaFacturas(){
@@ -2198,7 +2227,7 @@ async function consultaFacturas(){
     if(r.xml_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.xml_drive_id),target:'_blank',rel:'noopener'},'XML'));
     if(r.pago_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pago_drive_id),target:'_blank',rel:'noopener'},'Comprobante del pago'));
     if(S.rol==='dueno' && r.estado!=='cancelada') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>cancelarFacturaUI(r,sf)},'Cancelar'));
-    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},det), acciones),
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},det), r.estado==='registrada'?bloqueConcepto(r,false):null, acciones),
       h('div',{style:'text-align:right'}, h('b',{style:r.estado==='cancelada'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.total)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editada?chipEditado(r.cambios,true):null))));
   }
   app.append(list);
@@ -2280,7 +2309,8 @@ async function renderWizardFactura(fijo){
   }
   if(w.paso==='listo'){ const r=w.resultado;
     add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Factura registrada'), cerrar), h('p',{class:'muted'},`${r.proveedor} → ${r.negocio}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
-      r.pago_ligado? h('p',{class:'small',style:'color:var(--ok)'},'Se ligó sola al pago del '+fmtFecha(r.pago_ligado)+' por el mismo importe.'):null,
+      r.pago_ligado? h('p',{class:'small',style:'color:var(--ok)'},'Se ligó sola al pago del '+fmtFecha(r.pago_ligado)+'.'):bloqueConcepto(r,true),
+      r.pago_ligado||r.referencia_especial||!r.concepto_pago? null : h('p',{class:'small muted'},'Escribe ese concepto en la transferencia; así el comprobante se liga solo a esta factura.'),
       h('div',{class:'row'}, r.drive? h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'):null, h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'Agregar otra'), h('button',{class:'btn ghost',onclick:()=>{ FA.wizard={paso:'archivos'}; if(S.rol==='oficina') oficinaTab='cfacturas'; else adminTab='cfacturas'; render(); }},'Ver facturas'))); }
 }
 
