@@ -1947,7 +1947,8 @@ async function consultaPagos(){
     const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null, r.concepto, r.factura_concepto_pago?'paga la factura '+r.factura_concepto_pago:null].filter(Boolean).join(' · ');
     const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
       h('div',{class:'row',style:'margin-top:6px'}, h('a',{class:'btn sm ghost',href:driveLink(r.comprobante_drive_id),target:'_blank',rel:'noopener'},'Ver comprobante'),
-        S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null)),
+        S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null,
+        S.rol==='dueno' ? h('button',{class:'btn sm ghost danger',onclick:()=>eliminarUI('pago',r,`${r.proveedor} · ${fmtFecha(r.fecha)} · ${fmtMonto(r.monto)}`)},'Borrar') : null)),
       h('div',{style:'text-align:right'}, h('b',{style:r.estado==='anulado'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.monto)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editado?chipEditado(r.cambios,false):null)));
     list.append(it);
   }
@@ -2227,10 +2228,24 @@ async function consultaFacturas(){
     if(r.xml_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.xml_drive_id),target:'_blank',rel:'noopener'},'XML'));
     if(r.pago_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pago_drive_id),target:'_blank',rel:'noopener'},'Comprobante del pago'));
     if(S.rol==='dueno' && r.estado!=='cancelada') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>cancelarFacturaUI(r,sf)},'Cancelar'));
+    if(S.rol==='dueno') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>eliminarUI('factura',r,`${r.proveedor} · ${sf} · ${fmtMonto(r.total)}`)},'Borrar'));
     list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},det), r.estado==='registrada'?bloqueConcepto(r,false):null, acciones),
       h('div',{style:'text-align:right'}, h('b',{style:r.estado==='cancelada'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.total)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editada?chipEditado(r.cambios,true):null))));
   }
   app.append(list);
+}
+// Borrar de verdad: solo el dueño, con motivo, queda en bitácora. Los archivos en Drive no se tocan (solo el dueño puede borrarlos allá).
+function eliminarUI(tipo, r, titulo){
+  const motivo=h('textarea',{rows:'3',placeholder:'Por qué se borra (obligatorio; queda en bitácora)'});
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},tipo==='factura'?'Borrar factura':'Borrar pago'), h('p',{class:'muted'},titulo),
+    h('p',{class:'small',style:'color:var(--err)'},'Esto borra el registro para siempre. '+(tipo==='pago'?'Si pagaba una factura, esa factura vuelve a "sin pagar". ':'')+'Los archivos en Drive se quedan; te doy la liga para borrarlos tú.'), motivo,
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Volver'), h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; }
+      try{ const a=await rpc(tipo==='factura'?'eliminar_factura':'eliminar_pago',{[tipo==='factura'?'p_factura':'p_pago']:r.id,p_motivo:motivo.value.trim()}); sheet.remove(); render();
+        const ids=[]; for(const [k,v] of Object.entries(a||{})){ if(Array.isArray(v)) v.forEach(x=>ids.push([k,x])); else if(v) ids.push([k,v]); }
+        const cuerpo=h('div',{}, 'Registro borrado. ', ids.length?h('span',{},'Archivos en Drive por borrar: ', ...ids.map(([k,id],i)=>h('span',{}, i?' · ':'', h('a',{href:driveLink(id),target:'_blank',rel:'noopener'},k)))):'');
+        aviso(cuerpo,'ok',15000,tipo==='factura'?'Factura borrada':'Pago borrado'); }
+      catch(e){ aviso(e.message||e.code,'err'); } }},'Borrar'))));
+  document.body.append(sheet);
 }
 function cancelarFacturaUI(r,sf){
   const motivo=h('textarea',{rows:'3',placeholder:'Por qué se cancela (obligatorio)'});
