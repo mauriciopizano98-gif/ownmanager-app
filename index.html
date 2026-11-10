@@ -568,6 +568,7 @@ function turnoNombre(id){ const t=S.config.turnos.find(x=>x.id===id); return t? 
 function snapshotHot(){ return { screen:S.screen, meId:S.me?S.me.id:null, corteId:S.corte?S.corte.id:null }; }
 function lightbox(src){ const lb=h('div',{class:'lightbox',onclick:()=>lb.remove()}, h('img',{src}), h('button',{class:'btn sm'},'Cerrar')); document.body.append(lb); }
 function go(screen){ S.screen=screen; render(); }
+function add(el, ...kids){ for(const k of kids.flat()){ if(k==null||k===false) continue; el.append(k); } return el; }
 function abrirArchivo(inp){ S.esperandoArchivo=true; inp.click(); } // la cámara abierta no cuenta como inactividad
 // Mangueras que no se abren en el turno (p. ej. turno nocturno): se omiten sin foto, con cero litros y motivo.
 function puedeOmitirTurno(turnoId){ const t=S.config.turnos.find(x=>x.id===turnoId); return !!(t && (t.permiteOmitir || /noct/i.test(t.nombre||''))); }
@@ -1881,13 +1882,13 @@ async function renderWizardPago(cuentas){
         fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
         factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
       w.paso='confirmar'; render(); });
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 1 de 2'), cerrar),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 1 de 2'), cerrar),
       h('p',{class:'muted'},'Sube el comprobante del banco (PDF o foto). La IA lee cuenta, beneficiario, fecha, importe y folio; tú solo confirmas.'),
       w.error? h('div',{class:'alert err',style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err)'},w.error):null,
       h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir comprobante'), inp);
     return;
   }
-  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo el comprobante…'), cerrar), omEsperando(['La IA está leyendo '+w.archivo.nombre+'…','Buscando la cuenta de retiro…','Buscando al proveedor…'])); return; }
+  if(w.paso==='leyendo'){ add(card, h('div',{class:'sechead'}, h('h3',{},'Leyendo el comprobante…'), cerrar), omEsperando(['La IA está leyendo '+w.archivo.nombre+'…','Buscando la cuenta de retiro…','Buscando al proveedor…'])); return; }
   if(w.paso==='confirmar'){
     const a=w.analisis, f=w.form, ia=a.extraido||{};
     const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta de retiro —'), ...(a.cuentas_disponibles||[]).map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.alias}${c.ultimos4?' ···'+c.ultimos4:''} · ${c.negocio}`)));
@@ -1905,7 +1906,7 @@ async function renderWizardPago(cuentas){
     const met=h('select',{}, ...[['transferencia','Transferencia'],['spei','SPEI'],['cheque','Cheque'],['efectivo','Efectivo'],['tarjeta','Tarjeta'],['otro','Otro']].map(([v,l])=>h('option',{value:v,selected:v===f.metodo},l))); met.addEventListener('change',()=>f.metodo=met.value);
     const msg=h('div',{class:'small muted'});
     const conf=Number(ia.confianza??0.5);
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 2 de 2'), cerrar),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 2 de 2'), cerrar),
       h('p',{class:'small muted'},`${w.archivo.nombre} · leído por IA${ia.banco?' · '+ia.banco:''}${ia.cuenta_retiro?' · retiro ···'+ia.cuenta_retiro.slice(-4):''}${conf<0.7?' · revisa bien los datos (lectura dudosa)':''}`),
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       ia.notas? h('p',{class:'small muted'},'Nota de la IA: '+ia.notas):null,
@@ -1931,7 +1932,7 @@ async function renderWizardPago(cuentas){
   }
   if(w.paso==='listo'){
     const r=w.resultado;
-    card.append(h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
       h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
       h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro')));
   }
@@ -2112,12 +2113,12 @@ async function renderWizardFactura(fijo){
       if(!j.ok){ w.paso='archivos'; w.error=j.error||('No se pudo leer la factura'+(j.codigo?' ('+j.codigo+')':'')+'.'); render(); return; }
       const x=j.extraido||{}; w.analisis=j; w.form={ negocioId:j.negocio?j.negocio.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:x.emisor_nombre||'', fecha:x.fecha||nowMX().fecha, total:x.total!=null?String(x.total):'', serie:x.serie||'', folio:x.folio||'', concepto:x.concepto||'', notas:'' };
       w.paso='confirmar'; render(); }},'Leer la factura');
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Archivos'), cerrar),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Archivos'), cerrar),
       (w.error&&typeof w.error==='string')? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null,
       fila('XML de la factura (CFDI)', inXml, ()=>w.xml, v=>w.xml=v), fila('PDF o foto de la factura', inPdf, ()=>w.pdf, v=>w.pdf=v), inXml, inPdf, btnLeer);
     return;
   }
-  if(w.paso==='leyendo'){ card.append(h('div',{class:'sechead'}, h('h3',{},'Leyendo la factura…'), cerrar), omEsperando(w.xml?['Leyendo el XML del CFDI…','Buscando al proveedor…','Comprobando el RFC receptor…']:['La IA está leyendo el PDF…','Extrayendo folio e importes…','Buscando al proveedor…'])); return; }
+  if(w.paso==='leyendo'){ add(card, h('div',{class:'sechead'}, h('h3',{},'Leyendo la factura…'), cerrar), omEsperando(w.xml?['Leyendo el XML del CFDI…','Buscando al proveedor…','Comprobando el RFC receptor…']:['La IA está leyendo el PDF…','Extrayendo folio e importes…','Buscando al proveedor…'])); return; }
   if(w.paso==='confirmar'){
     const a=w.analisis, f=w.form, x=a.extraido||{};
     const neg=h('select',{}, h('option',{value:''},'— Elige el negocio —'), ...(a.negocios_disponibles||[]).map(n=>h('option',{value:n.id,selected:n.id===f.negocioId},n.nombre+(n.rfc?' · '+n.rfc:'')))); neg.addEventListener('change',()=>f.negocioId=neg.value);
@@ -2132,7 +2133,7 @@ async function renderWizardFactura(fijo){
     const conc=h('input',{type:'text',value:f.concepto,placeholder:'Qué se facturó'}); conc.addEventListener('input',()=>f.concepto=conc.value);
     const notas=h('input',{type:'text',value:f.notas,placeholder:'Opcional'}); notas.addEventListener('input',()=>f.notas=notas.value);
     const soloXml=a.origen==='xml'; const msg=h('div',{class:'small muted'});
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
       h('p',{class:'small muted'}, soloXml? `Datos exactos del XML${x.uuid?' · UUID '+x.uuid:''}${x.emisor_rfc?' · RFC emisor '+x.emisor_rfc:''}` : `Leída por IA del PDF${Number(x.confianza??0.5)<0.7?' · lectura dudosa, revisa bien':''}`),
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       (a.negocios_disponibles||[]).length>1? h('label',{class:'f'},h('span',{class:'l'},'Negocio (receptor)'),neg):null,
@@ -2154,7 +2155,7 @@ async function renderWizardFactura(fijo){
     return;
   }
   if(w.paso==='listo'){ const r=w.resultado;
-    card.append(h('div',{class:'sechead'}, h('h3',{},'✅ Factura registrada'), cerrar), h('p',{class:'muted'},`${r.proveedor} → ${r.negocio}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Factura registrada'), cerrar), h('p',{class:'muted'},`${r.proveedor} → ${r.negocio}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
       r.pago_ligado? h('p',{class:'small',style:'color:var(--ok)'},'Se ligó sola al pago del '+fmtFecha(r.pago_ligado)+' por el mismo importe.'):null,
       h('div',{class:'row'}, r.drive? h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'):null, h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'Agregar otra'), h('button',{class:'btn ghost',onclick:()=>{ FA.wizard={paso:'archivos'}; if(S.rol==='oficina') oficinaTab='cfacturas'; else adminTab='cfacturas'; render(); }},'Ver facturas'))); }
 }
