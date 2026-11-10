@@ -1529,19 +1529,19 @@ async function avisar(c){ }
 let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','factura','Facturas'],
+  const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],
     ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep'];
   if(S.rol==='dueno') items.push(['aceites','aceites','Aceites'],['desp','desp','Despachadores']);
   items.push(['config','config','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
-  const esOficinaTab = ['pagos','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
+  const esOficinaTab = ['pagos','apago','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -1562,6 +1562,8 @@ const ICONS={
   desp:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
   config:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
   abrir:'<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>',
+  facturamas:'<path d="M7 3h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v4h4M12 10v6M9 13h6"/>',
+  pagosmas:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M12 9v6M9 12h6"/>',
 };
 function ico(nombre, tam){ const sp=h('span',{class:'ic'}); sp.innerHTML=`<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nombre]||''}</svg>`; return sp; }
 
@@ -1848,25 +1850,25 @@ function barraBuscar(valor, placeholder, onbuscar){
   return h('div',{class:'buscar',style:'margin:10px 0 12px'}, txt, h('button',{class:'btn',title:'Buscar',onclick:go},'🔍'));
 }
 // ---- Pagos
-async function adminPagos(){
+async function agregarPago(){
   let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
   if(!cuentas.length){ app.append(h('div',{class:'card empty'}, h('b',{},'Sin cuentas bancarias a la vista'), 'Pide al dueño que dé de alta las cuentas de tu negocio en OwnManager.')); return; }
+  if(!OF.wizard) OF.wizard={paso:'archivo'};
+  await renderWizardPago(cuentas, true);
+}
+async function consultaPagos(){
+  let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
   const negocios=negociosOficina(cuentas);
-  const top=h('div',{class:'row between',style:'margin-bottom:10px'});
-  const selNeg=h('select',{style:'max-width:280px'}, h('option',{value:''},'Todos los negocios'), ...negocios.map(n=>h('option',{value:n.id,selected:n.id===OF.negocio},n.nombre)));
-  selNeg.addEventListener('change',()=>{ OF.negocio=selNeg.value; render(); });
-  if(negocios.length>1) top.append(selNeg); else top.append(h('span',{}));
-  top.append(h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'＋ Registrar pago'));
-  app.append(top);
-  if(OF.wizard){ await renderWizardPago(cuentas); }
+  if(negocios.length>1){ const selNeg=h('select',{style:'max-width:280px;margin-bottom:6px'}, h('option',{value:''},'Todos los negocios'), ...negocios.map(n=>h('option',{value:n.id,selected:n.id===OF.negocio},n.nombre)));
+    selNeg.addEventListener('change',()=>{ OF.negocio=selNeg.value; render(); }); app.append(selNeg); }
   app.append(barraBuscar(OF.texto, 'Buscar', v=>{ OF.texto=v; render(); }));
   const espera=omEsperando(['Cargando pagos…','Revisando comprobantes…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:OF.negocio||null, p_desde:OF.desde||null, p_hasta:OF.hasta||null, p_limite:200 }); }
+  let rows=[]; try{ rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:OF.negocio||null, p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},OF.texto?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto?'Prueba con otra palabra.':'')); return; }
   const tot=rows.filter(r=>r.estado!=='anulado').reduce((s,r)=>s+Number(r.monto),0);
-  app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} pago${rows.length===1?'':'s'} · ${fmtMonto(tot)} (sin anulados)`));
+  app.append(h('p',{class:'small muted',style:'margin:0 0 6px'},`${rows.length} pago${rows.length===1?'':'s'} · ${fmtMonto(tot)} (sin anulados)`));
   const list=h('div',{class:'list'});
   for(const r of rows){
     const chip = r.estado==='conciliado'? h('span',{class:'chip ok'},'conciliado') : r.estado==='anulado'? h('span',{class:'chip err'},'anulado') : h('span',{class:'chip acc'},'registrado');
@@ -1889,9 +1891,9 @@ function anularPagoUI(r){
 }
 
 // ---- Asistente: subir comprobante → IA → confirmar → registrar
-async function renderWizardPago(cuentas){
-  const w=OF.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px;border-color:var(--accent)'});
-  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ OF.wizard=null; render(); }},'Cerrar');
+async function renderWizardPago(cuentas, fijo){
+  const w=OF.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px'});
+  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ OF.wizard=fijo?{paso:'archivo'}:null; render(); }},fijo?'Empezar de nuevo':'Cerrar');
   app.append(card);
   if(w.paso==='archivo'){
     const inp=h('input',{type:'file',accept:'application/pdf,image/*',style:'display:none'});
@@ -1905,8 +1907,7 @@ async function renderWizardPago(cuentas){
         fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
         factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
       w.paso='confirmar'; render(); });
-    add(card, h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 1 de 2'), cerrar),
-      h('p',{class:'muted'},'Sube el comprobante del banco (PDF o foto). La IA lee cuenta, beneficiario, fecha, importe y folio; tú solo confirmas.'),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Comprobante'), cerrar),
       w.error? h('div',{class:'alert err',style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err)'},w.error):null,
       h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir comprobante'), inp);
     return;
@@ -1929,7 +1930,7 @@ async function renderWizardPago(cuentas){
     const met=h('select',{}, ...[['transferencia','Transferencia'],['spei','SPEI'],['cheque','Cheque'],['efectivo','Efectivo'],['tarjeta','Tarjeta'],['otro','Otro']].map(([v,l])=>h('option',{value:v,selected:v===f.metodo},l))); met.addEventListener('change',()=>f.metodo=met.value);
     const msg=h('div',{class:'small muted'});
     const conf=Number(ia.confianza??0.5);
-    add(card, h('div',{class:'sechead'}, h('h3',{},'Registrar pago · 2 de 2'), cerrar),
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
       h('p',{class:'small muted'},`${w.archivo.nombre} · leído por IA${ia.banco?' · '+ia.banco:''}${ia.cuenta_retiro?' · retiro ···'+ia.cuenta_retiro.slice(-4):''}${conf<0.7?' · revisa bien los datos (lectura dudosa)':''}`),
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       ia.notas? h('p',{class:'small muted'},'Nota de la IA: '+ia.notas):null,
@@ -1957,7 +1958,7 @@ async function renderWizardPago(cuentas){
     const r=w.resultado;
     add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
       h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
-      h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro')));
+      h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='pagos'; else adminTab='pagos'; render(); }},'Ver pagos')));
   }
 }
 
@@ -2026,13 +2027,13 @@ async function adminProveedores(){
 let oficinaTab='chat';
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
-  const items=[['chat','chat','Asistente'],['facturas','factura','Facturas'],['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta']]]];
-  const titulos={chat:'Asistente', facturas:'Agregar factura', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta'};
+  const items=[['chat','chat','Asistente'],['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]]];
+  const titulos={chat:'Asistente', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores'};
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }, 'oficina'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, facturas:agregarFactura, cfacturas:consultaFacturas, pagos:adminPagos, comprobantes:consultaComprobantes, estados:consultaEstados})[oficinaTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores})[oficinaTab](); } finally{ app=prev; }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
