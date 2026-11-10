@@ -383,6 +383,14 @@ body[data-om-nav] .logo{height:92px;max-width:min(60vw,420px)}
 .sidenav button:hover{background:var(--surface);border-color:var(--line);color:var(--fg)}
 .sidenav button.on{background:var(--noche);color:var(--noche-fg);border-color:var(--noche)}
 .sidenav .sep{height:1px;background:var(--line);margin:8px 10px}
+.sidenav .sub{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px 20px;border-left:2px solid var(--line);padding-left:6px}
+.sidenav .sub button{padding:8px 10px;font-size:13.5px}
+.sidenav .sub button .ic{font-size:16px;width:20px}
+.sidenav button .car{margin-left:auto;font-size:11px;opacity:.6}
+.buscar{display:flex;gap:8px;align-items:center}
+.buscar input{flex:1;min-width:0;font-size:15px;padding:12px 14px;border-radius:14px}
+.buscar .btn{padding:12px 16px;border-radius:14px;font-size:18px;line-height:1}
+@media (max-width:760px){.sidenav .sub{display:contents}.sidenav .sub button{padding:8px 12px;font-size:11.5px}.sidenav .sub button .ic{font-size:22px;width:auto}.sidenav button .car{display:none}}
 .om-shell h1{margin:0 0 4px}
 .om-shell .om-main>.card,.om-shell .om-main>.list,.om-shell .om-main>p{margin-top:12px}
 @media (max-width:760px){
@@ -1496,25 +1504,33 @@ async function avisar(c){ }
 let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const items=[['chat','💬','Asistente'],['hoy','📅','Hoy'],['cortes','⛽','Cortes'],['depositos','🏦','Depósitos'],['anulados','🚫','Anulados'],'sep',['facturas','🧾','Facturas'],['pagos','💸','Pagos'],['proveedores','🏭','Proveedores'],'sep'];
+  const items=[['chat','💬','Asistente'],['hoy','📅','Hoy'],['cortes','⛽','Cortes'],['depositos','🏦','Depósitos'],['anulados','🚫','Anulados'],'sep',['facturas','🧾','Facturas'],
+    ['consulta','🔎','Consulta',[['pagos','💸','Pagos'],['comprobantes','📎','Comprobantes'],['estados','🏦','Estados de cuenta'],['proveedores','🏭','Proveedores']]],'sep'];
   if(S.rol==='dueno') items.push(['aceites','🛢️','Aceites'],['desp','👷','Despachadores']);
   items.push(['config','⚙️','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Facturas de proveedores', pagos:'Pagos a proveedores', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
-  const esOficinaTab = ['pagos','proveedores','facturas','chat'].includes(adminTab);
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
+  const esOficinaTab = ['pagos','proveedores','facturas','chat','comprobantes','estados'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }), main); app.append(shell);
   const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Central':ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:oficinaFacturas, chat:oficinaChat})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:oficinaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 function navLateral(items, actual, onpick){
   const nav=h('nav',{class:'sidenav'});
-  for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; } const [k,ic,l]=it; nav.append(h('button',{class:k===actual?'on':'',onclick:()=>onpick(k)}, h('span',{class:'ic'},ic), h('span',{},l))); }
+  const btn=(k,ic,l,extra,fn)=>h('button',{class:k===actual?'on':'',onclick:fn||(()=>onpick(k))}, h('span',{class:'ic'},ic), h('span',{},l), extra||null);
+  for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; }
+    const [k,ic,l,subs]=it;
+    if(subs){ const abierto = subs.some(x=>x[0]===actual) || NAV.abierto===k;
+      nav.append(btn('__grupo:'+k, ic, l, h('span',{class:'car'},abierto?'▲':'▼'), ()=>{ NAV.abierto = abierto? null : k; render(); }));
+      if(abierto){ const sub=h('div',{class:'sub'}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl)); nav.append(sub); } }
+    else nav.append(btn(k,ic,l)); }
   return nav;
 }
+const NAV={abierto:null};
 async function cortesTablero(filtro){
   let q=sb.from('cortes').select('*, despachadores(nombre)').eq('estacion_id',S.config.estacionId);
   q=filtro(q); const rows=await sel(q);
@@ -1777,6 +1793,12 @@ const driveLink = id => `https://drive.google.com/file/d/${id}/view`;
 const archivoABase64 = f => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=()=>rej(new Error('No se pudo leer el archivo.')); r.readAsDataURL(f); });
 const fmtMonto = n => fmtMXN(Number(n));
 
+function barraBuscar(valor, placeholder, onbuscar){
+  const txt=h('input',{type:'search',placeholder:placeholder,value:valor});
+  const go=()=>onbuscar(txt.value.trim());
+  txt.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  return h('div',{class:'buscar',style:'margin:10px 0 12px'}, txt, h('button',{class:'btn',title:'Buscar',onclick:go},'🔍'));
+}
 // ---- Pagos
 async function adminPagos(){
   let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
@@ -1785,21 +1807,16 @@ async function adminPagos(){
   const top=h('div',{class:'row between',style:'margin-bottom:10px'});
   const selNeg=h('select',{style:'max-width:280px'}, h('option',{value:''},'Todos los negocios'), ...negocios.map(n=>h('option',{value:n.id,selected:n.id===OF.negocio},n.nombre)));
   selNeg.addEventListener('change',()=>{ OF.negocio=selNeg.value; render(); });
-  if(negocios.length>1) top.append(selNeg); else top.append(h('p',{class:'eyebrow'},negocios[0].nombre));
+  if(negocios.length>1) top.append(selNeg); else top.append(h('span',{}));
   top.append(h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'＋ Registrar pago'));
   app.append(top);
   if(OF.wizard){ await renderWizardPago(cuentas); }
-  // Búsqueda
-  const txt=h('input',{type:'search',placeholder:'Proveedor, folio, concepto, factura o monto',value:OF.texto,style:'flex:1;min-width:200px'});
-  const desde=h('input',{type:'date',value:OF.desde}); const hasta=h('input',{type:'date',value:OF.hasta});
-  const buscar=()=>{ OF.texto=txt.value.trim(); OF.desde=desde.value; OF.hasta=hasta.value; render(); };
-  txt.addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); });
-  app.append(h('div',{class:'card stack'}, h('div',{class:'row'}, txt, desde, hasta, h('button',{class:'btn',onclick:buscar},'Buscar'))));
+  app.append(barraBuscar(OF.texto, 'Buscar', v=>{ OF.texto=v; render(); }));
   const espera=omEsperando(['Cargando pagos…','Revisando comprobantes…','Casi listo…']); app.append(espera);
   let rows=[]; try{ rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:OF.negocio||null, p_desde:OF.desde||null, p_hasta:OF.hasta||null, p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},OF.texto||OF.desde||OF.hasta?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto||OF.desde||OF.hasta?'Prueba con otra palabra o quita las fechas.':'Pulsa "Registrar pago", sube el comprobante del banco y la IA llena los datos.')); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},OF.texto?'Sin resultados':'Todavía no hay pagos registrados'), OF.texto?'Prueba con otra palabra.':'')); return; }
   const tot=rows.filter(r=>r.estado!=='anulado').reduce((s,r)=>s+Number(r.monto),0);
   app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} pago${rows.length===1?'':'s'} · ${fmtMonto(tot)} (sin anulados)`));
   const list=h('div',{class:'list'});
@@ -1896,6 +1913,38 @@ async function renderWizardPago(cuentas){
   }
 }
 
+// ---- Consulta · Comprobantes (archivos de pagos y facturas, por mes) y Estados de cuenta
+const CO={texto:''}; const EC={texto:''};
+async function consultaComprobantes(){
+  app.append(barraBuscar(CO.texto, 'Buscar', v=>{ CO.texto=v; render(); }));
+  const espera=omEsperando(['Cargando comprobantes…','Casi listo…']); app.append(espera);
+  let rows=[]; try{ rows=await rpc('buscar_documentos',{ p_texto:CO.texto||'', p_limite:200 }); }
+  catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  espera.remove();
+  rows=rows.filter(r=>['comprobante','factura'].includes(r.tipo));
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},CO.texto?'Sin resultados':'Todavía no hay comprobantes'))); return; }
+  const porMes={}; for(const r of rows){ const k=(r.fecha||'').slice(0,7)||'Sin fecha'; (porMes[k]=porMes[k]||[]).push(r); }
+  for(const [mes,xs] of Object.entries(porMes).sort((a,b)=>a[0]<b[0]?1:-1)){
+    const [y,m]=mes.split('-'); const nombreMes = m? new Date(Date.UTC(Number(y),Number(m)-1,1)).toLocaleDateString('es-MX',{timeZone:'UTC',month:'long',year:'numeric'}) : mes;
+    const card=h('div',{class:'card stack',style:'margin-bottom:10px'}, h('h3',{style:'text-transform:capitalize'},nombreMes));
+    for(const r of xs.sort((a,b)=>(a.fecha||'')<(b.fecha||'')?1:-1)) card.append(h('div',{class:'money'}, h('span',{}, (r.tipo==='factura'?'📄 ':'🧾 ')+(r.resumen||r.nombre), h('span',{class:'small muted'},' · '+fmtFecha(r.fecha))), h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener'},'Abrir')));
+    app.append(card);
+  }
+}
+async function consultaEstados(){
+  app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }));
+  const espera=omEsperando(['Cargando estados de cuenta…','Casi listo…']); app.append(espera);
+  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, importado, saldo_inicial, saldo_final, cuentas_bancarias(alias, banco, ultimos4, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(200)); }
+  catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  espera.remove();
+  if(EC.texto){ const t=EC.texto.toLowerCase(); rows=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(t)); }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},EC.texto?'Sin resultados':'Todavía no hay estados de cuenta'), EC.texto?'':'Los sube Central cada mes; aquí aparecen para consulta.')); return; }
+  const list=h('div',{class:'list'});
+  for(const r of rows){ const c=r.cuentas_bancarias||{}; const n=(c.negocios&&c.negocios.nombre)||'';
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${c.alias||c.banco||'Cuenta'}${c.ultimos4?' ···'+c.ultimos4:''}`), h('span',{class:'small muted'},`${n} · ${fmtFecha(r.periodo_inicio)} – ${fmtFecha(r.periodo_fin)}${r.saldo_final!=null?' · saldo final '+fmtMonto(r.saldo_final):''}`)),
+      h('a',{class:'btn sm ghost',href:driveLink(r.archivo_drive_id),target:'_blank',rel:'noopener'},'Abrir'))); }
+  app.append(list);
+}
 // ---- Proveedores
 let provAbierto=null;
 async function adminProveedores(){
@@ -1929,13 +1978,13 @@ async function adminProveedores(){
 let oficinaTab='chat';
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
-  const items=[['chat','💬','Asistente'],['facturas','🧾','Facturas'],['pagos','💸','Pagos']];
-  const titulos={chat:'Asistente', facturas:'Facturas de proveedores', pagos:'Pagos a proveedores'};
+  const items=[['chat','💬','Asistente'],['facturas','🧾','Facturas'],['consulta','🔎','Consulta',[['pagos','💸','Pagos'],['comprobantes','📎','Comprobantes'],['estados','🏦','Estados de cuenta']]]];
+  const titulos={chat:'Asistente', facturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta'};
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }), main); app.append(shell);
   main.append(h('div',{}, h('p',{class:'eyebrow'},'Own Manager · Oficina'), h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos})[oficinaTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos, comprobantes:consultaComprobantes, estados:consultaEstados})[oficinaTab](); } finally{ app=prev; }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
@@ -1982,20 +2031,14 @@ async function oficinaChat(){
 // ---- Facturas de proveedores (XML del CFDI + PDF)
 const FA = { texto:'', desde:'', hasta:'', estado:'', wizard:null };
 async function oficinaFacturas(){
-  const top=h('div',{class:'row between',style:'margin-bottom:10px'}, h('p',{class:'small muted',style:'margin:0'},'Sube el XML de la factura (y el PDF si lo tienes); los datos salen exactos del XML.'), h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'＋ Agregar factura'));
-  app.append(top);
+  app.append(h('div',{class:'row between',style:'margin-bottom:10px'}, h('span',{}), h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'＋ Agregar factura')));
   if(FA.wizard) await renderWizardFactura();
-  const txt=h('input',{type:'search',placeholder:'Proveedor, folio, UUID, concepto, RFC o total',value:FA.texto,style:'flex:1;min-width:200px'});
-  const desde=h('input',{type:'date',value:FA.desde}); const hasta=h('input',{type:'date',value:FA.hasta});
-  const est=h('select',{}, ...[['','Todas'],['registrada','Sin pagar'],['pagada','Pagadas'],['cancelada','Canceladas']].map(([v,l])=>h('option',{value:v,selected:v===FA.estado},l)));
-  const buscar=()=>{ FA.texto=txt.value.trim(); FA.desde=desde.value; FA.hasta=hasta.value; FA.estado=est.value; render(); };
-  txt.addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); }); est.addEventListener('change',buscar);
-  app.append(h('div',{class:'card stack'}, h('div',{class:'row'}, txt, desde, hasta, est, h('button',{class:'btn',onclick:buscar},'Buscar'))));
+  app.append(barraBuscar(FA.texto, 'Buscar', v=>{ FA.texto=v; render(); }));
   const espera=omEsperando(['Cargando facturas…','Leyendo el archivo…','Casi listo…']); app.append(espera);
   let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:OF.negocio||null, p_desde:FA.desde||null, p_hasta:FA.hasta||null, p_estado:FA.estado||null, p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},FA.texto||FA.desde||FA.estado?'Sin resultados':'Todavía no hay facturas'), FA.texto||FA.desde||FA.estado?'Prueba con otra palabra o quita los filtros.':'Pulsa "Agregar factura" y sube el XML que te mandó el proveedor.')); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},FA.texto?'Sin resultados':'Todavía no hay facturas'), FA.texto?'Prueba con otra palabra.':'')); return; }
   const tot=rows.filter(r=>r.estado!=='cancelada').reduce((s,r)=>s+Number(r.total),0), pend=rows.filter(r=>r.estado==='registrada').reduce((s,r)=>s+Number(r.total),0);
   app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} factura${rows.length===1?'':'s'} · ${fmtMonto(tot)} · sin pagar ${fmtMonto(pend)}`));
   const list=h('div',{class:'list'});
