@@ -379,18 +379,20 @@ body[data-om-nav] .logo{height:92px;max-width:min(60vw,420px)}
 .om-shell .om-main{min-width:0}
 .sidenav{position:sticky;top:76px;display:flex;flex-direction:column;gap:4px}
 .sidenav button{display:flex;align-items:center;gap:12px;width:100%;border:1px solid transparent;background:transparent;border-radius:12px;padding:11px 12px;font:600 14px var(--font-body);color:var(--muted);cursor:pointer;text-align:left}
-.sidenav button .ic{font-size:20px;width:26px;text-align:center;line-height:1}
+.sidenav button .ic{width:22px;display:inline-flex;justify-content:center;line-height:0;opacity:.85}
+.sidenav button.on .ic{opacity:1}
 .sidenav button:hover{background:var(--surface);border-color:var(--line);color:var(--fg)}
 .sidenav button.on{background:var(--noche);color:var(--noche-fg);border-color:var(--noche)}
 .sidenav .sep{height:1px;background:var(--line);margin:8px 10px}
 .sidenav .sub{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px 20px;border-left:2px solid var(--line);padding-left:6px}
 .sidenav .sub button{padding:8px 10px;font-size:13.5px}
-.sidenav .sub button .ic{font-size:16px;width:20px}
+.sidenav .sub button .ic{width:18px}
+.sidenav .sub button .ic svg{width:16px;height:16px}
 .sidenav button .car{margin-left:auto;font-size:11px;opacity:.6}
 .buscar{display:flex;gap:8px;align-items:center}
 .buscar input{flex:1;min-width:0;font-size:15px;padding:12px 14px;border-radius:14px}
 .buscar .btn{padding:12px 16px;border-radius:14px;font-size:18px;line-height:1}
-@media (max-width:760px){.sidenav .sub{display:contents}.sidenav .sub button{padding:8px 12px;font-size:11.5px}.sidenav .sub button .ic{font-size:22px;width:auto}.sidenav button .car{display:none}}
+@media (max-width:760px){.sidenav .sub{display:contents}.sidenav .sub button{padding:8px 12px;font-size:11.5px}.sidenav .sub button .ic{width:auto}.sidenav .sub button .ic svg{width:20px;height:20px}.sidenav button .car{display:none}}
 .om-shell h1{margin:0 0 4px}
 .om-shell .om-main>.card,.om-shell .om-main>.list,.om-shell .om-main>p{margin-top:12px}
 @media (max-width:760px){
@@ -398,7 +400,7 @@ body[data-om-nav] .logo{height:92px;max-width:min(60vw,420px)}
   .sidenav{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none}
   .sidenav::-webkit-scrollbar{display:none}
   .sidenav button{width:auto;flex-direction:column;gap:3px;padding:8px 12px;font-size:11.5px;border-color:var(--line);background:var(--surface);min-width:72px;justify-content:center;text-align:center}
-  .sidenav button .ic{font-size:22px;width:auto}
+  .sidenav button .ic{width:auto}
   .sidenav .sep{display:none}
 }
 /* Chat */
@@ -1504,28 +1506,49 @@ async function avisar(c){ }
 let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const items=[['chat','💬','Asistente'],['hoy','📅','Hoy'],['cortes','⛽','Cortes'],['depositos','🏦','Depósitos'],['anulados','🚫','Anulados'],'sep',['facturas','🧾','Facturas'],
-    ['consulta','🔎','Consulta',[['pagos','💸','Pagos'],['comprobantes','📎','Comprobantes'],['estados','🏦','Estados de cuenta'],['proveedores','🏭','Proveedores']]],'sep'];
-  if(S.rol==='dueno') items.push(['aceites','🛢️','Aceites'],['desp','👷','Despachadores']);
-  items.push(['config','⚙️','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
-  const esOficinaTab = ['pagos','proveedores','facturas','chat','comprobantes','estados'].includes(adminTab);
+  const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','factura','Facturas'],
+    ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep'];
+  if(S.rol==='dueno') items.push(['aceites','aceites','Aceites'],['desp','desp','Despachadores']);
+  items.push(['config','config','Configuración']);
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
+  const esOficinaTab = ['pagos','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }), main); app.append(shell);
   const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Central':ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:oficinaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
+
+// ---- Iconos de línea minimalistas (stroke, currentColor)
+const ICONS={
+  chat:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4.2 3.4c-.4.3-.8 0-.8-.5V5.5Z"/>',
+  factura:'<path d="M7 3h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  buscar:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+  pagos:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M3 10h2M19 14h2"/>',
+  comprobantes:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/>',
+  banco:'<path d="M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 18h18M3 21h18"/>',
+  proveedores:'<path d="M3 7h11v10H3zM14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+  hoy:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  cortes:'<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M5 21h10M8 7h4M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-3-3"/>',
+  depositos:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 10.5v3M7 8v8"/>',
+  anulados:'<circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/>',
+  aceites:'<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11Z"/>',
+  desp:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  config:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  abrir:'<path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>',
+};
+function ico(nombre, tam){ const sp=h('span',{class:'ic'}); sp.innerHTML=`<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nombre]||''}</svg>`; return sp; }
+
 function navLateral(items, actual, onpick){
   const nav=h('nav',{class:'sidenav'});
-  const btn=(k,ic,l,extra,fn)=>h('button',{class:k===actual?'on':'',onclick:fn||(()=>onpick(k))}, h('span',{class:'ic'},ic), h('span',{},l), extra||null);
+  const btn=(k,ic,l,extra,fn)=>h('button',{class:k===actual?'on':'',onclick:fn||(()=>onpick(k))}, ico(ic), h('span',{},l), extra||null);
   for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; }
     const [k,ic,l,subs]=it;
     if(subs){ const abierto = subs.some(x=>x[0]===actual) || NAV.abierto===k;
-      nav.append(btn('__grupo:'+k, ic, l, h('span',{class:'car'},abierto?'▲':'▼'), ()=>{ NAV.abierto = abierto? null : k; render(); }));
+      nav.append(btn('__grupo:'+k, ic, l, h('span',{class:'car'},abierto?'–':'+'), ()=>{ NAV.abierto = abierto? null : k; render(); }));
       if(abierto){ const sub=h('div',{class:'sub'}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl)); nav.append(sub); } }
     else nav.append(btn(k,ic,l)); }
   return nav;
@@ -1778,8 +1801,9 @@ async function fnOficina(body, nombre='registrar-comprobante'){
   try{
     const r = await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/${nombre}`, { method:'POST',
       headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify(body) });
-    const j = await r.json().catch(()=>({ ok:false, error:'El servidor no respondió bien ('+r.status+').' }));
-    if(j.ok===undefined) j.ok=r.ok; return j;
+    let j = await r.json().catch(()=>null);
+    if(!j || typeof j!=='object') j={ ok:false, error:'El servidor no respondió bien ('+r.status+').' };
+    if(j.ok===undefined) j.ok=r.ok; if(!j.ok && !j.error) j.error='Error del servidor ('+r.status+').'; return j;
   } finally{ omCarga(-1); }
 }
 async function cuentasOficina(force){
@@ -1851,7 +1875,7 @@ async function renderWizardPago(cuentas){
       if(f.size>8*1024*1024){ toast('El archivo pasa de 8 MB.'); return; }
       w.archivo={ nombre:f.name, mime:f.type||'application/pdf', b64:await archivoABase64(f) }; w.paso='leyendo'; render();
       const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, nombre_archivo:f.name }).catch(e=>({ok:false,error:e.message}));
-      if(!j.ok){ w.paso='archivo'; w.error=j.error; render(); return; }
+      if(!j.ok){ w.paso='archivo'; w.error=j.error||('No se pudo leer el comprobante'+(j.codigo?' ('+j.codigo+')':'')+'.'); render(); return; }
       const ia=j.extraido||{};
       w.analisis=j; w.form={ cuentaId:j.cuenta?j.cuenta.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:ia.beneficiario||ia.nombre_corto||'',
         fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
@@ -1927,7 +1951,7 @@ async function consultaComprobantes(){
   for(const [mes,xs] of Object.entries(porMes).sort((a,b)=>a[0]<b[0]?1:-1)){
     const [y,m]=mes.split('-'); const nombreMes = m? new Date(Date.UTC(Number(y),Number(m)-1,1)).toLocaleDateString('es-MX',{timeZone:'UTC',month:'long',year:'numeric'}) : mes;
     const card=h('div',{class:'card stack',style:'margin-bottom:10px'}, h('h3',{style:'text-transform:capitalize'},nombreMes));
-    for(const r of xs.sort((a,b)=>(a.fecha||'')<(b.fecha||'')?1:-1)) card.append(h('div',{class:'money'}, h('span',{}, (r.tipo==='factura'?'📄 ':'🧾 ')+(r.resumen||r.nombre), h('span',{class:'small muted'},' · '+fmtFecha(r.fecha))), h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener'},'Abrir')));
+    for(const r of xs.sort((a,b)=>(a.fecha||'')<(b.fecha||'')?1:-1)) card.append(h('div',{class:'money'}, h('span',{class:'row',style:'gap:8px'}, ico(r.tipo==='factura'?'factura':'comprobantes',16), h('span',{},(r.resumen||r.nombre)), h('span',{class:'small muted'},' · '+fmtFecha(r.fecha))), h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener'},'Abrir')));
     app.append(card);
   }
 }
@@ -1978,13 +2002,13 @@ async function adminProveedores(){
 let oficinaTab='chat';
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
-  const items=[['chat','💬','Asistente'],['facturas','🧾','Facturas'],['consulta','🔎','Consulta',[['pagos','💸','Pagos'],['comprobantes','📎','Comprobantes'],['estados','🏦','Estados de cuenta']]]];
-  const titulos={chat:'Asistente', facturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta'};
+  const items=[['chat','chat','Asistente'],['facturas','factura','Facturas'],['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta']]]];
+  const titulos={chat:'Asistente', facturas:'Agregar factura', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta'};
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }), main); app.append(shell);
   main.append(h('div',{}, h('p',{class:'eyebrow'},'Own Manager · Oficina'), h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos, comprobantes:consultaComprobantes, estados:consultaEstados})[oficinaTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, facturas:agregarFactura, cfacturas:consultaFacturas, pagos:adminPagos, comprobantes:consultaComprobantes, estados:consultaEstados})[oficinaTab](); } finally{ app=prev; }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
@@ -2012,7 +2036,7 @@ async function oficinaChat(){
     if(!CHAT.mensajes.length){ const sal=saludoDelDia(); hilo.append(h('div',{class:'saludo'}, h('div',{class:'big'},sal.titulo), h('div',{class:'sub'},sal.sub))); }
     for(const m of CHAT.mensajes){
       hilo.append(h('div',{class:'bub '+(m.rol==='usuario'?'yo':'ia')}, m.texto));
-      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},(r.tipo==='factura'?'📄 ':'🧾 ')+r.titulo.slice(0,48)))));
+      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},ico(r.tipo==='factura'?'factura':'comprobantes',16), ' '+r.titulo.slice(0,48)))));
     }
     if(CHAT.ocupado) hilo.append(h('div',{class:'bub ia',style:'padding:10px 14px'}, omLoader({tam:'chico',texto:['Buscando en pagos y facturas…','Revisando documentos…','Armando la respuesta…'][Math.floor(Date.now()/1800)%3]})));
     hilo.scrollTop=hilo.scrollHeight; };
@@ -2030,17 +2054,19 @@ async function oficinaChat(){
 
 // ---- Facturas de proveedores (XML del CFDI + PDF)
 const FA = { texto:'', desde:'', hasta:'', estado:'', wizard:null };
-async function oficinaFacturas(){
-  app.append(h('div',{class:'row between',style:'margin-bottom:10px'}, h('span',{}), h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'＋ Agregar factura')));
-  if(FA.wizard) await renderWizardFactura();
+async function agregarFactura(){
+  if(!FA.wizard) FA.wizard={paso:'archivos'};
+  await renderWizardFactura(true);
+}
+async function consultaFacturas(){
   app.append(barraBuscar(FA.texto, 'Buscar', v=>{ FA.texto=v; render(); }));
   const espera=omEsperando(['Cargando facturas…','Leyendo el archivo…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:OF.negocio||null, p_desde:FA.desde||null, p_hasta:FA.hasta||null, p_estado:FA.estado||null, p_limite:200 }); }
+  let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:OF.negocio||null, p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},FA.texto?'Sin resultados':'Todavía no hay facturas'), FA.texto?'Prueba con otra palabra.':'')); return; }
   const tot=rows.filter(r=>r.estado!=='cancelada').reduce((s,r)=>s+Number(r.total),0), pend=rows.filter(r=>r.estado==='registrada').reduce((s,r)=>s+Number(r.total),0);
-  app.append(h('p',{class:'small muted',style:'margin:10px 0 6px'},`${rows.length} factura${rows.length===1?'':'s'} · ${fmtMonto(tot)} · sin pagar ${fmtMonto(pend)}`));
+  app.append(h('p',{class:'small muted',style:'margin:0 0 6px'},`${rows.length} factura${rows.length===1?'':'s'} · ${fmtMonto(tot)} · sin pagar ${fmtMonto(pend)}`));
   const list=h('div',{class:'list'});
   for(const r of rows){
     const sf=[r.serie,r.folio].filter(Boolean).join('')||(r.uuid_cfdi?r.uuid_cfdi.slice(0,8)+'…':'s/f');
@@ -2062,9 +2088,9 @@ function cancelarFacturaUI(r,sf){
     h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Volver'), h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; } try{ await rpc('cancelar_factura',{p_factura:r.id,p_motivo:motivo.value.trim()}); sheet.remove(); toast('Factura cancelada.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }},'Cancelar factura'))));
   document.body.append(sheet);
 }
-async function renderWizardFactura(){
-  const w=FA.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px;border-color:var(--accent)'}); app.append(card);
-  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ FA.wizard=null; render(); }},'Cerrar');
+async function renderWizardFactura(fijo){
+  const w=FA.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px'}); app.append(card);
+  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ FA.wizard=fijo?{paso:'archivos'}:null; render(); }},fijo?'Empezar de nuevo':'Cerrar');
   if(w.paso==='archivos'){
     w.xml=w.xml||null; w.pdf=w.pdf||null;
     const inXml=h('input',{type:'file',accept:'.xml,application/xml,text/xml',style:'display:none'});
@@ -2083,11 +2109,11 @@ async function renderWizardFactura(){
       pinta(); return r; };
     const btnLeer=h('button',{class:'btn primary big block',disabled:!(w.xml||w.pdf),onclick:async()=>{ w.paso='leyendo'; render();
       const j=await fnOficina({ accion:'analizar', xml_base64:w.xml?w.xml.b64:null, pdf_base64:w.pdf?w.pdf.b64:null, pdf_mime:w.pdf?w.pdf.mime:null }, 'registrar-factura').catch(e=>({ok:false,error:e.message}));
-      if(!j.ok){ w.paso='archivos'; w.error=j.error; render(); return; }
+      if(!j.ok){ w.paso='archivos'; w.error=j.error||('No se pudo leer la factura'+(j.codigo?' ('+j.codigo+')':'')+'.'); render(); return; }
       const x=j.extraido||{}; w.analisis=j; w.form={ negocioId:j.negocio?j.negocio.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:x.emisor_nombre||'', fecha:x.fecha||nowMX().fecha, total:x.total!=null?String(x.total):'', serie:x.serie||'', folio:x.folio||'', concepto:x.concepto||'', notas:'' };
       w.paso='confirmar'; render(); }},'Leer la factura');
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Agregar factura · 1 de 2'), cerrar), h('p',{class:'muted'},'El XML trae los datos exactos; el PDF es para verla. Revisa la vista previa antes de leer.'),
-      w.error? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null,
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Archivos'), cerrar),
+      (w.error&&typeof w.error==='string')? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--err-soft);color:var(--err);font-size:13px'},w.error):null,
       fila('XML de la factura (CFDI)', inXml, ()=>w.xml, v=>w.xml=v), fila('PDF o foto de la factura', inPdf, ()=>w.pdf, v=>w.pdf=v), inXml, inPdf, btnLeer);
     return;
   }
@@ -2106,7 +2132,7 @@ async function renderWizardFactura(){
     const conc=h('input',{type:'text',value:f.concepto,placeholder:'Qué se facturó'}); conc.addEventListener('input',()=>f.concepto=conc.value);
     const notas=h('input',{type:'text',value:f.notas,placeholder:'Opcional'}); notas.addEventListener('input',()=>f.notas=notas.value);
     const soloXml=a.origen==='xml'; const msg=h('div',{class:'small muted'});
-    card.append(h('div',{class:'sechead'}, h('h3',{},'Agregar factura · 2 de 2'), cerrar),
+    card.append(h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
       h('p',{class:'small muted'}, soloXml? `Datos exactos del XML${x.uuid?' · UUID '+x.uuid:''}${x.emisor_rfc?' · RFC emisor '+x.emisor_rfc:''}` : `Leída por IA del PDF${Number(x.confianza??0.5)<0.7?' · lectura dudosa, revisa bien':''}`),
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       (a.negocios_disponibles||[]).length>1? h('label',{class:'f'},h('span',{class:'l'},'Negocio (receptor)'),neg):null,
@@ -2130,7 +2156,7 @@ async function renderWizardFactura(){
   if(w.paso==='listo'){ const r=w.resultado;
     card.append(h('div',{class:'sechead'}, h('h3',{},'✅ Factura registrada'), cerrar), h('p',{class:'muted'},`${r.proveedor} → ${r.negocio}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
       r.pago_ligado? h('p',{class:'small',style:'color:var(--ok)'},'Se ligó sola al pago del '+fmtFecha(r.pago_ligado)+' por el mismo importe.'):null,
-      h('div',{class:'row'}, r.drive? h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'):null, h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'Agregar otra'))); }
+      h('div',{class:'row'}, r.drive? h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'):null, h('button',{class:'btn primary',onclick:()=>{ FA.wizard={paso:'archivos'}; render(); }},'Agregar otra'), h('button',{class:'btn ghost',onclick:()=>{ FA.wizard={paso:'archivos'}; if(S.rol==='oficina') oficinaTab='cfacturas'; else adminTab='cfacturas'; render(); }},'Ver facturas'))); }
 }
 
 // La rueda del mouse no debe cambiar valores numéricos (al girar sobre un campo con foco, se quita el foco)
