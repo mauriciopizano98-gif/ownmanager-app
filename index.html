@@ -365,6 +365,41 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .ia{background:var(--surface2);border-radius:var(--r);padding:14px 16px;border-left:5px solid var(--azul)}
 .iatxt p{margin:0 0 6px;line-height:1.5} .iatxt p:last-child{margin:0}
 .sechead h2{font-size:22px}
+
+/* ---- Tablero / Oficina: menú lateral con iconos y más aire */
+body[data-om-nav] .wrap{max-width:1180px}
+body[data-om-nav] .top .in{max-width:1180px}
+.om-shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px;align-items:start}
+.om-shell .om-main{min-width:0}
+.sidenav{position:sticky;top:76px;display:flex;flex-direction:column;gap:4px}
+.sidenav button{display:flex;align-items:center;gap:12px;width:100%;border:1px solid transparent;background:transparent;border-radius:12px;padding:11px 12px;font:600 14px var(--font-body);color:var(--muted);cursor:pointer;text-align:left}
+.sidenav button .ic{font-size:20px;width:26px;text-align:center;line-height:1}
+.sidenav button:hover{background:var(--surface);border-color:var(--line);color:var(--fg)}
+.sidenav button.on{background:var(--noche);color:var(--noche-fg);border-color:var(--noche)}
+.sidenav .sep{height:1px;background:var(--line);margin:8px 10px}
+.om-shell h1{margin:0 0 4px}
+.om-shell .om-main>.card,.om-shell .om-main>.list,.om-shell .om-main>p{margin-top:12px}
+@media (max-width:760px){
+  .om-shell{display:block}
+  .sidenav{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none}
+  .sidenav::-webkit-scrollbar{display:none}
+  .sidenav button{width:auto;flex-direction:column;gap:3px;padding:8px 12px;font-size:11.5px;border-color:var(--line);background:var(--surface);min-width:72px;justify-content:center;text-align:center}
+  .sidenav button .ic{font-size:22px;width:auto}
+  .sidenav .sep{display:none}
+}
+/* Chat */
+.chatbox{display:flex;flex-direction:column;min-height:calc(100vh - 230px)}
+.chatbox .hilo{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px}
+.chatbox .bub{max-width:88%;padding:12px 15px;border-radius:16px;white-space:pre-wrap;line-height:1.5;font-size:15px}
+.chatbox .bub.yo{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-bottom-right-radius:6px}
+.chatbox .bub.ia{align-self:flex-start;background:var(--surface2);border:1px solid var(--line);border-bottom-left-radius:6px}
+.chatbox .refs{align-self:flex-start;display:flex;flex-wrap:wrap;gap:6px;max-width:88%}
+.chatbox .saludo{margin:auto 0;text-align:center;padding:40px 10px}
+.chatbox .saludo .big{font:700 clamp(22px,3.2vw,30px)/1.2 var(--font-body);margin-bottom:8px}
+.chatbox .saludo .sub{color:var(--muted);font-size:15px}
+.chatbox .entrada{display:flex;gap:10px;align-items:flex-end;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.chatbox .entrada textarea{flex:1;resize:none;min-height:52px;font-size:15px;padding:12px 14px;border-radius:14px}
+.chatbox .entrada .btn{padding:14px 20px;border-radius:14px}
 </style>
 </head>
 <body>
@@ -599,7 +634,7 @@ function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empt
 async function cerrarCuenta(){ try{ if(S.token) await rpc('cerrar_sesion',{p_token:S.token}); }catch(e){} guardarToken(null); S.token=null; S.me=null; S.corte=null; S.adminOk=false; await sb.auth.signOut(); }
 // ---- render
 function render(){
-  S.pinTeclado=null; document.body.removeAttribute('data-om-login'); setWho(); setBrand(); app.innerHTML='';
+  app=$('#app'); S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
   ({login:renderLogin, home:renderHome, corte:renderCorte, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
@@ -1452,18 +1487,27 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
 async function reporteTurnoSiCompleto(c){ }
 async function avisar(c){ }
 // ---- ADMIN (dueño y oficina)
-let adminTab='hoy';
+let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const tabsDef=[['hoy','Hoy'],['cortes','Cortes'],['depositos','Depósitos'],['anulados','Anulados'],['chat','Chat'],['facturas','Facturas'],['pagos','Pagos'],['proveedores','Proveedores'],['config','Configuración']];
-  if(S.rol==='dueno') tabsDef.splice(3,0,['aceites','Aceites'],['desp','Despachadores']);
-  const tabs=h('div',{class:'tabs'},...tabsDef.map(([k,l])=>h('button',{class:k===adminTab?'on':'',onclick:()=>{adminTab=k;render();}},l)));
+  const items=[['chat','💬','Asistente'],['hoy','📅','Hoy'],['cortes','⛽','Cortes'],['depositos','🏦','Depósitos'],['anulados','🚫','Anulados'],'sep',['facturas','🧾','Facturas'],['pagos','💸','Pagos'],['proveedores','🏭','Proveedores'],'sep'];
+  if(S.rol==='dueno') items.push(['aceites','🛢️','Aceites'],['desp','👷','Despachadores']);
+  items.push(['config','⚙️','Configuración']);
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Facturas de proveedores', pagos:'Pagos a proveedores', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
   const esOficinaTab = ['pagos','proveedores','facturas','chat'].includes(adminTab);
-  const titulos={pagos:'Pagos a proveedores', proveedores:'Proveedores', facturas:'Facturas de proveedores', chat:'Asistente'};
-  const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Central':ESTACION), h('h1',{},esOficinaTab?titulos[adminTab]:'Tablero de cortes'));
+  const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }), main); app.append(shell);
+  const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Central':ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
-  app.append(head, h('div',{style:'margin:12px 0'},tabs));
-  ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:oficinaFacturas, chat:oficinaChat})[adminTab]();
+  main.append(head);
+  const prev=app; app=main;
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:adminPagos, proveedores:adminProveedores, facturas:oficinaFacturas, chat:oficinaChat})[adminTab](); }
+  finally{ app=prev; }
+}
+function navLateral(items, actual, onpick){
+  const nav=h('nav',{class:'sidenav'});
+  for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; } const [k,ic,l]=it; nav.append(h('button',{class:k===actual?'on':'',onclick:()=>onpick(k)}, h('span',{class:'ic'},ic), h('span',{},l))); }
+  return nav;
 }
 async function cortesTablero(filtro){
   let q=sb.from('cortes').select('*, despachadores(nombre)').eq('estacion_id',S.config.estacionId);
@@ -1875,38 +1919,52 @@ async function adminProveedores(){
 let oficinaTab='chat';
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
-  const tabsDef=[['chat','Chat'],['facturas','Facturas'],['pagos','Pagos']];
+  const items=[['chat','💬','Asistente'],['facturas','🧾','Facturas'],['pagos','💸','Pagos']];
   const titulos={chat:'Asistente', facturas:'Facturas de proveedores', pagos:'Pagos a proveedores'};
-  const tabs=h('div',{class:'tabs'},...tabsDef.map(([k,l])=>h('button',{class:k===oficinaTab?'on':'',onclick:()=>{oficinaTab=k;render();}},l)));
-  app.append(h('div',{}, h('p',{class:'eyebrow'},'Own Manager · Oficina'), h('h1',{},titulos[oficinaTab])), h('div',{style:'margin:12px 0'},tabs));
-  await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos})[oficinaTab]();
+  const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
+  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }), main); app.append(shell);
+  main.append(h('div',{}, h('p',{class:'eyebrow'},'Own Manager · Oficina'), h('h1',{},titulos[oficinaTab])));
+  const prev=app; app=main;
+  try{ await ({chat:oficinaChat, facturas:oficinaFacturas, pagos:adminPagos})[oficinaTab](); } finally{ app=prev; }
 }
 
 // ---- Chat con IA (consulta pagos, facturas y documentos con los permisos de quien pregunta)
 const CHAT = { mensajes:[], ocupado:false };
+function saludoDelDia(){
+  const t=nowMX(); const [y,m,d]=t.fecha.split('-').map(Number); const dow=new Date(Date.UTC(y,m-1,d)).getUTCDay();
+  const nombre=(S.usuario&&S.usuario.nombre||'').replace(/^(Administrador|Área|Area)\s+/i,'').split(/\s+/)[0]||'';
+  const hora=t.hora<12?'Buenos días':(t.hora<19?'Buenas tardes':'Buenas noches');
+  const nEnMes=(k)=>{ const first=new Date(Date.UTC(y,m-1,1)).getUTCDay(); const lunes1=1+((8-first)%7); return lunes1+7*(k-1); };
+  const fijos={'01-01':'¡Feliz Año Nuevo!','01-06':'Feliz Día de Reyes 👑','02-14':'Feliz Día del Amor y la Amistad ❤️','02-24':'Día de la Bandera 🇲🇽','03-08':'Día Internacional de la Mujer 💐','04-30':'Feliz Día del Niño 🎈','05-01':'Día del Trabajo','05-05':'5 de mayo · Batalla de Puebla','05-10':'Feliz Día de las Madres 💐','05-15':'Día del Maestro','06-15':'Día del Padre (este domingo) 👔','09-15':'¡Viva México! 🇲🇽 Noche del Grito','09-16':'Día de la Independencia 🇲🇽','10-12':'Día de la Raza','11-01':'Día de Todos los Santos 🕯️','11-02':'Día de Muertos 🕯️','12-12':'Día de la Virgen de Guadalupe','12-24':'Feliz Nochebuena 🎄','12-25':'¡Feliz Navidad! 🎄','12-31':'Feliz fin de año 🎉'};
+  const mmdd=t.fecha.slice(5); let festivo=fijos[mmdd]||null;
+  if(!festivo && m===2 && d===nEnMes(1)) festivo='Día de la Constitución 🇲🇽';
+  if(!festivo && m===3 && d===nEnMes(3)) festivo='Natalicio de Benito Juárez';
+  if(!festivo && m===11 && d===nEnMes(3)) festivo='Día de la Revolución 🇲🇽';
+  const dia=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][dow];
+  const extra= festivo || (dow===1?'Arrancamos la semana.':dow===5?'¡Feliz viernes!':dow===0?'Buen domingo.':`Excelente ${dia}.`);
+  return { titulo: `${hora}${nombre?', '+nombre:''}.`, sub: extra };
+}
 async function oficinaChat(){
-  const box=h('div',{class:'card stack',style:'min-height:52vh;display:flex;flex-direction:column'});
-  const hilo=h('div',{class:'stack',style:'flex:1;overflow:auto;max-height:60vh'});
+  const box=h('div',{class:'card chatbox'});
+  const hilo=h('div',{class:'hilo'});
   const pinta=()=>{ hilo.innerHTML='';
-    if(!CHAT.mensajes.length) hilo.append(h('div',{class:'muted',style:'padding:8px 0'}, h('b',{},'Pregúntame por pagos, facturas y documentos.'), h('p',{class:'small',style:'margin-top:6px'},'Ejemplos: "¿Ya se le pagó a Gaspremia?" · "¿Qué facturas de octubre siguen sin pagar?" · "Dame el comprobante del pago a Soldep de 511,502.70" · "¿Cuánto le hemos pagado a Pemex este mes?"')));
+    if(!CHAT.mensajes.length){ const sal=saludoDelDia(); hilo.append(h('div',{class:'saludo'}, h('div',{class:'big'},sal.titulo), h('div',{class:'sub'},sal.sub))); }
     for(const m of CHAT.mensajes){
-      const mio=m.rol==='usuario';
-      const bub=h('div',{style:`max-width:92%;align-self:${mio?'flex-end':'flex-start'};padding:10px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.4;${mio?'background:var(--accent);color:var(--accent-fg)':'background:var(--surface2);border:1px solid var(--line)'}`}, m.texto);
-      hilo.append(bub);
-      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'row',style:'align-self:flex-start;gap:6px'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},(r.tipo==='factura'?'📄 ':'🧾 ')+r.titulo.slice(0,48)))));
+      hilo.append(h('div',{class:'bub '+(m.rol==='usuario'?'yo':'ia')}, m.texto));
+      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},(r.tipo==='factura'?'📄 ':'🧾 ')+r.titulo.slice(0,48)))));
     }
-    if(CHAT.ocupado) hilo.append(h('div',{class:'small muted',style:'align-self:flex-start'},'Buscando…'));
+    if(CHAT.ocupado) hilo.append(h('div',{class:'small muted',style:'align-self:flex-start;padding:4px 8px'},'Buscando…'));
     hilo.scrollTop=hilo.scrollHeight; };
-  const inp=h('textarea',{rows:'2',placeholder:'Escribe tu pregunta…',style:'flex:1;resize:none'});
+  const inp=h('textarea',{rows:'2',placeholder:'Escribe aquí… (p. ej. ¿ya se le pagó a Gaspremia?)'});
   const enviar=async()=>{ const t=inp.value.trim(); if(!t||CHAT.ocupado) return; inp.value=''; CHAT.mensajes.push({rol:'usuario',texto:t}); CHAT.ocupado=true; pinta();
     const j=await fnOficina({ mensajes:CHAT.mensajes.map(m=>({rol:m.rol,texto:m.texto})) }, 'chat-oficina').catch(e=>({ok:false,error:e.message}));
     CHAT.ocupado=false;
     CHAT.mensajes.push({rol:'asistente', texto: j.ok? j.respuesta : 'No pude responder: '+(j.error||'error'), referencias: j.ok? (j.referencias||[]) : []});
     pinta(); inp.focus(); };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); enviar(); } });
-  box.append(hilo, h('div',{class:'row',style:'margin-top:10px;align-items:flex-end'}, inp, h('button',{class:'btn primary',onclick:enviar},'Enviar')));
-  app.append(box, h('p',{class:'hint'},'El asistente solo ve los pagos, facturas y documentos de tu negocio, y siempre te da el enlace al archivo cuando existe.'));
-  pinta(); if(!CHAT.mensajes.length) inp.focus();
+  box.append(hilo, h('div',{class:'entrada'}, inp, h('button',{class:'btn primary',onclick:enviar},'Enviar')));
+  app.append(box);
+  pinta(); if(!CHAT.mensajes.length && window.innerWidth>760) inp.focus();
 }
 
 // ---- Facturas de proveedores (XML del CFDI + PDF)
