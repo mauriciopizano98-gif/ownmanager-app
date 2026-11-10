@@ -1965,20 +1965,29 @@ async function renderWizardPago(cuentas, fijo){
 // ---- Consulta · Comprobantes (archivos de pagos y facturas, por mes) y Estados de cuenta
 const CO={texto:''}; const EC={texto:''};
 async function consultaComprobantes(){
+  app.append(h('p',{class:'small muted',style:'margin:0 0 8px'},'Expediente de pago: un solo PDF con la factura y su comprobante bancario, listo para el contador o el proveedor.'));
   app.append(barraBuscar(CO.texto, 'Buscar', v=>{ CO.texto=v; render(); }));
-  const espera=omEsperando(['Cargando comprobantes…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await rpc('buscar_documentos',{ p_texto:CO.texto||'', p_limite:200 }); }
+  const espera=omEsperando(['Buscando facturas pagadas…','Casi listo…']); app.append(espera);
+  let rows=[]; try{ rows=await rpc('buscar_facturas',{ p_texto:CO.texto||null, p_negocio:OF.negocio||null, p_estado:'pagada', p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
   espera.remove();
-  rows=rows.filter(r=>['comprobante','factura'].includes(r.tipo));
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},CO.texto?'Sin resultados':'Todavía no hay comprobantes'))); return; }
-  const porMes={}; for(const r of rows){ const k=(r.fecha||'').slice(0,7)||'Sin fecha'; (porMes[k]=porMes[k]||[]).push(r); }
-  for(const [mes,xs] of Object.entries(porMes).sort((a,b)=>a[0]<b[0]?1:-1)){
-    const [y,m]=mes.split('-'); const nombreMes = m? new Date(Date.UTC(Number(y),Number(m)-1,1)).toLocaleDateString('es-MX',{timeZone:'UTC',month:'long',year:'numeric'}) : mes;
-    const card=h('div',{class:'card stack',style:'margin-bottom:10px'}, h('h3',{style:'text-transform:capitalize'},nombreMes));
-    for(const r of xs.sort((a,b)=>(a.fecha||'')<(b.fecha||'')?1:-1)) card.append(h('div',{class:'money'}, h('span',{class:'row',style:'gap:8px'}, ico(r.tipo==='factura'?'factura':'comprobantes',16), h('span',{},(r.resumen||r.nombre)), h('span',{class:'small muted'},' · '+fmtFecha(r.fecha))), h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener'},'Abrir')));
-    app.append(card);
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},CO.texto?'Sin resultados':'Todavía no hay facturas pagadas'), CO.texto?'':'Cuando una factura tenga su pago ligado, aquí aparece su expediente.')); return; }
+  const list=h('div',{class:'list'});
+  for(const r of rows){
+    const sf=[r.serie,r.folio].filter(Boolean).join('')||(r.uuid_cfdi?r.uuid_cfdi.slice(0,8)+'…':'s/f');
+    const acciones=h('div',{class:'row',style:'margin-top:6px'});
+    const btn=h('button',{class:'btn sm '+(r.expediente_drive_id?'ghost':'primary')}, r.expediente_drive_id?'Abrir expediente':'Generar expediente');
+    btn.addEventListener('click',async()=>{ if(r.expediente_drive_id){ window.open(driveLink(r.expediente_drive_id),'_blank','noopener'); return; }
+      btn.disabled=true; btn.innerHTML=''; btn.append(omLoader({tam:'chico',texto:'Armando el expediente…'}));
+      const j=await fnOficina({ factura_id:r.id }, 'expediente-pago').catch(e=>({ok:false,error:e.message}));
+      if(!j.ok){ btn.disabled=false; btn.textContent='Generar expediente'; toast('No se pudo: '+(j.error||'error'),6000); return; }
+      r.expediente_drive_id=(j.drive||'').split('/d/')[1]?.split('/')[0]||'x'; btn.disabled=false; btn.className='btn sm ghost'; btn.textContent='Abrir expediente'; window.open(j.drive,'_blank','noopener'); });
+    acciones.append(btn);
+    if(r.expediente_drive_id) acciones.append(h('button',{class:'btn sm ghost',title:'Volver a armarlo',onclick:async e=>{ const b=e.currentTarget; b.disabled=true; const j=await fnOficina({ factura_id:r.id, rehacer:true }, 'expediente-pago').catch(err=>({ok:false,error:err.message})); b.disabled=false; if(!j.ok){ toast('No se pudo: '+(j.error||'error'),6000); return; } toast('Expediente rehecho.'); render(); }},'Rehacer'));
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},`${r.negocio} · pagada el ${fmtFecha(r.pago_fecha)}${r.concepto?' · '+r.concepto:''}`), acciones),
+      h('div',{style:'text-align:right'}, h('b',{},fmtMonto(r.total)), h('div',{},h('span',{class:'chip ok'},'pagada')))));
   }
+  app.append(list);
 }
 async function consultaEstados(){
   app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }));
