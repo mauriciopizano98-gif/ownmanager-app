@@ -378,6 +378,10 @@ body[data-om-nav] .logo{height:92px;max-width:min(60vw,420px)}
 .om-shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px;align-items:start}
 .om-shell .om-main{min-width:0}
 .sidenav{position:sticky;top:76px;display:flex;flex-direction:column;gap:4px}
+.modulo{display:block;width:100%;max-width:230px;margin:0 0 14px;border-radius:12px;background:#000;padding:10px 12px;box-sizing:border-box}
+.modulo img{display:block;width:100%;height:auto}
+.modulo.kiosko{max-width:260px;margin:0 auto 14px}
+@media (max-width:760px){.sidenav .modulo{display:none}.modulo.movil{display:block;max-width:220px;margin:0 0 10px}}
 .sidenav button{display:flex;align-items:center;gap:12px;width:100%;border:1px solid transparent;background:transparent;border-radius:12px;padding:11px 12px;font:600 14px var(--font-body);color:var(--muted);cursor:pointer;text-align:left}
 .sidenav button .ic{width:22px;display:inline-flex;justify-content:center;line-height:0;opacity:.85}
 .sidenav button.on .ic{opacity:1}
@@ -665,6 +669,7 @@ function renderLogin(){
   if(!S.destino || !['home','deposito'].includes(S.destino)) S.destino='home';
   const box=h('div',{class:'login'});
   const esDep=S.destino==='deposito';
+  box.append(h('div',{class:'modulo kiosko'}, h('img',{src:'marca/om-kiosko.webp',alt:'Own Manager Kiosko'})));
   box.append(h('div',{}, h('p',{class:'eyebrow'},ESTACION), h('h1',{},esDep?'Depósito a caja fuerte':'Corte mecánico por turno'), h('p',{class:'muted'},esDep?'Registra el efectivo que vas a meter a la caja fuerte. Elige tu nombre y teclea tu PIN.':'Elige tu nombre y teclea tu PIN para abrir el corte de tu isla.')));
   const modo=h('div',{class:'modo'},
     h('button',{class:esDep?'':'on',onclick:()=>{ S.destino='home'; render(); }}, h('span',{class:'ic'},'⛽'), h('span',{}, h('b',{},'Iniciar corte'), h('small',{},'de turno'))),
@@ -1514,8 +1519,8 @@ async function renderAdmin(){
   const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
   const esOficinaTab = ['pagos','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }), main); app.append(shell);
-  const head=h('div',{}, h('p',{class:'eyebrow'},esOficinaTab?'Own Manager · Central':ESTACION), h('h1',{},titulos[adminTab]));
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
+  const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
@@ -1543,8 +1548,9 @@ const ICONS={
 };
 function ico(nombre, tam){ const sp=h('span',{class:'ic'}); sp.innerHTML=`<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nombre]||''}</svg>`; return sp; }
 
-function navLateral(items, actual, onpick){
-  const nav=h('nav',{class:'sidenav'});
+function logoModulo(mod, extra){ return h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else adminTab='chat'; render(); }}, h('img',{src:`marca/om-${mod}.webp`,alt:'Own Manager '+mod})); }
+function navLateral(items, actual, onpick, mod){
+  const nav=h('nav',{class:'sidenav'}); if(mod) nav.append(logoModulo(mod));
   const btn=(k,ic,l,extra,fn)=>h('button',{class:k===actual?'on':'',onclick:fn||(()=>onpick(k))}, ico(ic), h('span',{},l), extra||null);
   for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; }
     const [k,ic,l,subs]=it;
@@ -2006,8 +2012,8 @@ async function renderOficina(){
   const items=[['chat','chat','Asistente'],['facturas','factura','Facturas'],['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta']]]];
   const titulos={chat:'Asistente', facturas:'Agregar factura', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta'};
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }), main); app.append(shell);
-  main.append(h('div',{}, h('p',{class:'eyebrow'},'Own Manager · Oficina'), h('h1',{},titulos[oficinaTab])));
+  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }, 'oficina'), main); app.append(shell);
+  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
   try{ await ({chat:oficinaChat, facturas:agregarFactura, cfacturas:consultaFacturas, pagos:adminPagos, comprobantes:consultaComprobantes, estados:consultaEstados})[oficinaTab](); } finally{ app=prev; }
 }
