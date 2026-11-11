@@ -1057,7 +1057,7 @@ function codigoBonito(c){ c=String(c||'').toUpperCase(); const m=c.match(/^([AB]
 function renderEvidencia(){
   const c=S.corte; const ms=c.lecturas;
   const card=h('div',{class:'card stack'});
-  card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Graba un solo video, de preferencia en horizontal, deteniéndote 2 o 3 segundos frente a la pantalla de cada bomba. La IA busca cada bomba por el código de la pantalla ("b n1") y lee el contador; tú solo confirmas.'));
+  card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Graba un solo video de máximo 40 segundos, de preferencia en horizontal, deteniéndote 2 o 3 segundos frente a la pantalla de cada bomba. La IA busca cada bomba por el código de la pantalla ("b n1") y lee el contador; tú solo confirmas.'));
   if(puedeOmitir(c)) card.append(h('div',{class:'alert warn',style:'display:block'},'Turno nocturno: si una manguera no se abrió, toca "Omitir" en su renglón. Queda registrada con cero litros y sin foto.'));
   const vidIn=h('input',{type:'file',accept:'video/*',capture:'environment',hidden:true});
   const fotoIn=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true});
@@ -1167,7 +1167,7 @@ function renderEvidencia(){
   });
   vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; prog.hidden=false; status.hidden=false; status.textContent='Sacando cuadros del video…'; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
     try{ S.frames=await extraerCuadros(f, 1, (p)=>{ prog.firstChild.style.width=Math.round(p*100)+'%'; }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0) delete pendientes[l.manguera]; }); drawAll(); }
-    catch(e){ status.textContent='No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; prog.hidden=true; vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
+    catch(e){ status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); prog.hidden=true; vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
     prog.hidden=true; vidIn.value='';
     // La IA revisa los cuadros, encuentra cada bomba por su código y lee el contador.
     status.innerHTML=''; status.append(omLoader({tam:'chico',texto:`Buscando las bombas en ${S.frames.length} cuadros…`}));
@@ -1221,7 +1221,8 @@ async function extraerCuadros(file, cada, onProg){
   await new Promise((res,rej)=>{ v.onloadedmetadata=res; v.onerror=()=>rej(new Error('video')); });
   if(!isFinite(v.duration)){ v.currentTime=1e8; await new Promise(r=>{ v.onseeked=r; setTimeout(r,2000); }); }
   const dur=isFinite(v.duration)?v.duration:0; if(!dur) throw new Error('sin duración');
-  const paso=Math.max(cada, dur/72); // máximo 72 cuadros
+  const MAX=(S.config&&S.config.maxSegVideo)||40; if(dur>MAX+1){ URL.revokeObjectURL(url); const e=new Error(`El video dura ${Math.round(dur)} segundos y el máximo es ${MAX}. Graba otra vez: 2 o 3 segundos frente a cada pantalla, sin detenerte en lo demás.`); e.largo=true; throw e; }
+  const paso=Math.max(cada, dur/48); // un cuadro por segundo, máximo 48
   const canvas=document.createElement('canvas'); const ctx=canvas.getContext('2d');
   await new Promise(r=>{ if(v.readyState>=2) r(); else v.onloadeddata=r; });
   const scale=Math.min(1, 1400/Math.max(v.videoWidth||1400, v.videoHeight||1400)); canvas.width=Math.round((v.videoWidth||1280)*scale); canvas.height=Math.round((v.videoHeight||720)*scale);
