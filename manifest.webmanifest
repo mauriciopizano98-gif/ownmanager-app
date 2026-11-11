@@ -1,2 +1,2 @@
-{ "name": "Own Manager · Corte", "short_name": "Own Manager", "start_url": "./index.html", "display": "standalone", "background_color": "#07080A", "theme_color": "#07080A", "lang": "es-MX",
+{ "name": "OwnManager", "short_name": "OwnManager", "start_url": "./index.html", "display": "standalone", "background_color": "#0B0F14", "theme_color": "#0B0F14", "lang": "es-MX",
   "icons": [ { "src": "marca/favicon-192.png", "sizes": "192x192", "type": "image/png" }, { "src": "marca/om-isotipo-lima-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" } ] }
