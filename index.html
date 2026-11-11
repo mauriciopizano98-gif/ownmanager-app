@@ -1915,6 +1915,34 @@ async function cuentasOficina(force){
 }
 function negociosOficina(cuentas){ const m={}; for(const c of cuentas) m[c.negocioId]=c.negocio; return Object.entries(m).map(([id,nombre])=>({id,nombre})).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }
 const driveLink = id => `https://drive.google.com/file/d/${id}/view`;
+// ---- Archivos por la app: el servidor verifica permisos y el robot entrega el archivo (no hace falta cuenta de Google).
+const ARCHIVOS_CACHE=new Map(); // drive_id → blob URL (mientras dure la sesión de la pestaña)
+async function traerArchivo(driveId, descargar){
+  const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('Sesión vencida: vuelve a entrar.');
+  const r=await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/abrir-archivo`, { method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify({ drive_id:driveId, descargar:!!descargar }) });
+  if(!r.ok){ let j=null; try{ j=await r.json(); }catch(e){} throw new Error((j&&j.error)||('No se pudo abrir el archivo ('+r.status+').')); }
+  const blob=await r.blob(); let nombre='archivo'; try{ nombre=decodeURIComponent(r.headers.get('X-Nombre')||'')||nombre; }catch(e){}
+  return { blob, nombre, mime:r.headers.get('Content-Type')||blob.type };
+}
+// Abrir en pestaña nueva (se abre en el clic para que el navegador no la bloquee) o descargar.
+function verArchivo(driveId, o){
+  o=o||{}; if(!driveId){ aviso('Este registro no tiene archivo.','err'); return; }
+  let win=null;
+  if(!o.descargar){ win=window.open('','_blank'); if(win){ try{ win.document.title='OwnManager · abriendo…'; win.document.body.style.cssText='margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font:500 15px system-ui;color:#64748B;background:#F8FAFC'; win.document.body.textContent='Abriendo el archivo…'; }catch(e){} } }
+  (async()=>{
+    try{
+      let url=ARCHIVOS_CACHE.get(driveId), nombre=o.nombre||'archivo';
+      if(!url){ const a=await traerArchivo(driveId,o.descargar); url=URL.createObjectURL(a.blob); nombre=a.nombre||nombre; ARCHIVOS_CACHE.set(driveId,url); ARCHIVOS_CACHE.set(driveId+':nombre',nombre); }
+      else nombre=ARCHIVOS_CACHE.get(driveId+':nombre')||nombre;
+      if(o.descargar){ const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); toast('Descargando '+nombre); }
+      else if(win){ win.location.href=url; }
+      else { window.open(url,'_blank'); }
+    }catch(e){ if(win){ try{ win.close(); }catch(_){} } aviso(e.message||'No se pudo abrir el archivo.','err',10000,'Archivo'); }
+  })();
+}
+function btnArchivo(driveId, texto, o){ o=o||{}; return h('button',{class:'btn sm ghost',title:o.title||texto,onclick:e=>{ e.stopPropagation(); verArchivo(driveId,o); }}, o.icono?ico(o.icono):null, texto); }
+
 const archivoABase64 = f => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=()=>rej(new Error('No se pudo leer el archivo.')); r.readAsDataURL(f); });
 const fmtMonto = n => fmtMXN(Number(n));
 
@@ -1982,7 +2010,7 @@ async function consultaPagos(){
     const chip = r.estado==='conciliado'? h('span',{class:'chip ok'},'conciliado') : r.estado==='anulado'? h('span',{class:'chip err'},'anulado') : h('span',{class:'chip acc'},'registrado');
     const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null, r.concepto, r.factura_concepto_pago?'paga la factura '+r.factura_concepto_pago:null].filter(Boolean).join(' · ');
     const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
-      h('div',{class:'row',style:'margin-top:6px'}, h('a',{class:'btn sm ghost',href:driveLink(r.comprobante_drive_id),target:'_blank',rel:'noopener'},'Ver comprobante'),
+      h('div',{class:'row',style:'margin-top:6px'}, btnArchivo(r.comprobante_drive_id,'Ver comprobante'),
         S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null,
         S.rol==='dueno' ? h('button',{class:'btn sm ghost danger',onclick:()=>eliminarUI('pago',r,`${r.proveedor} · ${fmtFecha(r.fecha)} · ${fmtMonto(r.monto)}`)},'Borrar') : null)),
       h('div',{style:'text-align:right'}, h('b',{style:r.estado==='anulado'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.monto)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editado?chipEditado(r.cambios,false):null)));
@@ -2123,7 +2151,7 @@ async function consultaComprobantes(){
     const sf=[r.serie,r.folio].filter(Boolean).join('')||(r.uuid_cfdi?r.uuid_cfdi.slice(0,8)+'…':'s/f');
     const acciones=h('div',{class:'row',style:'margin-top:6px'});
     const btn=h('button',{class:'btn sm '+(r.expediente_drive_id?'ghost':'primary')}, r.expediente_drive_id?'Abrir expediente':'Generar expediente');
-    btn.addEventListener('click',async()=>{ if(r.expediente_drive_id){ window.open(driveLink(r.expediente_drive_id),'_blank','noopener'); return; }
+    btn.addEventListener('click',async()=>{ if(r.expediente_drive_id){ verArchivo(r.expediente_drive_id,{nombre:'expediente.pdf'}); return; }
       btn.disabled=true; btn.innerHTML=''; btn.append(omLoader({tam:'chico',texto:'Armando el expediente…'}));
       const j=await fnOficina({ factura_id:r.id }, 'expediente-pago').catch(e=>({ok:false,error:e.message}));
       if(!j.ok){ btn.disabled=false; btn.textContent='Generar expediente'; aviso(j.error||'error','err'); return; }
@@ -2158,8 +2186,8 @@ async function consultaEstados(){
       grid.append(h('div',{class:'doc'}, h('div',{class:'ic'}, ico('archivo'), 'PDF'+(r.importado?' · movimientos':'')),
         h('b',{},periodoTexto(r.periodo_inicio,r.periodo_fin)), h('span',{class:'sub'},`${c.alias||''}${c.ultimos4?' ···'+c.ultimos4:''}`),
         r.saldo_final!=null?h('span',{class:'sub'},'Saldo final '+fmtMonto(r.saldo_final)):null,
-        h('div',{class:'acc'}, h('a',{class:'btn sm ghost',href:driveLink(r.archivo_drive_id),target:'_blank',rel:'noopener',title:'Abrir'},ico('abrir'),'Abrir'),
-          h('a',{class:'btn sm ghost',href:`https://drive.google.com/uc?export=download&id=${r.archivo_drive_id}`,target:'_blank',rel:'noopener',title:'Descargar'},ico('descargar'),'Descargar'),
+        h('div',{class:'acc'}, btnArchivo(r.archivo_drive_id,'Abrir',{icono:'abrir',nombre:r.archivo_nombre}),
+          btnArchivo(r.archivo_drive_id,'Descargar',{icono:'descargar',descargar:true,nombre:r.archivo_nombre}),
           esCentral()?h('button',{class:'btn sm ghost danger',title:'Borrar',onclick:()=>eliminarEstadoUI(r)},ico('borrar')):null))); }
     app.append(grid); return;
   }
@@ -2335,7 +2363,7 @@ async function oficinaChat(){
     if(!CHAT.mensajes.length){ const sal=saludoDelDia(); hilo.append(h('div',{class:'saludo'}, h('div',{class:'big'},sal.titulo), h('div',{class:'sub'},sal.sub))); }
     for(const m of CHAT.mensajes){
       hilo.append(h('div',{class:'bub '+(m.rol==='usuario'?'yo':'ia')}, m.texto));
-      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('a',{class:'btn sm ghost',href:driveLink(r.drive_id),target:'_blank',rel:'noopener',title:r.titulo},ico(r.tipo==='factura'?'factura':'comprobantes',16), ' '+r.titulo.slice(0,48)))));
+      if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('button',{class:'btn sm ghost',title:r.titulo,onclick:()=>verArchivo(r.drive_id,{nombre:r.titulo})},ico(r.tipo==='factura'?'factura':'comprobantes',16), ' '+r.titulo.slice(0,48)))));
     }
     if(CHAT.ocupado) hilo.append(h('div',{class:'bub ia',style:'padding:10px 14px'}, omLoader({tam:'chico',texto:['Buscando en pagos y facturas…','Revisando documentos…','Armando la respuesta…'][Math.floor(Date.now()/1800)%3]})));
     hilo.scrollTop=hilo.scrollHeight; };
@@ -2373,9 +2401,9 @@ async function consultaFacturas(){
     const chip= r.estado==='pagada'? h('span',{class:'chip ok'},'pagada') : r.estado==='cancelada'? h('span',{class:'chip err'},'cancelada') : h('span',{class:'chip warn'},'sin pagar');
     const det=[r.negocio, r.concepto, r.metodo_pago].filter(Boolean).join(' · ');
     const acciones=h('div',{class:'row',style:'margin-top:6px'});
-    if(r.pdf_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pdf_drive_id),target:'_blank',rel:'noopener'},'PDF'));
-    if(r.xml_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.xml_drive_id),target:'_blank',rel:'noopener'},'XML'));
-    if(r.pago_drive_id) acciones.append(h('a',{class:'btn sm ghost',href:driveLink(r.pago_drive_id),target:'_blank',rel:'noopener'},'Comprobante del pago'));
+    if(r.pdf_drive_id) acciones.append(btnArchivo(r.pdf_drive_id,'PDF'));
+    if(r.xml_drive_id) acciones.append(btnArchivo(r.xml_drive_id,'XML',{descargar:true}));
+    if(r.pago_drive_id) acciones.append(btnArchivo(r.pago_drive_id,'Comprobante del pago'));
     if(S.rol==='dueno' && r.estado!=='cancelada') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>cancelarFacturaUI(r,sf)},'Cancelar'));
     if(S.rol==='dueno') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>eliminarUI('factura',r,`${r.proveedor} · ${sf} · ${fmtMonto(r.total)}`)},'Borrar'));
     list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},det), r.estado==='registrada'?bloqueConcepto(r,false):null, acciones),
