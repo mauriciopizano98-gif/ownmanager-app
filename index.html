@@ -434,6 +434,27 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .resumen-ec .k{font:700 12px var(--font-body);letter-spacing:.08em;color:var(--muted);align-self:center}
 .resumen-ec b{font:700 17px var(--font-body);letter-spacing:.02em;color:var(--fg);word-break:break-word}
 .resumen-ec b:empty::before{content:'—'}
+.biblio{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.biblio .carp{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);cursor:pointer;text-align:left;color:var(--fg);font:inherit;transition:border-color .15s,transform .15s}
+.biblio .carp:hover{border-color:var(--accent);transform:translateY(-1px)}
+.biblio .carp svg{width:34px;height:34px;color:var(--accent);margin-bottom:4px}
+.biblio .carp b{font-size:16px}
+.biblio .carp .sub{font-size:13px;color:var(--muted)}
+.biblio .carp .n{margin-top:4px;font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.biblio-emp{margin:18px 0 8px;font:700 12px var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.biblio-emp:first-child{margin-top:4px}
+.miga{display:flex;align-items:center;gap:10px;margin:4px 0 12px}
+.miga .btn.sm{padding:6px 10px}.miga .btn.sm svg{width:18px;height:18px}
+.miga b{font-size:17px}.miga span{color:var(--muted)}
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.doc{display:flex;flex-direction:column;gap:4px;padding:14px 14px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+.doc .ic{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.doc .ic svg{width:26px;height:26px;color:var(--accent)}
+.doc b{font-size:16px;letter-spacing:.02em}
+.doc .sub{font-size:13px;color:var(--muted)}
+.doc .acc{display:flex;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.doc .acc .btn.sm{min-height:32px;padding:4px 8px;gap:4px;font-size:12px}.doc .acc .btn.sm svg{width:16px;height:16px}
+.doc .acc .danger{margin-left:auto}
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
 .filtros select,.filtros input{width:auto;min-height:38px;padding:7px 12px;font-size:14px;border-radius:999px;background:var(--surface);color:var(--fg)}
 .filtros select.on,.filtros input.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -1592,6 +1613,11 @@ async function renderAdmin(){
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  carpeta:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>',
+  archivo:'<path d="M7 3h7l5 5v13H7V3Z"/><path d="M14 3v5h5"/><path d="M9.5 14h5M9.5 17h5"/>',
+  descargar:'<path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/>',
+  borrar:'<path d="M5 7h14"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/>',
+  volver:'<path d="M15 5l-7 7 7 7"/>',
   bancomas:'<path d="M3 10h18"/><path d="M5 10v8M9.5 10v8M14.5 10v5"/><path d="M3 21h11"/><path d="M12 3l9 7H3l9-7Z"/><path d="M19 15v6M16 18h6"/>',
   copiar:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   editar:'<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/>',
@@ -2082,7 +2108,7 @@ async function renderWizardPago(cuentas, fijo){
 }
 
 // ---- Consulta · Comprobantes (archivos de pagos y facturas, por mes) y Estados de cuenta
-const CO={texto:''}; const EC={texto:''};
+const CO={texto:''}; const EC={texto:'', abierta:null};
 async function consultaComprobantes(){
   app.append(h('p',{class:'small muted',style:'margin:0 0 8px'},'Expediente de pago: un solo PDF con la factura y su comprobante bancario, listo para el contador o el proveedor.'));
   let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
@@ -2113,23 +2139,42 @@ async function consultaEstados(){
   let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
   app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando estados de cuenta…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, archivo_nombre, importado, saldo_inicial, saldo_final, cuentas_bancarias(alias, banco, ultimos4, negocio_id, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(200)); }
+  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, archivo_nombre, importado, saldo_inicial, saldo_final, cuentas_bancarias(id, alias, banco, ultimos4, negocio_id, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(500)); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   espera.remove();
-  if(EC.texto){ const t=EC.texto.toLowerCase(); rows=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(t)); }
+  if(EC.texto){ const t=EC.texto.toLowerCase(); rows=rows.filter(r=>(JSON.stringify(r)+periodoTexto(r.periodo_inicio,r.periodo_fin)).toLowerCase().includes(t)); }
   if(FL.negocio) rows=rows.filter(r=>r.cuentas_bancarias&&r.cuentas_bancarias.negocio_id===FL.negocio);
   { const rg=rangoFiltro(); if(rg.desde) rows=rows.filter(r=>r.periodo_fin>=rg.desde && r.periodo_inicio<=rg.hasta); }
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(EC.texto||hayFiltros())?'Sin resultados':'Todavía no hay estados de cuenta'), (EC.texto||hayFiltros())?'':esCentral()?'Súbelos en "Agregar estado de cuenta": la IA detecta banco, empresa y periodo.':'Los sube Central cada mes; aquí aparecen para consulta y descarga.')); return; }
-  const list=h('div',{class:'list'});
-  for(const r of rows){ const c=r.cuentas_bancarias||{}; const n=(c.negocios&&c.negocios.nombre)||'';
-    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${c.alias||c.banco||'Cuenta'}${c.ultimos4?' ···'+c.ultimos4:''}`),
-        h('span',{class:'small muted'},`${n} · ${fmtFecha(r.periodo_inicio)} – ${fmtFecha(r.periodo_fin)}${r.saldo_final!=null?' · saldo final '+fmtMonto(r.saldo_final):''}${r.importado?' · movimientos importados':''}`),
-        r.archivo_nombre?h('span',{class:'small muted'},r.archivo_nombre):null),
-      h('div',{class:'row',style:'flex-wrap:wrap;justify-content:flex-end;gap:6px'},
-        h('a',{class:'btn sm ghost',href:driveLink(r.archivo_drive_id),target:'_blank',rel:'noopener'},'Abrir'),
-        h('a',{class:'btn sm ghost',href:`https://drive.google.com/uc?export=download&id=${r.archivo_drive_id}`,target:'_blank',rel:'noopener'},'Descargar'),
-        esCentral()?h('button',{class:'btn sm ghost danger',onclick:()=>eliminarEstadoUI(r)},'Borrar'):null))); }
-  app.append(list);
+  if(!rows.length){ EC.abierta=null; app.append(h('div',{class:'card empty'}, h('b',{},(EC.texto||hayFiltros())?'Sin resultados':'Todavía no hay estados de cuenta'), (EC.texto||hayFiltros())?'':esCentral()?'Súbelos en "Agregar estado de cuenta": la IA detecta banco, empresa y periodo.':'Los sube Central cada mes; aquí aparecen para consulta y descarga.')); return; }
+  // Biblioteca: Empresa › Banco (carpeta) › estados (documentos)
+  const carpetas=new Map();
+  for(const r of rows){ const c=r.cuentas_bancarias||{}; const emp=(c.negocios&&c.negocios.nombre)||'—'; const k=emp+'|'+(c.banco||'—');
+    if(!carpetas.has(k)) carpetas.set(k,{emp, banco:c.banco||'—', rows:[]}); carpetas.get(k).rows.push(r); }
+  const abierta=EC.abierta && carpetas.get(EC.abierta);
+  if(abierta){
+    app.append(h('div',{class:'miga'}, h('button',{class:'btn sm ghost',title:'Volver',onclick:()=>{ EC.abierta=null; render(); }},ico('volver')), h('span',{},abierta.emp), h('span',{},'›'), h('b',{},abierta.banco), h('span',{class:'small'},`· ${abierta.rows.length} ${abierta.rows.length===1?'estado':'estados'}`)));
+    const grid=h('div',{class:'docs'});
+    for(const r of abierta.rows){ const c=r.cuentas_bancarias||{};
+      grid.append(h('div',{class:'doc'}, h('div',{class:'ic'}, ico('archivo'), 'PDF'+(r.importado?' · movimientos':'')),
+        h('b',{},periodoTexto(r.periodo_inicio,r.periodo_fin)), h('span',{class:'sub'},`${c.alias||''}${c.ultimos4?' ···'+c.ultimos4:''}`),
+        r.saldo_final!=null?h('span',{class:'sub'},'Saldo final '+fmtMonto(r.saldo_final)):null,
+        h('div',{class:'acc'}, h('a',{class:'btn sm ghost',href:driveLink(r.archivo_drive_id),target:'_blank',rel:'noopener',title:'Abrir'},ico('abrir'),'Abrir'),
+          h('a',{class:'btn sm ghost',href:`https://drive.google.com/uc?export=download&id=${r.archivo_drive_id}`,target:'_blank',rel:'noopener',title:'Descargar'},ico('descargar'),'Descargar'),
+          esCentral()?h('button',{class:'btn sm ghost danger',title:'Borrar',onclick:()=>eliminarEstadoUI(r)},ico('borrar')):null))); }
+    app.append(grid); return;
+  }
+  EC.abierta=null;
+  const porEmp=new Map();
+  for(const [k,v] of carpetas){ if(!porEmp.has(v.emp)) porEmp.set(v.emp,[]); porEmp.get(v.emp).push([k,v]); }
+  const cont=h('div',{});
+  for(const [emp,lista] of porEmp){
+    if(porEmp.size>1) cont.append(h('div',{class:'biblio-emp'},emp));
+    const grid=h('div',{class:'biblio'});
+    for(const [k,v] of lista.sort((a,b)=>a[1].banco.localeCompare(b[1].banco))){ const ult=v.rows[0];
+      grid.append(h('button',{class:'carp',onclick:()=>{ EC.abierta=k; render(); }}, ico('carpeta'), h('b',{},v.banco), h('span',{class:'sub'},porEmp.size>1?'':emp), h('span',{class:'n'},`${v.rows.length} ${v.rows.length===1?'estado':'estados'} · último ${periodoTexto(ult.periodo_inicio,ult.periodo_fin)}`))); }
+    cont.append(grid);
+  }
+  app.append(cont);
 }
 // ---- Estados de cuenta (Central y dueño): subir PDF → IA lee banco/empresa/periodo → confirmar → Drive + registro
 const ES={wizard:null};
