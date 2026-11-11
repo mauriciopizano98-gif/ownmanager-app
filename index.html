@@ -429,6 +429,11 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .concepto.grande .btn.sm{min-height:36px;padding:6px 12px;font-size:13px}
 .concepto.esp{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:8px 12px;flex-direction:column;align-items:flex-start;gap:2px}
 .concepto.esp b{font-size:13px;letter-spacing:0;color:var(--warn)}
+.resumen-ec{display:grid;grid-template-columns:max-content 1fr;gap:10px 18px;padding:16px 18px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface2)}
+.resumen-ec .r{display:contents}
+.resumen-ec .k{font:700 12px var(--font-body);letter-spacing:.08em;color:var(--muted);align-self:center}
+.resumen-ec b{font:700 17px var(--font-body);letter-spacing:.02em;color:var(--fg);word-break:break-word}
+.resumen-ec b:empty::before{content:'—'}
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
 .filtros select,.filtros input{width:auto;min-height:38px;padding:7px 12px;font-size:14px;border-radius:999px;background:var(--surface);color:var(--fg)}
 .filtros select.on,.filtros input.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -2128,6 +2133,19 @@ async function consultaEstados(){
 }
 // ---- Estados de cuenta (Central y dueño): subir PDF → IA lee banco/empresa/periodo → confirmar → Drive + registro
 const ES={wizard:null};
+// Periodo legible: mes completo → "OCTUBRE 2026"; si no, "1 OCT – 15 NOV 2026"
+function periodoTexto(ini, fin){
+  if(!ini||!fin) return '';
+  const [y1,m1,d1]=ini.split('-').map(Number), [y2,m2,d2]=fin.split('-').map(Number);
+  const ult=new Date(Date.UTC(y2,m2,0)).getUTCDate();
+  const MES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  if(y1===y2&&m1===m2&&d1===1&&d2===ult) return `${MES[m1-1]} ${y1}`;
+  const c=(d,m,y)=>`${d} ${MES[m-1].slice(0,3)}${y1!==y2?' '+y:''}`;
+  return `${c(d1,m1,y1)} – ${c(d2,m2,y2)} ${y2}`.replace(/\s+/g,' ');
+}
+function resumenEstado(filas){
+  return h('div',{class:'resumen-ec'}, ...filas.filter(([,v])=>v!=null&&v!=='').map(([k,v])=>h('div',{class:'r'}, h('span',{class:'k'},k+':'), h('b',{},String(v).toUpperCase()))));
+}
 async function agregarEstado(){
   if(!ES.wizard || (ES.wizard.paso==='listo' && ES.wizard.visto)) ES.wizard={paso:'archivo'}; else if(ES.wizard.paso==='listo') ES.wizard.visto=true;
   const w=ES.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px'}); app.append(card);
@@ -2141,49 +2159,55 @@ async function agregarEstado(){
       if(!j.ok){ w.paso='archivo'; render(); aviso(j.error||'No se pudo leer el estado de cuenta.','err',10000,'No se puede registrar'); return; }
       const ia=j.extraido||{};
       w.analisis=j; w.form={ cuentaId:j.cuenta_sugerida?j.cuenta_sugerida.id:'', inicio:ia.periodo_inicio||'', fin:ia.periodo_fin||'', saldoIni:ia.saldo_inicial!=null?String(ia.saldo_inicial):'', saldoFin:ia.saldo_final!=null?String(ia.saldo_final):'' };
-      w.original={ inicio:w.form.inicio, fin:w.form.fin, saldoIni:w.form.saldoIni, saldoFin:w.form.saldoFin }; w.editando=false;
+      w.original={ ...w.form }; w.editando=!w.form.cuentaId || !w.form.inicio || !w.form.fin;
       w.paso='confirmar'; render(); });
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Estado de cuenta'), null),
-      h('p',{class:'small muted'},'Sube el PDF tal cual lo da el banco. La IA detecta banco, empresa y periodo, y lo guarda en la carpeta que le toca.'),
       h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir estado de cuenta (PDF)'), inp);
     return;
   }
-  if(w.paso==='leyendo'){ add(card, h('div',{class:'sechead'}, h('h3',{},'Leyendo el estado de cuenta…'), cerrar), omEsperando(['La IA está leyendo '+w.archivo.nombre+'…','Identificando banco y empresa…','Leyendo el periodo y los saldos…'])); return; }
+  if(w.paso==='leyendo'){ const l=omEsperando(['Leyendo '+w.archivo.nombre+'…','Identificando banco y empresa…','Leyendo el periodo y los saldos…'],'grande'); l.style.padding='48px 0 40px'; add(card, l); return; }
+  if(w.paso==='guardando'){ const l=omEsperando(['Subiendo el PDF a la unidad de la empresa…','Creando la carpeta del banco y del año…','Registrando el estado de cuenta…','Casi listo…'],'grande'); l.style.padding='48px 0 40px'; add(card, l); return; }
   if(w.paso==='confirmar'){
     const a=w.analisis, f=w.form, ia=a.extraido||{};
-    const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta —'), ...(a.cuentas||[]).map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.alias}${c.ultimos4?' ···'+c.ultimos4:''} · ${c.negocio}`)));
+    const cuentas=a.cuentas||[]; const ctaDe=id=>cuentas.find(c=>c.id===id);
+    const guardar=async()=>{
+      if(!f.cuentaId){ aviso('Elige la cuenta bancaria.','err'); return; }
+      if(!f.inicio||!f.fin||f.fin<f.inicio){ aviso('Revisa el periodo.','err'); return; }
+      w.paso='guardando'; render();
+      const r=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:'application/pdf', cuenta_id:f.cuentaId, periodo_inicio:f.inicio, periodo_fin:f.fin,
+        saldo_inicial:f.saldoIni!==''?Number(f.saldoIni):null, saldo_final:f.saldoFin!==''?Number(f.saldoFin):null, extraido_ia:ia },'registrar-estado').catch(err=>({ok:false,error:err.message}));
+      if(!r.ok){ w.paso='confirmar'; render(); aviso(r.error+(r.hint?' · '+r.hint:''),'err',10000,'No se puede registrar'); return; }
+      w.resultado=r; w.paso='listo'; render(); aviso(`${r.cuenta} · ${periodoTexto(f.inicio,f.fin)}`,'ok',8000,'Estado de cuenta guardado'); };
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar));
+    if(!w.editando){
+      const c=ctaDe(f.cuentaId)||{};
+      add(card, resumenEstado([['EMPRESA',c.negocio],['BANCO',c.banco],['CUENTA',c.alias+(c.ultimos4?' ···'+c.ultimos4:'')],['PERIODO',periodoTexto(f.inicio,f.fin)],
+          ['SALDO INICIAL',f.saldoIni!==''?fmtMonto(f.saldoIni):null],['SALDO FINAL',f.saldoFin!==''?fmtMonto(f.saldoFin):null]]),
+        h('div',{class:'row',style:'justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px'},
+          h('span',{class:'small muted'},'Si algo no coincide con el documento, usa Editar; quedará anotado.'),
+          h('button',{class:'btn sm ghost',type:'button',onclick:()=>{ w.editando=true; render(); }},ico('editar'),'Editar')),
+        h('button',{class:'btn primary big block',onclick:guardar},'Guardar estado de cuenta'));
+      return;
+    }
+    const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta —'), ...cuentas.map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.negocio} · ${c.alias}${c.ultimos4?' ···'+c.ultimos4:''}`)));
     cta.addEventListener('change',()=>f.cuentaId=cta.value);
     const ini=h('input',{type:'date',value:f.inicio}); ini.addEventListener('input',()=>f.inicio=ini.value);
     const fin=h('input',{type:'date',value:f.fin}); fin.addEventListener('input',()=>f.fin=fin.value);
     const sIni=h('input',{type:'number',step:'0.01',inputmode:'decimal',value:f.saldoIni}); sIni.addEventListener('input',()=>f.saldoIni=sIni.value);
     const sFin=h('input',{type:'number',step:'0.01',inputmode:'decimal',value:f.saldoFin}); sFin.addEventListener('input',()=>f.saldoFin=sFin.value);
-    const cIni=campoRO('Inicio del periodo',ini,f.inicio?fmtFechaLarga(f.inicio):''), cFin=campoRO('Fin del periodo',fin,f.fin?fmtFechaLarga(f.fin):''),
-          cSI=campoRO('Saldo inicial',sIni,f.saldoIni!==''?fmtMonto(f.saldoIni):''), cSF=campoRO('Saldo final',sFin,f.saldoFin!==''?fmtMonto(f.saldoFin):'');
-    cIni.reset=()=>{ ini.value=f.inicio; }; cFin.reset=()=>{ fin.value=f.fin; }; cSI.reset=()=>{ sIni.value=f.saldoIni; }; cSF.reset=()=>{ sFin.value=f.saldoFin; };
-    const bloqueo=bloqueoDatos(w,[cIni,cFin,cSI,cSF],'estado');
-    const como=a.cuenta_sugerida? ({numero:'por el número de cuenta', rfc:'por el RFC del titular', titular:'por el nombre del titular'})[a.cuenta_sugerida.por]||'' : '';
-    const leido=[ia.banco, ia.titular, ia.numero_cuenta?'cuenta ···'+String(ia.numero_cuenta).slice(-4):null, ia.rfc].filter(Boolean).join(' · ');
-    const msg=h('div',{class:'small muted'});
-    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
-      h('p',{class:'small muted'}, 'La IA leyó: '+(leido||'—')+(como?'. Cuenta identificada '+como+'.':'. No pude identificar la cuenta; elígela.')+(ia.confianza!=null&&ia.confianza<0.6?' Confianza baja: revisa con calma.':'')),
+    const puedeVolver=!!(w.original.cuentaId && w.original.inicio && w.original.fin);
+    add(card,
+      !f.cuentaId?h('p',{class:'small',style:'color:var(--warn)'},'No pude identificar la cuenta con el PDF; elígela.'):h('p',{class:'small',style:'color:var(--warn)'},'Estás editando. Si cambias algún dato, el estado quedará anotado como editado.'),
       h('label',{class:'f'},h('span',{class:'l'},'Cuenta bancaria'),cta),
-      bloqueo.fila,
-      h('div',{class:'grid2'}, cIni.el, cFin.el),
-      h('div',{class:'grid2'}, cSI.el, cSF.el),
-      msg,
-      h('button',{class:'btn primary big block',onclick:async(ev)=>{
-        if(!f.cuentaId){ aviso('Elige la cuenta bancaria.','err'); return; }
-        if(!f.inicio||!f.fin||f.fin<f.inicio){ aviso('Revisa el periodo.','err'); return; }
-        ev.target.disabled=true; msg.textContent='Guardando en Drive y registrando…';
-        const r=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:'application/pdf', cuenta_id:f.cuentaId, periodo_inicio:f.inicio, periodo_fin:f.fin,
-          saldo_inicial:f.saldoIni!==''?Number(f.saldoIni):null, saldo_final:f.saldoFin!==''?Number(f.saldoFin):null, extraido_ia:ia },'registrar-estado').catch(err=>({ok:false,error:err.message}));
-        if(!r.ok){ ev.target.disabled=false; msg.textContent=''; aviso(r.error+(r.hint?' · '+r.hint:''),'err',10000,'No se puede registrar'); return; }
-        w.resultado=r; w.paso='listo'; render(); aviso(`${r.cuenta} · ${r.periodo}`,'ok',8000,'Estado de cuenta guardado'); }},'Guardar estado de cuenta'));
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Inicio del periodo'),ini), h('label',{class:'f'},h('span',{class:'l'},'Fin del periodo'),fin)),
+      h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Saldo inicial'),sIni), h('label',{class:'f'},h('span',{class:'l'},'Saldo final'),sFin)),
+      h('div',{class:'row'}, puedeVolver?h('button',{class:'btn sm ghost',type:'button',onclick:()=>{ Object.assign(f,w.original); w.editando=false; render(); }},ico('candado'),'Dejar como estaba'):null),
+      h('button',{class:'btn primary big block',onclick:guardar},'Guardar estado de cuenta'));
     return;
   }
-  if(w.paso==='listo'){ const r=w.resultado;
+  if(w.paso==='listo'){ const r=w.resultado, f=w.form; const c=(w.analisis.cuentas||[]).find(x=>x.id===f.cuentaId)||{};
     add(card, h('div',{class:'sechead'}, h('h3',{},'Estado de cuenta guardado'), null),
-      h('p',{},h('b',{},`${r.cuenta} · ${r.periodo}`)), h('p',{class:'muted'},r.negocio+' → '+r.carpeta), h('p',{class:'small muted'},'Archivo: '+r.archivo),
+      resumenEstado([['EMPRESA',r.negocio],['BANCO',c.banco],['CUENTA',r.cuenta],['PERIODO',periodoTexto(f.inicio,f.fin)],['CARPETA',r.carpeta],['ARCHIVO',r.archivo]]),
       r.editado?h('p',{class:'small',style:'color:var(--warn)'},'Se registró con datos editados a mano; quedó anotado.'):null,
       h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ ES.wizard={paso:'archivo'}; render(); }},'Subir otro')));
   }
