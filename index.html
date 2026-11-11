@@ -90,8 +90,9 @@ body[data-om-login] .top{display:none}
 body[data-om-login] .foot{display:none}
 .om-login{min-height:calc(100vh - 62px);display:flex;flex-direction:column;justify-content:center;gap:22px;padding:24px 0;
   --bg:#0B0F14; --surface:#1B222B; --surface2:#222A34; --fg:#F3F4F6; --muted:#9AA3AF; --line:#2A323D; --line2:#343D49; --accent:#84FF00; --accent-fg:#0B0F14; --accent-soft:#1E2E10; --err:#F87171; --err-soft:#3A1A1F; --focus:#84FF00; --focus-soft:rgba(132,255,0,.28); --shadow:none}
-.om-login .hero{text-align:center}
-.om-login .om-hero{width:min(320px,78vw);height:auto;display:block;margin:0 auto 8px;border-radius:16px;box-shadow:0 0 0 1px #1F262F,0 24px 60px rgba(132,255,0,.08)}
+.om-login .hero{text-align:center;position:relative;padding:28px 0 4px}
+.om-login .hero::before{content:"";position:absolute;left:50%;top:38%;width:min(560px,110vw);height:220px;transform:translate(-50%,-50%);background:radial-gradient(ellipse at center,rgba(132,255,0,.16),rgba(132,255,0,.05) 45%,transparent 70%);pointer-events:none;filter:blur(8px)}
+.om-login .om-hero{position:relative;width:min(400px,84vw);height:auto;display:block;margin:0 auto 6px;filter:drop-shadow(0 10px 30px rgba(0,0,0,.6))}
 .om-login .om-wordmark{display:none} /* el logotipo oficial ya lleva el nombre; no se recrea con la fuente de interfaz */
 .om-login .om-slogan{font:500 12.5px/1.4 var(--font-mono);color:#9AA3AF;margin-top:10px;letter-spacing:.08em;text-transform:uppercase}
 .om-login .card{background:#1B222B;border:1px solid #2A323D;color:#F3F4F6}
@@ -815,7 +816,7 @@ function renderCuenta(){
     await entrarConCuenta(); };
   btn.addEventListener('click',entrar); pass.addEventListener('keydown',e=>{ if(e.key==='Enter') entrar(); });
   document.body.setAttribute('data-om-login','');
-  app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:'marca/om-logo-blanco.png',alt:'OwnManager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro bajo tu control'), h('div',{class:'bar'})),
+  app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:'marca/om-logo-transparente.png',alt:'OwnManager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro bajo tu control'), h('div',{class:'bar'})),
     h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),conOjo(pass)), msg, btn)));
 }
 function pinScreen(d){
