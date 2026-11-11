@@ -234,6 +234,13 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .steps i{flex:1;height:4px;border-radius:2px;background:var(--line);display:block}
 .steps i.on{background:var(--mod)} .steps i.done{background:var(--ok)}
 [hidden]{display:none!important}
+.adel-list{display:flex;flex-direction:column;gap:6px}
+.adel-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-xs);background:var(--surface2);color:var(--muted);font-size:13.5px}
+.adel-row.ok{color:var(--text);background:color-mix(in srgb,var(--ok) 10%,var(--surface2))}
+.adel-row .adel-ic{display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;font:600 12px var(--font-mono);background:var(--line);color:var(--muted)}
+.adel-row.ok .adel-ic{background:var(--ok);color:#fff}
+.adel-row .adel-v{font:600 13px var(--font-mono);font-variant-numeric:tabular-nums}
+@media (min-width:1380px){ .adel{position:fixed;right:calc((100vw - 720px)/2 - 324px);top:calc(96px + env(safe-area-inset-top,0px));width:300px;max-height:calc(100vh - 130px);overflow:auto} }
 .mlist{display:flex;flex-direction:column;gap:8px}
 .mrow{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);cursor:pointer}
 .mrow.active{border-color:var(--mod-ink);box-shadow:0 0 0 3px var(--focus-soft)}
@@ -998,7 +1005,7 @@ function renderCorte(){
   const orden=['evidencia','lecturas','dinero','enviar']; const idx=orden.indexOf(paso);
   app.append(h('div',{class:'row between',style:'margin-bottom:6px'}, h('span',{class:'chip '+(paso==='evidencia'?'acc':'ok')},paso==='evidencia'?'Parte 1 · Fotos en bombas':'Parte 1 ✓ Fotos'), h('span',{class:'chip '+(paso==='evidencia'?'':'acc')},'Parte 2 · Información en computadora')));
   app.append(h('div',{class:'steps'}, ...orden.map((p,k)=>h('i',{class:k<idx?'done':(k===idx?'on':'')}))));
-  if(paso==='evidencia' && S.adelanto){ renderDinero(true); return; }
+  if(paso==='evidencia' && S.adelanto && !esApk()){ renderDinero(true); return; }
   S.adelanto=false;
   ({evidencia:renderEvidencia, lecturas:renderLecturas, dinero:renderDinero})[paso]();
 }
@@ -1186,11 +1193,24 @@ function renderEvidencia(){
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
   const otras=h('details',{class:'otras'}, h('summary',{},'Otra forma de tomar la evidencia'), h('div',{style:'margin-top:8px'}, h('button',{class:'btn block',onclick:()=>{ abrirArchivo(fotoIn); }},'📷 Foto de la manguera marcada (sin IA)')));
   card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, now, film, mlist, btnSubir, otras);
-  const ya=resumenAdelanto(c);
-  const adel=h('div',{class:'card stack adel'}, h('div',{class:'sechead'}, h('h3',{},'¿Tienes un momento libre?'), ya.length?h('span',{class:'chip ok'},'Adelantado'):null),
-    h('p',{class:'small muted'}, ya.length? 'Ya llevas: '+ya.join(' · ')+'. Puedes seguir agregando.' : 'Puedes ir capturando tarjetas, depósitos, clientes y aceites durante el turno. Las fotos se toman al final.'),
-    h('button',{class:'btn block big',onclick:()=>{ S.adelanto=true; render(); }},'✎ Adelantar datos del turno'));
-  app.append(card, adel); drawAll();
+  app.append(card); if(!esApk()) app.append(panelAdelanto(c)); drawAll();
+}
+// La APK (teléfono en bombas) se queda solo con las fotos; adelantar datos es de la app web en computadora.
+function esApk(){ try{ if(window.Capacitor && typeof window.Capacitor.isNativePlatform==='function' && window.Capacitor.isNativePlatform()) return true; }catch(_){} return /; wv\)/.test(navigator.userAgent||'') || /OwnManagerApp/.test(navigator.userAgent||''); }
+// Panel "Adelantar datos del turno": en pantalla ancha va fijo a la derecha, en el teléfono debajo de las fotos.
+// Solo lo ve quien abrió el corte (renderCorte bloquea a los demás) y muestra el avance de lo ya capturado.
+function panelAdelanto(c){
+  const d=c.dinero||{}; const t=calcDinero(d); const a=calcAceites(c);
+  const filas=[ ['Tarjetas', (d.tarjetas||[]).length? `${d.tarjetas.length} · ${fmtMXN(t.tarjetas)}`:null],
+                ['Efectivo', t.efectivo>0? fmtMXN(t.efectivo):null],
+                ['Clientes', (d.clientes||[]).length? `${d.clientes.length} · ${fmtMXN(t.clientes)}`:null],
+                ['Aceites', a.piezas>0? `${a.piezas} pz · ${fmtMXN(a.importe||0)}`:null] ];
+  const hechas=filas.filter(f=>f[1]).length;
+  const adel=h('aside',{class:'card stack adel'}, h('div',{class:'sechead'}, h('h3',{},'Avance del turno'), h('span',{class:'chip '+(hechas?'ok':'')},hechas?`${hechas} de 4`:'Sin empezar')),
+    h('div',{class:'adel-list'}, ...filas.map(([n,v])=>h('div',{class:'adel-row'+(v?' ok':'')}, h('span',{class:'adel-ic'},v?'✓':'–'), h('span',{class:'adel-n'},n), h('b',{class:'adel-v'},v||'—')))),
+    h('p',{class:'small muted'}, hechas? 'Puedes seguir agregando. Las fotos se toman al final.' : 'Cuando tengas un momento, ve capturando tarjetas, depósitos, clientes y aceites. Las fotos se toman al final.'),
+    h('button',{class:'btn block big'+(hechas?'':' primary'),onclick:()=>{ S.adelanto=true; render(); }},hechas?'✎ Seguir adelantando':'✎ Adelantar datos del turno'));
+  return adel;
 }
 // Manda los cuadros del video a la IA por lotes y devuelve el mejor cuadro por manguera:
 // { manguera_id: {i, codigo, valor, legible, nitidez} }. Prefiere cuadros legibles y, entre ellos, el valor que más se repite.
