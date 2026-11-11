@@ -233,6 +233,7 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .steps{display:flex;gap:6px;margin-bottom:12px}
 .steps i{flex:1;height:4px;border-radius:2px;background:var(--line);display:block}
 .steps i.on{background:var(--mod)} .steps i.done{background:var(--ok)}
+[hidden]{display:none!important}
 .mlist{display:flex;flex-direction:column;gap:8px}
 .mrow{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);cursor:pointer}
 .mrow.active{border-color:var(--mod-ink);box-shadow:0 0 0 3px var(--focus-soft)}
@@ -256,6 +257,15 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .now .s{font-size:12.5px;opacity:.9}
 .now.done{background:var(--ok)}
 .mrow{border-left:4px solid var(--mc,var(--line))}
+.bomba{display:grid;grid-template-columns:112px 1fr;gap:12px;padding:12px;border:1px solid var(--line);border-left:4px solid var(--mod-ink);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow)}
+.bomba .bimg{width:112px;height:140px;object-fit:cover;border-radius:var(--r-xs);border:1px solid var(--line);background:var(--surface2);cursor:zoom-in}
+.bomba .binfo{display:flex;flex-direction:column;gap:8px;min-width:0}
+.bomba .bt{font:600 22px var(--font-display);line-height:1.1}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.bgrid .btn{min-height:64px;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;text-align:left}
+.bgrid .btn b{font:600 16px var(--font-display)}
+.otras summary{cursor:pointer;color:var(--muted);font-size:13px;padding:6px 0}
+@media (max-width:420px){.bomba{grid-template-columns:88px 1fr}.bomba .bimg{width:88px;height:110px}}
 .mrow .mt .sw{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--mc);margin-right:6px;vertical-align:middle}
 .mrow.active{border-color:var(--mc);box-shadow:0 0 0 3px color-mix(in srgb,var(--mc) 25%,transparent)}
 .preview{width:100%;max-height:52vh;object-fit:contain;border-radius:var(--r-sm);background:#000;display:block}
@@ -663,7 +673,7 @@ function corteDesdeServidor(j){
   const porFoto = {}; for(const f of fotos) porFoto[f.id]=f;
   const lecturas = lect.map(l=>{ const m = l.clave ? l : (l.mangueras||{}); const mg = S.mangPorUuid[l.manguera_id]||{};
     const foto = l.foto_id ? porFoto[l.foto_id] : null;
-    return { id:l.id, mangueraId:l.manguera_id, manguera: m.clave||mg.id||'', lado:m.lado||mg.lado||'', producto:m.producto||mg.producto||'', orden:m.orden??mg.orden??0,
+    return { id:l.id, mangueraId:l.manguera_id, manguera: m.clave||mg.id||'', lado:m.lado||mg.lado||'', producto:m.producto||mg.producto||'', orden:m.orden??mg.orden??0, codigo: m.codigo_pantalla||mg.codigo||null,
       inicial: l.inicial==null?null:Number(l.inicial), inicialPrevia: l.inicial_previa==null?null:Number(l.inicial_previa), inicialCorregida: !!l.inicial_corregida, motivo: l.motivo_correccion||'',
       final: l.final==null?null:Number(l.final), litros: l.litros==null?null:Number(l.litros), origen: l.origen||null, lecturaIA: l.lectura_ia==null?null:Number(l.lectura_ia), legibleIA: l.legible_ia,
       motivoCero: l.motivo_cero||null, omitida: l.origen==='manual' && l.motivo_cero==='Bomba cerrada en este turno (sin venta)', fotoId: l.foto_id||null, fotoEn: foto?foto.tomada_en||foto.subida_en:null, fotoT:-1 }; }).sort((a,b)=>a.orden-b.orden||a.manguera.localeCompare(b.manguera));
@@ -760,7 +770,7 @@ async function cargarConfig(){
     sel(sb.from('mangueras').select('*').eq('estacion_id',estId).eq('activa',true).order('orden')),
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
     sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta').eq('estacion_id',estId).order('nombre')) ]);
-  S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id};
+  S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id, codigo:m.codigo_pantalla||null};
   S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[],
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
@@ -1042,31 +1052,38 @@ function moneyInput(id, value, onChange){
 }
 
 // 1) Evidencia: video -> cuadros -> asignar
+function codigoBonito(c){ c=String(c||'').toUpperCase(); const m=c.match(/^([AB])N?(\d+)$/); return m? `Lado ${m[1]} · Nº ${Number(m[2])}` : (c||'—'); }
 function renderEvidencia(){
   const c=S.corte; const ms=c.lecturas;
   const card=h('div',{class:'card stack'});
-  card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Graba un solo video pasando por las mangueras en este orden, toca el mejor cuadro de cada una y guarda. Es lo único que se hace en bombas.'));
+  card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Toma una foto a cada bomba, en el orden que quieras. La app reconoce cuál es por el código de la pantalla (por ejemplo "b n1") y lee el contador.'));
   if(puedeOmitir(c)) card.append(h('div',{class:'alert warn',style:'display:block'},'Turno nocturno: si una manguera no se abrió, toca "Omitir" en su renglón. Queda registrada con cero litros y sin foto.'));
   const vidIn=h('input',{type:'file',accept:'video/*',capture:'environment',hidden:true});
   const fotoIn=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true});
+  const bombaIn=h('input',{type:'file',id:'bomba-in',accept:'image/*',capture:'environment',hidden:true});
   const prog=h('div',{class:'progress',hidden:true},h('i'));
   const status=h('p',{class:'hint',hidden:true});
   const omitible=puedeOmitir(c);
   let active = ms.findIndex(l=>!l.fotoId && !l.omitida); if(active<0) active=0;
-  let pendientes = {}; // manguera -> {blob,url,t}
+  let pendientes = {}; // manguera -> {blob,url,t,codigo,valor}
   const COLORES=['#0284C7','#0F766E','#059669','#D97706','#7C3AED','#E11D48'];
   const colorDe=k=>COLORES[k%COLORES.length];
   const etiqueta=l=>`${l.manguera.split('-')[0]} · ${l.producto}`; // 1A · Super
   const now=h('div',{class:'now',hidden:true});
   const film=h('div',{class:'film',hidden:true});
   const mlist=h('div',{class:'mlist'});
+  const bomba=h('div',{class:'bomba',hidden:true});
+  const btnBomba=h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(bombaIn)},'📷 Tomar foto de la bomba');
   const btnSubir=h('button',{class:'btn ok big block',disabled:true},'Guardar fotos y terminar en bombas');
+  const listas=()=>ms.filter(l=>pendientes[l.manguera]||l.fotoId||l.omitida).length;
+  const tieneFoto=l=>!!(pendientes[l.manguera]||l.fotoId);
+  function drawBoton(){ const n=listas(); btnBomba.textContent = n>=ms.length ? '📷 Repetir la foto de una bomba' : `📷 Tomar foto de la bomba · ${n+1} de ${ms.length}`; }
   function drawNow(){ if(!S.frames.length){ now.hidden=true; return; } now.hidden=false; now.innerHTML='';
-    const listas=ms.filter(l=>pendientes[l.manguera]||l.fotoId||l.omitida).length; const l=ms[active];
-    if(listas===ms.length){ const om=ms.filter(x=>x.omitida).length; now.className='now done'; now.style.removeProperty('--mc'); now.append(h('span',{class:'n'},'✓'), h('div',{}, h('div',{class:'l'},om?`${ms.length-om} con cuadro · ${om} omitida${om>1?'s':''}`:'Las '+ms.length+' mangueras tienen cuadro'), h('div',{class:'s'},'Revisa abajo y guarda la evidencia. Toca una manguera para cambiar su cuadro.'))); return; }
+    const n=listas(); const l=ms[active];
+    if(n===ms.length){ const om=ms.filter(x=>x.omitida).length; now.className='now done'; now.style.removeProperty('--mc'); now.append(h('span',{class:'n'},'✓'), h('div',{}, h('div',{class:'l'},om?`${ms.length-om} con cuadro · ${om} omitida${om>1?'s':''}`:'Las '+ms.length+' mangueras tienen cuadro'), h('div',{class:'s'},'Revisa abajo y guarda la evidencia. Toca una manguera para cambiar su cuadro.'))); return; }
     if(l.omitida){ now.className='now'; now.style.setProperty('--mc',colorDe(active)); now.append(h('span',{class:'n'},active+1), h('div',{style:'min-width:0'}, h('div',{class:'s'},'Esta manguera está omitida en este turno'), h('div',{class:'l'},`${etiqueta(l)} · lado ${l.lado}`))); return; }
     now.className='now'; now.style.setProperty('--mc',colorDe(active));
-    now.append(h('span',{class:'n'},active+1), h('div',{style:'min-width:0'}, h('div',{class:'s'},`Eligiendo ${listas+1} de ${ms.length} · toca el cuadro de`), h('div',{class:'l'},`${etiqueta(l)} · lado ${l.lado}`)));
+    now.append(h('span',{class:'n'},active+1), h('div',{style:'min-width:0'}, h('div',{class:'s'},`Eligiendo ${n+1} de ${ms.length} · toca el cuadro de`), h('div',{class:'l'},`${etiqueta(l)} · lado ${l.lado}`)));
   }
   function drawList(){ mlist.innerHTML='';
     ms.forEach((l,k)=>{ const p=pendientes[l.manguera]; const src=p?p.url:(l.fotoId?fotoSrc(l.fotoId)||null:null);
@@ -1078,13 +1095,15 @@ function renderEvidencia(){
         return;
       }
       const acciones=h('div',{class:'row',style:'gap:6px;flex-wrap:nowrap'}, h('button',{class:'btn sm',onclick:e=>{e.stopPropagation();active=k;abrirArchivo(fotoIn);}},'📷 Foto'));
-      if(omitible && !p && !l.fotoId) acciones.append(h('button',{class:'btn sm ghost',title:'Esta manguera no se abrió en el turno',onclick:e=>{e.stopPropagation();omitirManguera(l);delete pendientes[l.manguera];const next=ms.findIndex((x,j)=>j>k&&!pendientes[x.manguera]&&!x.fotoId&&!x.omitida);active=next>=0?next:k;drawNow();drawList();drawFilm();programarGuardado();}},'Omitir'));
+      if(omitible && !p && !l.fotoId) acciones.append(h('button',{class:'btn sm ghost',title:'Esta manguera no se abrió en el turno',onclick:e=>{e.stopPropagation();omitirManguera(l);delete pendientes[l.manguera];const next=ms.findIndex((x,j)=>j>k&&!pendientes[x.manguera]&&!x.fotoId&&!x.omitida);active=next>=0?next:k;drawAll();programarGuardado();}},'Omitir'));
+      const det = p ? (p.codigo ? `Pantalla ${codigoBonito(p.codigo)}` + (p.valor!=null?` · contador ${fmtL(p.valor)}`:'') : (p.t>=0?`cuadro ${p.t.toFixed(0)} s`:'foto directa')) : (l.fotoId?'guardada':'sin foto');
       mlist.append(h('div',{class:'mrow'+(k===active?' active':''),style:'--mc:'+colorDe(k),onclick:()=>{active=k;drawNow();drawList();drawFilm();}},
         src? h('img',{class:'thumb',src,onclick:e=>{e.stopPropagation();lightbox(src);}}) : h('div',{class:'thumb empty'},k+1),
-        h('div',{}, h('div',{class:'mt'},h('span',{class:'sw'}),`${l.manguera} · ${l.producto}`), h('div',{class:'small muted'},`Lado ${l.lado}` + (p?(p.t>=0?` · cuadro ${p.t.toFixed(0)} s`:' · foto directa'):(l.fotoId?' · guardada':' · sin evidencia')))),
+        h('div',{style:'min-width:0'}, h('div',{class:'mt'},h('span',{class:'sw'}),`${l.manguera} · ${l.producto}`), h('div',{class:'small muted'},`Lado ${l.lado}` + (l.codigo?` · pantalla ${String(l.codigo).toLowerCase().replace(/^([ab])n/,'$1 n')}`:'') + ' · ' + det)),
         acciones));
     });
     btnSubir.disabled = !ms.every(l=>pendientes[l.manguera]||l.fotoId||l.omitida);
+    drawBoton();
   }
   function drawFilm(){ if(!S.frames.length){film.hidden=true;return;} film.hidden=false; film.innerHTML='';
     const porUrl={}; ms.forEach((l,k)=>{ const p=pendientes[l.manguera]; if(p) porUrl[p.url]={l,k}; });
@@ -1095,15 +1114,65 @@ function renderEvidencia(){
       film.append(fr); });
     const selEl=film.querySelector('.fr.sel'); if(selEl) selEl.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
   }
+  function drawAll(){ drawNow(); drawList(); drawFilm(); }
+  // ── Foto por bomba: la IA lee el código de la pantalla y asigna la manguera ──
+  function asignar(k, foto){ const l=ms[k]; if(l.omitida) restaurarManguera(l); const previa=pendientes[l.manguera]||null; pendientes[l.manguera]={blob:foto.blob,url:foto.url,t:-1,codigo:foto.codigo||null,valor:foto.valor??null}; return previa; }
+  function selector(foto, actualK, onElegida){ // botones grandes para decir qué manguera es
+    const g=h('div',{class:'bgrid'});
+    ms.forEach((l,k)=>{ const con=tieneFoto(l); g.append(h('button',{class:'btn'+(k===actualK?' primary':''),onclick:()=>onElegida(k)},
+      h('b',{},l.manguera.split('-')[0]+' · '+l.producto), h('span',{class:'small'},`Lado ${l.lado}`+(l.codigo?` · pantalla ${codigoBonito(l.codigo)}`:'')+(con&&k!==actualK?' · ya tiene foto':'')))); });
+    return g;
+  }
+  function drawBomba(est){ bomba.hidden=false; bomba.innerHTML='';
+    const {foto, k, r, previa, error}=est; const l=k!=null?ms[k]:null;
+    const img=h('img',{class:'bimg',src:foto.url,onclick:()=>lightbox(foto.url)});
+    const info=h('div',{class:'binfo'});
+    if(l){
+      const chips=h('div',{class:'row',style:'gap:6px;flex-wrap:wrap'});
+      if(r&&r.codigo) chips.append(h('span',{class:'chip acc'},'Pantalla '+codigoBonito(r.codigo)));
+      if(r&&r.valor!=null){ chips.append(h('span',{class:'chip'},'Contador '+fmtL(r.valor)));
+        if(l.inicial!=null && r.valor<l.inicial) chips.append(h('span',{class:'chip warn'},'Menor que la inicial · revisa'));
+        else if(l.inicial!=null && r.valor-l.inicial>(S.config.maxLitrosTurno||8000)) chips.append(h('span',{class:'chip warn'},'Muchos litros · revisa')); }
+      else if(r) chips.append(h('span',{class:'chip warn'},'No se lee el contador · toma otra foto'));
+      if(previa) chips.append(h('span',{class:'chip warn'},'Ya tenía foto · se reemplazó'));
+      info.append(h('p',{class:'eyebrow'},est.manual?'Asignada a mano':'Reconocida'), h('div',{class:'bt'},`${l.manguera} · ${l.producto}`), h('div',{class:'small muted'},`Lado ${l.lado}`), chips);
+      const btns=h('div',{class:'grid2'},
+        h('button',{class:'btn primary big',onclick:()=>{ bomba.hidden=true; if(listas()<ms.length) abrirArchivo(bombaIn); }}, listas()>=ms.length?'Listo, revisar':'Siguiente bomba'),
+        h('button',{class:'btn big',onclick:()=>{ info.innerHTML=''; info.append(h('p',{class:'eyebrow'},'¿Qué manguera es esta foto?'), selector(foto, k, j=>{ if(j===k){ drawBomba(est); return; } delete pendientes[l.manguera]; if(previa) pendientes[l.manguera]=previa; const prev2=asignar(j, foto); drawList(); drawBomba({foto, k:j, r, previa:prev2, manual:true}); })); }},'Es otra manguera'));
+      info.append(btns);
+    } else {
+      info.append(h('p',{class:'eyebrow'},error?'No se pudo leer la foto':'No reconocí la pantalla'), h('div',{class:'bt'},error?String(error).slice(0,90):(r&&r.codigo?`Leí "${codigoBonito(r.codigo)}" y no existe en esta isla`:'Toca la manguera que fotografiaste')),
+        selector(foto, -1, j=>{ const prev2=asignar(j, foto); drawList(); drawBomba({foto, k:j, r, previa:prev2, manual:true}); }),
+        h('button',{class:'btn ghost block',onclick:()=>{ bomba.hidden=true; abrirArchivo(bombaIn); }},'Repetir la foto'));
+    }
+    bomba.append(img, info); bomba.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+  bombaIn.addEventListener('change', async ()=>{ const f=bombaIn.files[0]; bombaIn.value=''; if(!f) return;
+    const blob=await comprimirImagen(f); const foto={blob,url:URL.createObjectURL(blob)};
+    bomba.hidden=false; bomba.innerHTML=''; bomba.append(h('img',{class:'bimg',src:foto.url}), h('div',{class:'binfo',style:'display:flex;align-items:center;min-height:120px'}, omLoader({tam:'medio',texto:'Leyendo la pantalla de la bomba…'})));
+    btnBomba.disabled=true;
+    try{
+      const imagen=await archivoABase64(blob);
+      const {data,error}=await sb.functions.invoke('leer-medidor',{ body:{ accion:'identificar', token:S.token, corte_id:c.id, imagen, tipo:'image/jpeg' } });
+      if(error){ let det=error.message||String(error); try{ if(error.context&&typeof error.context.json==='function'){ const j=await error.context.json(); if(j&&j.error) det=j.error; } }catch(_){} throw new Error(det); }
+      const r=data||{}; if(r.error) throw new Error(r.error);
+      foto.codigo=r.codigo||null; foto.valor=(typeof r.valor==='number'&&isFinite(r.valor))?r.valor:null;
+      const k=r.manguera_id? ms.findIndex(l=>l.mangueraId===r.manguera_id) : -1;
+      if(k>=0){ const previa=asignar(k, foto); active=k; drawList(); drawBomba({foto, k, r, previa}); }
+      else { drawList(); drawBomba({foto, k:null, r}); }
+    }catch(e){ console.warn('identificar', e); drawBomba({foto, k:null, r:null, error:e.message||e}); }
+    btnBomba.disabled=false;
+  });
   vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; prog.hidden=false; status.hidden=false; status.textContent='Sacando cuadros del video…';
     try{ S.frames=await extraerCuadros(f, 2, (p)=>{ prog.firstChild.style.width=Math.round(p*100)+'%'; }); status.textContent=`${S.frames.length} cuadros del video. Si uno sale movido, elige el siguiente.`; drawNow(); drawFilm(); }
-    catch(e){ status.textContent='No se pudo leer el video en este dispositivo. Usa el botón de foto por manguera.'; }
+    catch(e){ status.textContent='No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; }
     prog.hidden=true; vidIn.value='';
   });
-  fotoIn.addEventListener('change', async ()=>{ const f=fotoIn.files[0]; if(!f) return; const blob=await comprimirImagen(f); if(ms[active].omitida) restaurarManguera(ms[active]); pendientes[ms[active].manguera]={blob,url:URL.createObjectURL(blob),t:-1}; const next=ms.findIndex((l,k)=>k>active && !pendientes[l.manguera] && !l.fotoId && !l.omitida); if(next>=0) active=next; drawNow(); drawList(); drawFilm(); fotoIn.value=''; });
+  fotoIn.addEventListener('change', async ()=>{ const f=fotoIn.files[0]; if(!f) return; const blob=await comprimirImagen(f); if(ms[active].omitida) restaurarManguera(ms[active]); pendientes[ms[active].manguera]={blob,url:URL.createObjectURL(blob),t:-1}; const next=ms.findIndex((l,k)=>k>active && !pendientes[l.manguera] && !l.fotoId && !l.omitida); if(next>=0) active=next; drawAll(); fotoIn.value=''; });
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
-  card.append(h('div',{class:'grid2'}, h('button',{class:'btn primary big',onclick:()=>abrirArchivo(vidIn)},'🎥 Grabar video'), h('button',{class:'btn big',onclick:()=>{ abrirArchivo(fotoIn); }},'📷 Foto de la manguera activa')), vidIn, fotoIn, prog, status, now, film, mlist, btnSubir);
-  app.append(card); drawNow(); drawList(); drawFilm();
+  const otras=h('details',{class:'otras'}, h('summary',{},'Otras formas de tomar la evidencia'), h('div',{class:'grid2',style:'margin-top:8px'}, h('button',{class:'btn',onclick:()=>abrirArchivo(vidIn)},'🎥 Grabar un video de todas'), h('button',{class:'btn',onclick:()=>{ abrirArchivo(fotoIn); }},'📷 Foto de la manguera marcada')));
+  card.append(btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, now, film, mlist, btnSubir, otras);
+  app.append(card); drawAll();
 }
 async function extraerCuadros(file, cada, onProg){
   const url=URL.createObjectURL(file); const v=document.createElement('video'); v.src=url; v.muted=true; v.playsInline=true; v.preload='auto';
@@ -1942,9 +2011,10 @@ async function adminConfig(){
   const tList=h('div',{class:'list'}); const drawT=()=>{ tList.innerHTML=''; c.terminales.forEach((t,i)=>tList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},t)),h('button',{class:'btn sm danger',onclick:async()=>{ c.terminales.splice(i,1); await guardaT(); drawT(); }},'Quitar')))); };
   drawT();
   box.append(h('div',{class:'card stack'}, h('h3',{},'Terminales bancarias'), h('p',{class:'small muted'},'Opciones que aparecen en la lista de tarjetas del corte.'), h('div',{class:'grid2'},nuevaT,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaT.value.trim(); if(!n||c.terminales.includes(n)) return; c.terminales.push(n); await guardaT(); nuevaT.value=''; drawT(); }},'Agregar')), tList));
-  const isl=h('div',{class:'card stack'}, h('h3',{},'Islas y orden de mangueras'), h('p',{class:'small muted'},'Este es el orden en que se graba el video. Cambia el orden con las flechas.'));
-  for(const i of c.islas){ const ul=h('div',{class:'list'}); const draw=()=>{ ul.innerHTML=''; i.mangueras.forEach((m,k)=>ul.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},`${k+1}. ${m.id} · ${m.producto}`),h('span',{class:'small muted'},'Lado '+m.lado)),h('div',{class:'row'},h('button',{class:'btn sm',disabled:k===0,onclick:()=>{[i.mangueras[k-1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k-1]];draw();}},'↑'),h('button',{class:'btn sm',disabled:k===i.mangueras.length-1,onclick:()=>{[i.mangueras[k+1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k+1]];draw();}},'↓'))))); }; draw(); isl.append(h('div',{},h('p',{class:'eyebrow',style:'margin:8px 0'},i.nombre),ul)); }
-  isl.append(h('button',{class:'btn primary',onclick:async()=>{ try{ for(const i of c.islas) for(let k=0;k<i.mangueras.length;k++) await sel(sb.from('mangueras').update({orden:k+1}).eq('id',i.mangueras[k].uuid)); toast('Orden guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar orden'));
+  const isl=h('div',{class:'card stack'}, h('h3',{},'Islas, orden y código de pantalla'), h('p',{class:'small muted'},'El código de pantalla es lo que muestra el display de la bomba (por ejemplo "b n1" = lado B, número 1); con él la app reconoce cada foto. Si en las pruebas una bomba sale con otro código, cámbialo aquí. El orden es el de la lista de mangueras y del video.'));
+  for(const i of c.islas){ const ul=h('div',{class:'list'}); const draw=()=>{ ul.innerHTML=''; i.mangueras.forEach((m,k)=>{ const cod=h('input',{type:'text',value:m.codigo||'',placeholder:'b n1',style:'width:84px;text-transform:uppercase;font-family:var(--font-mono)',oninput:()=>{ m.codigo=cod.value; }}); ul.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},`${k+1}. ${m.id} · ${m.producto}`),h('span',{class:'small muted'},'Lado '+m.lado)),h('div',{class:'row',style:'gap:6px'},cod,h('button',{class:'btn sm',disabled:k===0,onclick:()=>{[i.mangueras[k-1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k-1]];draw();}},'↑'),h('button',{class:'btn sm',disabled:k===i.mangueras.length-1,onclick:()=>{[i.mangueras[k+1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k+1]];draw();}},'↓')))); }); }; draw(); isl.append(h('div',{},h('p',{class:'eyebrow',style:'margin:8px 0'},i.nombre),ul)); }
+  isl.append(h('button',{class:'btn primary',onclick:async()=>{ try{ for(const i of c.islas){ const vistos={}; for(const m of i.mangueras){ const n=String(m.codigo||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(n&&vistos[n]) throw new Error(`El código ${n} está repetido en ${i.nombre} (${vistos[n]} y ${m.id}).`); if(n) vistos[n]=m.id; } }
+    for(const i of c.islas) for(let k=0;k<i.mangueras.length;k++) await sel(sb.from('mangueras').update({orden:k+1, codigo_pantalla:(i.mangueras[k].codigo||'').trim()||null}).eq('id',i.mangueras[k].uuid)); toast('Orden y códigos guardados.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),6000); } }},'Guardar orden y códigos'));
   box.append(isl);
   box.append(h('div',{class:'card stack'}, h('h3',{},'Integridad de los cortes'), h('p',{class:'small muted'},'Recalcula el sello de todos los cortes enviados y avisa si alguno fue alterado por fuera de la app.'), h('button',{class:'btn block',onclick:async e=>{ e.target.disabled=true; try{ const r=await rpc('verificar_integridad',{p_estacion:c.estacionId}); toast(r&&r.length?`⚠ ${r.length} corte(s) con sello que no coincide`:'✓ Todos los cortes enviados coinciden con su sello.',6000); }catch(err){ toast('No se pudo: '+(err.message||err.code),5000); } e.target.disabled=false; }},'Verificar ahora')));
 }
