@@ -1911,10 +1911,12 @@ async function fnOficina(body, nombre='registrar-comprobante'){
 }
 async function cuentasOficina(force){
   if(OF.cuentas && !force) return OF.cuentas;
-  const rows = await sel(sb.from('cuentas_bancarias').select('id, banco, alias, ultimos4, negocio_id, negocios(id, nombre)').eq('activa',true).order('alias'));
-  OF.cuentas = rows.map(c=>({ id:c.id, banco:c.banco, alias:c.alias, ultimos4:c.ultimos4, negocioId:c.negocio_id, negocio:c.negocios?c.negocios.nombre:'' }));
+  const rows = await sel(sb.from('cuentas_bancarias').select('id, banco, alias, ultimos4, negocio_id, negocios(id, nombre, solo_estados)').eq('activa',true).order('alias'));
+  OF.cuentas = rows.map(c=>({ id:c.id, banco:c.banco, alias:c.alias, ultimos4:c.ultimos4, negocioId:c.negocio_id, negocio:c.negocios?c.negocios.nombre:'', soloEstados:!!(c.negocios&&c.negocios.solo_estados) }));
   return OF.cuentas;
 }
+// Empresas que solo participan en estados de cuenta (radio, verificentro) no entran en facturas, pagos ni comprobantes.
+function cuentasOperativas(cuentas){ return cuentas.filter(c=>!c.soloEstados); }
 function negociosOficina(cuentas){ const m={}; for(const c of cuentas) m[c.negocioId]=c.negocio; return Object.entries(m).map(([id,nombre])=>({id,nombre})).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }
 const driveLink = id => `https://drive.google.com/file/d/${id}/view`;
 // ---- Archivos por la app: el servidor verifica permisos y el robot entrega el archivo (no hace falta cuenta de Google).
@@ -1990,7 +1992,7 @@ function barraFiltros(negocios, opts){
 }
 // ---- Pagos
 async function agregarPago(){
-  let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
+  let cuentas=[]; try{ cuentas=cuentasOperativas(await cuentasOficina()); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
   if(!cuentas.length){ app.append(h('div',{class:'card empty'}, h('b',{},'Sin cuentas bancarias a la vista'), 'Pide al dueño que dé de alta las cuentas de tu negocio en OwnManager.')); return; }
   // La pantalla de 'listo' se muestra una vez; al volver a entrar a la sección se empieza de nuevo.
   if(!OF.wizard || (OF.wizard.paso==='listo' && OF.wizard.visto)) OF.wizard={paso:'archivo'}; else if(OF.wizard.paso==='listo') OF.wizard.visto=true;
@@ -1998,7 +2000,7 @@ async function agregarPago(){
 }
 async function consultaPagos(){
   let cuentas=[]; try{ cuentas=await cuentasOficina(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
-  const negocios=negociosOficina(cuentas);
+  const negocios=negociosOficina(cuentasOperativas(cuentas));
   app.append(barraBuscar(OF.texto, 'Buscar', v=>{ OF.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando pagos…','Revisando comprobantes…','Casi listo…']); app.append(espera);
   let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_pagos',{ p_texto:OF.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_limite:200 }); }
@@ -2141,7 +2143,7 @@ async function renderWizardPago(cuentas, fijo){
 const CO={texto:''}; const EC={texto:'', abierta:null};
 async function consultaComprobantes(){
   app.append(h('p',{class:'small muted',style:'margin:0 0 8px'},'Expediente de pago: un solo PDF con la factura y su comprobante bancario, listo para el contador o el proveedor.'));
-  let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
+  let negocios=[]; try{ negocios=negociosOficina(cuentasOperativas(await cuentasOficina())); }catch(e){}
   app.append(barraBuscar(CO.texto, 'Buscar', v=>{ CO.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Buscando facturas pagadas…','Casi listo…']); app.append(espera);
   let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_facturas',{ p_texto:CO.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_estado:'pagada', p_limite:200 }); }
@@ -2387,7 +2389,7 @@ async function agregarFactura(){
   await renderWizardFactura(true);
 }
 async function consultaFacturas(){
-  let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
+  let negocios=[]; try{ negocios=negociosOficina(cuentasOperativas(await cuentasOficina())); }catch(e){}
   app.append(barraBuscar(FA.texto, 'Buscar', v=>{ FA.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando facturas…','Leyendo el archivo…','Casi listo…']); app.append(espera);
   let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_facturas',{ p_texto:FA.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_limite:200 }); }
