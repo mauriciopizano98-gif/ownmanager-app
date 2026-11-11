@@ -998,6 +998,8 @@ function renderCorte(){
   const orden=['evidencia','lecturas','dinero','enviar']; const idx=orden.indexOf(paso);
   app.append(h('div',{class:'row between',style:'margin-bottom:6px'}, h('span',{class:'chip '+(paso==='evidencia'?'acc':'ok')},paso==='evidencia'?'Parte 1 · Fotos en bombas':'Parte 1 ✓ Fotos'), h('span',{class:'chip '+(paso==='evidencia'?'':'acc')},'Parte 2 · Información en computadora')));
   app.append(h('div',{class:'steps'}, ...orden.map((p,k)=>h('i',{class:k<idx?'done':(k===idx?'on':'')}))));
+  if(paso==='evidencia' && S.adelanto){ renderDinero(true); return; }
+  S.adelanto=false;
   ({evidencia:renderEvidencia, lecturas:renderLecturas, dinero:renderDinero})[paso]();
 }
 function renderFotosListas(c){
@@ -1184,7 +1186,11 @@ function renderEvidencia(){
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
   const otras=h('details',{class:'otras'}, h('summary',{},'Otra forma de tomar la evidencia'), h('div',{style:'margin-top:8px'}, h('button',{class:'btn block',onclick:()=>{ abrirArchivo(fotoIn); }},'📷 Foto de la manguera marcada (sin IA)')));
   card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, now, film, mlist, btnSubir, otras);
-  app.append(card); drawAll();
+  const ya=resumenAdelanto(c);
+  const adel=h('div',{class:'card stack adel'}, h('div',{class:'sechead'}, h('h3',{},'¿Tienes un momento libre?'), ya.length?h('span',{class:'chip ok'},'Adelantado'):null),
+    h('p',{class:'small muted'}, ya.length? 'Ya llevas: '+ya.join(' · ')+'. Puedes seguir agregando.' : 'Puedes ir capturando tarjetas, depósitos, clientes y aceites durante el turno. Las fotos se toman al final.'),
+    h('button',{class:'btn block big',onclick:()=>{ S.adelanto=true; render(); }},'✎ Adelantar datos del turno'));
+  app.append(card, adel); drawAll();
 }
 // Manda los cuadros del video a la IA por lotes y devuelve el mejor cuadro por manguera:
 // { manguera_id: {i, codigo, valor, legible, nitidez} }. Prefiere cuadros legibles y, entre ellos, el valor que más se repite.
@@ -1365,19 +1371,20 @@ function recalcular(){
 // La sección activa vive en el corte (c.dinero.seccion), nunca en una variable global: así cada corte
 // empieza siempre en 1 Tarjetas aunque el anterior haya terminado en 4 Resumen.
 let secDinero='tarjetas';
-function renderDinero(){
+function renderDinero(adelanto){
   const c=S.corte; for(const l of c.lecturas) if(l.inicial!=null&&l.final!=null) l.litros=Math.round((l.final-l.inicial)*1000)/1000;
   c.dinero = c.dinero || { tarjetas:[], efectivo:{billetes:{},monedas:{},extra:{billetes:{},monedas:{}}}, clientes:[], comentario:'', seccion:'tarjetas' };
   const d=c.dinero; if(!Array.isArray(d.tarjetas)) d.tarjetas=[]; d.efectivo=d.efectivo||{billetes:{},monedas:{}}; d.efectivo.extra=d.efectivo.extra||{billetes:{},monedas:{}}; d.efectivo.extra.billetes=d.efectivo.extra.billetes||{}; d.efectivo.extra.monedas=d.efectivo.extra.monedas||{}; d.clientes=d.clientes||[];
-  const ORDEN=['tarjetas','arqueo','clientes','aceites','resumen']; if(!ORDEN.includes(d.seccion)) d.seccion='tarjetas'; secDinero=d.seccion;
+  const ORDEN=adelanto?['tarjetas','arqueo','clientes','aceites']:['tarjetas','arqueo','clientes','aceites','resumen']; if(!ORDEN.includes(d.seccion)) d.seccion='tarjetas'; secDinero=d.seccion;
   const venta=calcVenta(c); const tol=S.config.toleranciaPesos??50;
   const terminales=(S.config.terminales||['BBVA','Banorte','BanBajío']);
   const clientesCfg=(S.config.clientesMarcados||[]).filter(x=>x.activo!==false);
-  const secciones=[['tarjetas','Tarjetas','💳'],['arqueo','Arqueo','💵'],['clientes','Clientes','🏢'],['aceites','Aceites','🛢️'],['resumen','Resumen','✓']];
+  const secciones=[['tarjetas','Tarjetas','💳'],['arqueo','Arqueo','💵'],['clientes','Clientes','🏢'],['aceites','Aceites','🛢️'],['resumen','Resumen','✓']].filter(x=>ORDEN.includes(x[0]));
   const hecho={ tarjetas:d.tarjetas.length>0, arqueo:calcDinero(d).efectivo>0, clientes:d.clientes.length>0, aceites:calcAceites(c).piezas>0 };
   const nav=h('div',{class:'secnav'},...secciones.map(([k,l,ic],i)=>h('button',{class:(k===secDinero?'on':(hecho[k]?'done':'')),onclick:()=>{ d.seccion=k; secDinero=k; programarGuardado(); render(); }},h('b',{},i+1),l)));
   const card=h('div',{class:'card stack'});
-  card.append(h('div',{class:'sechead'},h('h2',{},'3. Dinero del turno'),h('span',{class:'chip acc'},venta.completo?'Venta esperada '+fmtMXN(venta.importe):'Sin precios cargados')), nav);
+  if(adelanto) card.append(h('div',{class:'sechead'},h('h2',{},'Adelantar datos del turno'),h('span',{class:'chip ok'},'Se guarda solo')), h('p',{class:'small muted',style:'margin:-4px 0 0'},'Ve llenando tarjetas, depósitos, clientes y aceites cuando tengas un momento. Las fotos y las lecturas se hacen al final, como siempre; todo lo que captures aquí ya estará puesto.'), nav);
+  else card.append(h('div',{class:'sechead'},h('h2',{},'3. Dinero del turno'),h('span',{class:'chip acc'},venta.completo?'Venta esperada '+fmtMXN(venta.importe):'Sin precios cargados')), nav);
   const body=h('div',{class:'stack'}); card.append(body);
   const irA=k=>{ d.seccion=k; secDinero=k; guardarAvance(); render(); };
   const totalLinea=(lbl,val)=>h('div',{class:'money total'},h('span',{},lbl),h('b',{},fmtMXN(val)));
@@ -1463,7 +1470,7 @@ function renderDinero(){
     const V=c.aceites.vendidas;
     if(!cat.length){
       body.append(h('h3',{},'Venta de aceites'), h('p',{class:'hint'},'Todavía no hay catálogo de aceites cargado. Se agrega desde el tablero, en la pestaña Aceites.'),
-        h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('clientes')},'Atrás'),h('button',{class:'btn primary big',onclick:()=>irA('resumen')},'Siguiente: resumen')));
+        h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('clientes')},'Atrás'),adelanto?h('button',{class:'btn primary big',onclick:async()=>{ S.adelanto=false; await guardarAvance(); render(); }},'Listo · volver a las fotos'):h('button',{class:'btn primary big',onclick:()=>irA('resumen')},'Siguiente: resumen')));
     } else {
       body.append(h('h3',{},'Venta de aceites'), h('p',{class:'small muted'},'Marca cuántas piezas vendiste de cada producto. Lo que no vendiste se queda en cero: no hay que tocarlo.'));
       const tot=h('div',{});
@@ -1494,15 +1501,18 @@ function renderDinero(){
         body.append(grupo);
       }
       pinta();
-      body.append(tot, h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('clientes')},'Atrás'),h('button',{class:'btn primary big',onclick:()=>irA('resumen')},'Siguiente: resumen')));
+      body.append(tot, h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('clientes')},'Atrás'),adelanto?h('button',{class:'btn primary big',onclick:async()=>{ S.adelanto=false; await guardarAvance(); render(); }},'Listo · volver a las fotos'):h('button',{class:'btn primary big',onclick:()=>irA('resumen')},'Siguiente: resumen')));
     }
   }
   else {
     renderResumen(body, c, d, venta, tol, irA);
   }
-  card.append(h('button',{class:'btn ghost block',onclick:async()=>{ c.paso='lecturas'; await guardarAvance(); render(); }},'Volver a las lecturas'));
+  if(adelanto) card.append(h('button',{class:'btn ghost block',onclick:async()=>{ S.adelanto=false; await guardarAvance(); render(); }},'Volver a las fotos'));
+  else card.append(h('button',{class:'btn ghost block',onclick:async()=>{ c.paso='lecturas'; await guardarAvance(); render(); }},'Volver a las lecturas'));
   app.append(card);
 }
+// Qué lleva adelantado el corte (tarjetas, efectivo, clientes, aceites), para mostrarlo en la Parte 1.
+function resumenAdelanto(c){ const d=c.dinero||{}; const t=calcDinero(d); const partes=[]; const n=(d.tarjetas||[]).length; if(n) partes.push(`${n} tarjeta${n>1?'s':''} ${fmtMXN(t.tarjetas)}`); if(t.efectivo>0) partes.push('efectivo '+fmtMXN(t.efectivo)); const cl=(d.clientes||[]).length; if(cl) partes.push(`${cl} cliente${cl>1?'s':''} ${fmtMXN(t.clientes)}`); const a=calcAceites(c); if(a.piezas>0) partes.push(`${a.piezas} aceite${a.piezas>1?'s':''}`); return partes; }
 
 
 // ---- Calidad del corte y reporte visual
