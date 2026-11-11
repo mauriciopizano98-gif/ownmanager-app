@@ -434,27 +434,29 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .resumen-ec .k{font:700 12px var(--font-body);letter-spacing:.08em;color:var(--muted);align-self:center}
 .resumen-ec b{font:700 17px var(--font-body);letter-spacing:.02em;color:var(--fg);word-break:break-word}
 .resumen-ec b:empty::before{content:'—'}
-.biblio{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-.biblio .carp{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);cursor:pointer;text-align:left;color:var(--fg);font:inherit;transition:border-color .15s,transform .15s}
+.biblio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.biblio .carp{display:flex;flex-direction:column;gap:4px;padding:22px 20px 18px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);cursor:pointer;text-align:left;color:var(--fg);font:inherit;transition:border-color .15s,transform .15s}
 .biblio .carp:hover{border-color:var(--accent);transform:translateY(-1px)}
-.biblio .carp svg{width:34px;height:34px;color:var(--accent);margin-bottom:4px}
-.biblio .carp b{font-size:16px}
-.biblio .carp .sub{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-.biblio .carp .n{margin-top:4px;font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
-.biblio-emp{margin:18px 0 8px;font:700 12px var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.biblio-emp:first-child{margin-top:4px}
-.miga{display:flex;align-items:center;gap:10px;margin:4px 0 12px}
+.biblio .carp svg{width:36px;height:36px;color:var(--accent);margin-bottom:8px}
+.biblio .carp b{font-size:18px}
+.biblio .carp .sub{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.biblio .carp .n{margin-top:8px;font-size:12px;color:var(--muted)}
+.miga{display:flex;align-items:center;gap:10px;margin:4px 0 14px}
 .miga .btn.sm{padding:6px 10px}.miga .btn.sm svg{width:18px;height:18px}
 .miga b{font-size:17px}.miga span{color:var(--muted)}
-.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-.doc{display:flex;flex-direction:column;gap:4px;padding:14px 14px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
-.doc .ic{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-.doc .ic svg{width:26px;height:26px;color:var(--accent)}
-.doc b{font-size:16px;letter-spacing:.02em}
-.doc .sub{font-size:13px;color:var(--muted)}
-.doc .acc{display:flex;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
-.doc .acc .btn.sm{min-height:32px;padding:4px 8px;gap:4px;font-size:12px}.doc .acc .btn.sm svg{width:16px;height:16px}
-.doc .acc .danger{margin-left:auto}
+.docs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.doc{display:flex;flex-direction:column;gap:2px;padding:20px 20px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+.doc .ic{color:var(--accent);margin-bottom:8px}.doc .ic svg{width:30px;height:30px}
+.doc b{font-size:18px;letter-spacing:.02em}
+.doc .sub{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.doc .acc{display:flex;gap:2px;margin-top:14px;padding-top:8px;border-top:1px solid var(--line)}
+.doc .acc .btn.sm{min-height:34px;padding:4px 10px;gap:6px;font-size:13px;border:0;background:transparent;color:var(--muted)}
+.doc .acc .btn.sm:hover{color:var(--fg);background:var(--surface2)}
+.doc .acc .btn.sm svg{width:17px;height:17px}
+.doc .acc .quitar-doc{margin-left:auto;padding:4px 8px}
+.doc .acc .quitar-doc:hover{color:var(--err)}
+@media (max-width:1100px){ .biblio,.docs{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:560px){ .biblio,.docs{grid-template-columns:1fr} }
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
 .filtros select,.filtros input{width:auto;min-height:38px;padding:7px 12px;font-size:14px;border-radius:999px;background:var(--surface);color:var(--fg)}
 .filtros select.on,.filtros input.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -2182,13 +2184,12 @@ async function consultaEstados(){
   if(abierta){
     app.append(h('div',{class:'miga'}, h('button',{class:'btn sm ghost',title:'Volver',onclick:()=>{ EC.abierta=null; render(); }},ico('volver')), h('span',{},abierta.emp), h('span',{},'›'), h('b',{},abierta.banco), h('span',{class:'small'},`· ${abierta.rows.length} ${abierta.rows.length===1?'estado':'estados'}`)));
     const grid=h('div',{class:'docs'});
-    for(const r of abierta.rows){ const c=r.cuentas_bancarias||{};
-      grid.append(h('div',{class:'doc'}, h('div',{class:'ic'}, ico('archivo'), 'PDF'+(r.importado?' · movimientos':'')),
-        h('b',{},periodoTexto(r.periodo_inicio,r.periodo_fin)), h('span',{class:'sub'},`${c.alias||''}${c.ultimos4?' ···'+c.ultimos4:''}`),
-        r.saldo_final!=null?h('span',{class:'sub'},'Saldo final '+fmtMonto(r.saldo_final)):null,
+    for(const r of abierta.rows){
+      grid.append(h('div',{class:'doc'}, h('div',{class:'ic'}, ico('archivo')),
+        h('b',{},periodoTexto(r.periodo_inicio,r.periodo_fin)), h('span',{class:'sub'},`${abierta.banco} · ${abierta.emp}`),
         h('div',{class:'acc'}, btnArchivo(r.archivo_drive_id,'Abrir',{icono:'abrir',nombre:r.archivo_nombre}),
           btnArchivo(r.archivo_drive_id,'Descargar',{icono:'descargar',descargar:true,nombre:r.archivo_nombre}),
-          esCentral()?h('button',{class:'btn sm ghost danger',title:'Borrar',onclick:()=>eliminarEstadoUI(r)},ico('borrar')):null))); }
+          esCentral()?h('button',{class:'btn sm ghost quitar-doc',title:'Borrar',onclick:()=>eliminarEstadoUI(r)},ico('borrar')):null))); }
     app.append(grid); return;
   }
   EC.abierta=null;
@@ -2198,7 +2199,7 @@ async function consultaEstados(){
   const variasEmp=new Set(orden.map(([,v])=>v.emp)).size>1;
   for(const [k,v] of orden){ const ult=v.rows[0];
     grid.append(h('button',{class:'carp',onclick:()=>{ EC.abierta=k; render(); }}, ico('carpeta'), h('b',{},v.banco), variasEmp?h('span',{class:'sub'},v.emp):null,
-      h('span',{class:'n'},`${v.rows.length} ${v.rows.length===1?'estado':'estados'} · último ${periodoTexto(ult.periodo_inicio,ult.periodo_fin)}`))); }
+      h('span',{class:'n'},`${v.rows.length} ${v.rows.length===1?'estado de cuenta':'estados de cuenta'}`))); }
   app.append(grid);
 }
 // ---- Estados de cuenta (Central y dueño): subir PDF → IA lee banco/empresa/periodo → confirmar → Drive + registro
