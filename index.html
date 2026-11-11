@@ -1598,10 +1598,11 @@ let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
   const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],['aestado','bancomas','Agregar estado de cuenta'],
-    ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep'];
+    ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep',
+    ['precios','precio','Precios'],['clientes','clientes','Clientes marcados']];
   if(S.rol==='dueno') items.push(['aceites','aceites','Aceites'],['desp','desp','Despachadores']);
   items.push(['config','config','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', precios:'Precios de venta por litro', clientes:'Clientes marcados', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
   const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
@@ -1609,12 +1610,14 @@ async function renderAdmin(){
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  precio:'<path d="M20 13 11 22 2 13V4h9l9 9Z"/><circle cx="7" cy="9" r="1.5"/>',
+  clientes:'<path d="M4 21V7l6-3v17"/><path d="M10 21V11l6-3v13"/><path d="M16 21v-8l4-2v10"/><path d="M2 21h20"/>',
   carpeta:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>',
   archivo:'<path d="M7 3h7l5 5v13H7V3Z"/><path d="M14 3v5h5"/><path d="M9.5 14h5M9.5 17h5"/>',
   descargar:'<path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/>',
@@ -1847,15 +1850,31 @@ async function adminDesp(){
   box.append(list);
 }
 function pedirPin(d){ return new Promise(res=>{ const inp=h('input',{type:'password',inputmode:'numeric',maxlength:'4',placeholder:'Nuevo PIN de 4 dígitos'}); const sh=h('div',{class:'sheet',onclick:e=>{if(e.target===sh){sh.remove();res(null);}}}, h('div',{class:'in stack'}, h('h3',{},'Nuevo PIN para '+d.nombre), inp, h('button',{class:'btn primary block',onclick:()=>{ if(!/^\d{4}$/.test(inp.value)){toast('Deben ser 4 dígitos.');return;} sh.remove(); res(inp.value); }},'Guardar'))); document.body.append(sh); inp.focus(); }); }
+
+// ---- Precios de venta por litro (acceso directo; antes vivía en Configuración)
+async function adminPrecios(){
+  const c=S.config; if(!c){ app.append(h('div',{class:'card empty'},'Elige una estación.')); return; }
+  const productos=[...new Set(c.islas.flatMap(i=>i.productos))]; c.precios=c.precios||{};
+  const pIn={};
+  app.append(h('div',{class:'card stack'},
+    h('p',{class:'small muted'},'Con estos precios la app calcula la venta esperada de cada corte (litros × precio). Actualízalos cada vez que cambie el precio en bomba.'),
+    h('div',{class:'grid3'},...productos.map(p=>{ pIn[p]=h('input',{type:'number',step:'0.01',min:'0',class:'num',id:'pr-'+p,value:c.precios[p]??'',placeholder:'0.00',style:'font-size:26px;font-weight:700;min-height:64px'}); return h('label',{class:'f'},h('span',{class:'l'},p),pIn[p]); })),
+    h('button',{class:'btn primary big',onclick:async()=>{ const pr={}; for(const p of productos) pr[p]=pIn[p].value===''?0:Number(pIn[p].value); try{ await rpc('fijar_precios',{p_estacion:c.estacionId, p_precios:pr}); c.precios=pr; aviso(productos.map(p=>`${p} ${fmtMonto(pr[p])}`).join(' · '),'ok',6000,'Precios guardados'); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); } }},'Guardar precios')));
+}
+// ---- Clientes marcados (empresas que cargan a cuenta; acceso directo)
+async function adminClientes(){
+  const c=S.config; if(!c){ app.append(h('div',{class:'card empty'},'Elige una estación.')); return; }
+  c.clientesMarcados=c.clientesMarcados||[]; const nuevaC=h('input',{type:'text',placeholder:'Nombre del cliente',id:'cm-nuevo'});
+  const guardaCm=()=>sel(sb.from('estaciones').update({clientes_marcados:c.clientesMarcados}).eq('id',c.estacionId));
+  const cmList=h('div',{class:'list'}); const drawCm=()=>{ cmList.innerHTML=''; if(!c.clientesMarcados.length) cmList.append(h('p',{class:'hint'},'Todavía no hay clientes marcados.'));
+    c.clientesMarcados.forEach((x,i)=>cmList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},x.nombre),h('span',{class:'small muted'},x.activo===false?'Inactivo':'Activo')),h('div',{class:'row'},h('button',{class:'btn sm',onclick:async()=>{ x.activo=!(x.activo!==false); await guardaCm(); drawCm(); }},x.activo===false?'Activar':'Desactivar'),h('button',{class:'btn sm ghost danger',onclick:async()=>{ c.clientesMarcados.splice(i,1); await guardaCm(); drawCm(); }},'Quitar'))))); };
+  drawCm();
+  app.append(h('div',{class:'card stack'}, h('p',{class:'small muted'},'Clientes que cargan a cuenta; aparecen en la lista de "Clientes" del corte.'),
+    h('div',{class:'grid2'},nuevaC,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaC.value.trim(); if(!n||c.clientesMarcados.some(x=>x.nombre.toLowerCase()===n.toLowerCase())) return; c.clientesMarcados.push({id:'cm-'+uid().slice(-8),nombre:n,activo:true}); try{ await guardaCm(); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); c.clientesMarcados.pop(); return; } nuevaC.value=''; drawCm(); }},'Agregar')), cmList));
+}
 async function adminConfig(){
   const c=S.config; const box=h('div',{class:'stack'}); app.append(box);
   const dueno=S.rol==='dueno';
-  // precios (dueño y oficina)
-  const productos=[...new Set(c.islas.flatMap(i=>i.productos))]; c.precios=c.precios||{};
-  const pIn={}; const precBox=h('div',{class:'card stack'}, h('h3',{},'Precios de venta por litro'), h('p',{class:'small muted'},'Con estos precios la app calcula la venta esperada de cada corte (litros × precio). Actualízalos cada vez que cambie el precio en bomba.'),
-    h('div',{class:'grid3'},...productos.map(p=>{ pIn[p]=h('input',{type:'number',step:'0.01',min:'0',class:'num',id:'pr-'+p,value:c.precios[p]??'',placeholder:'0.00'}); return h('label',{class:'f'},h('span',{class:'l'},p),pIn[p]); })),
-    h('button',{class:'btn primary',onclick:async()=>{ const pr={}; for(const p of productos) pr[p]=pIn[p].value===''?0:Number(pIn[p].value); try{ await rpc('fijar_precios',{p_estacion:c.estacionId, p_precios:pr}); c.precios=pr; toast('Precios guardados.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar precios'));
-  box.append(precBox);
   if(!dueno){ box.append(h('p',{class:'hint'},'El resto de la configuración (alertas, terminales, orden de mangueras) la cambia el dueño.')); return; }
   // identidad de la estación: nombre, logo y remitente de los correos
   { const nom=h('input',{type:'text',value:c.nombre,id:'cfg-nombre',maxlength:'60'}); const remN=h('input',{type:'text',value:c.remitenteNombre||c.nombre,id:'cfg-remn',maxlength:'60'}); const rem=h('input',{type:'email',value:c.remitente||'',id:'cfg-rem',placeholder:'estacion@mauriciopizano.com'});
@@ -1882,12 +1901,6 @@ async function adminConfig(){
   const tList=h('div',{class:'list'}); const drawT=()=>{ tList.innerHTML=''; c.terminales.forEach((t,i)=>tList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},t)),h('button',{class:'btn sm danger',onclick:async()=>{ c.terminales.splice(i,1); await guardaT(); drawT(); }},'Quitar')))); };
   drawT();
   box.append(h('div',{class:'card stack'}, h('h3',{},'Terminales bancarias'), h('p',{class:'small muted'},'Opciones que aparecen en la lista de tarjetas del corte.'), h('div',{class:'grid2'},nuevaT,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaT.value.trim(); if(!n||c.terminales.includes(n)) return; c.terminales.push(n); await guardaT(); nuevaT.value=''; drawT(); }},'Agregar')), tList));
-  // clientes marcados (empresas que cargan a cuenta)
-  c.clientesMarcados=c.clientesMarcados||[]; const nuevaC=h('input',{type:'text',placeholder:'Nombre del cliente',id:'cm-nuevo'});
-  const guardaCm=()=>sel(sb.from('estaciones').update({clientes_marcados:c.clientesMarcados}).eq('id',c.estacionId));
-  const cmList=h('div',{class:'list'}); const drawCm=()=>{ cmList.innerHTML=''; c.clientesMarcados.forEach((x,i)=>cmList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},x.nombre),h('span',{class:'small muted'},x.activo===false?'Inactivo':'Activo')),h('div',{class:'row'},h('button',{class:'btn sm',onclick:async()=>{ x.activo=!(x.activo!==false); await guardaCm(); drawCm(); }},x.activo===false?'Activar':'Desactivar'),h('button',{class:'btn sm danger',onclick:async()=>{ c.clientesMarcados.splice(i,1); await guardaCm(); drawCm(); }},'Quitar'))))); };
-  drawCm();
-  box.append(h('div',{class:'card stack'}, h('h3',{},'Clientes marcados'), h('p',{class:'small muted'},'Clientes que cargan a cuenta; aparecen en la lista de "Clientes" del corte.'), h('div',{class:'grid2'},nuevaC,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaC.value.trim(); if(!n||c.clientesMarcados.some(x=>x.nombre.toLowerCase()===n.toLowerCase())) return; c.clientesMarcados.push({id:'cm-'+uid().slice(-8),nombre:n,activo:true}); try{ await guardaCm(); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); c.clientesMarcados.pop(); return; } nuevaC.value=''; drawCm(); }},'Agregar')), cmList));
   const isl=h('div',{class:'card stack'}, h('h3',{},'Islas y orden de mangueras'), h('p',{class:'small muted'},'Este es el orden en que se graba el video. Cambia el orden con las flechas.'));
   for(const i of c.islas){ const ul=h('div',{class:'list'}); const draw=()=>{ ul.innerHTML=''; i.mangueras.forEach((m,k)=>ul.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},`${k+1}. ${m.id} · ${m.producto}`),h('span',{class:'small muted'},'Lado '+m.lado)),h('div',{class:'row'},h('button',{class:'btn sm',disabled:k===0,onclick:()=>{[i.mangueras[k-1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k-1]];draw();}},'↑'),h('button',{class:'btn sm',disabled:k===i.mangueras.length-1,onclick:()=>{[i.mangueras[k+1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k+1]];draw();}},'↓'))))); }; draw(); isl.append(h('div',{},h('p',{class:'eyebrow',style:'margin:8px 0'},i.nombre),ul)); }
   isl.append(h('button',{class:'btn primary',onclick:async()=>{ try{ for(const i of c.islas) for(let k=0;k<i.mangueras.length;k++) await sel(sb.from('mangueras').update({orden:k+1}).eq('id',i.mangueras[k].uuid)); toast('Orden guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar orden'));
