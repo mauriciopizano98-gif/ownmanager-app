@@ -1,4 +1,4 @@
-# Own Manager · app Android
+# OwnManager · app Android
 
 Proyecto Capacitor que empaqueta la app publicada (GitHub Pages) como aplicación
 Android: pantalla siempre encendida, vertical, sin barras del sistema, cámara y
@@ -28,6 +28,6 @@ Lo compila GitHub Actions (`.github/workflows/android.yml`), no una computadora:
 
 ## Íconos
 
-`npm run icons` regenera los íconos (fondo #1F4FB0, "OM" en blanco) en `android/app/src/main/res/mipmap-*`.
+`npm run icons` regenera los íconos a partir del ícono oficial del Manual de identidad v1.1 (`assets/om-icono-app-verde-1254.png`: cuadro lima #84FF00 con el "Om" en negro) en `android/app/src/main/res/mipmap-*`; el fondo adaptativo es lima y el splash es #0B0F14.
 
 
