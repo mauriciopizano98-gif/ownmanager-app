@@ -1569,24 +1569,25 @@ async function avisar(c){ }
 let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],
+  const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],['aestado','bancomas','Agregar estado de cuenta'],
     ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep'];
   if(S.rol==='dueno') items.push(['aceites','aceites','Aceites'],['desp','desp','Despachadores']);
   items.push(['config','config','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
-  const esOficinaTab = ['pagos','apago','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  bancomas:'<path d="M3 10h18"/><path d="M5 10v8M9.5 10v8M14.5 10v5"/><path d="M3 21h11"/><path d="M12 3l9 7H3l9-7Z"/><path d="M19 15v6M16 18h6"/>',
   copiar:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   editar:'<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 6.5l3 3"/>',
   candado:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
@@ -1979,8 +1980,8 @@ function bloqueoDatos(w, campos, que){
   const btn=h('button',{class:'btn sm ghost',type:'button'}, ico(w.editando?'candado':'editar'), w.editando?'Dejar como estaba':'Editar');
   const aplicar=()=>{ for(const c of campos) c.set(!w.editando);
     nota.replaceChildren(ico(w.editando?'editar':'candado'), w.editando
-      ? h('span',{style:'color:var(--warn)'},`Estás editando. Si cambias algún dato, ${que==='factura'?'la factura quedará marcada como editada':'el pago quedará marcado como editado'} y se guardará qué cambió.`)
-      : h('span',{},`Datos tomados ${que==='factura'?'del XML / lectura de IA':'por la IA del comprobante'}. Solo confirma; si algo no coincide con el documento, usa Editar.`));
+      ? h('span',{style:'color:var(--warn)'},`Estás editando. Si cambias algún dato, ${que==='factura'?'la factura quedará marcada como editada':que==='estado'?'el estado quedará anotado como editado':'el pago quedará marcado como editado'} y se guardará qué cambió.`)
+      : h('span',{},`Datos tomados ${que==='factura'?'del XML / lectura de IA':que==='estado'?'por la IA del estado de cuenta':'por la IA del comprobante'}. Solo confirma; si algo no coincide con el documento, usa Editar.`));
     btn.replaceChildren(ico(w.editando?'candado':'editar'), w.editando?'Dejar como estaba':'Editar'); };
   btn.addEventListener('click',()=>{ w.editando=!w.editando; if(!w.editando && w.original){ Object.assign(w.form, w.original); for(const c of campos){ if(c.reset) c.reset(); } } aplicar(); });
   aplicar();
@@ -2107,19 +2108,97 @@ async function consultaEstados(){
   let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
   app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Cargando estados de cuenta…','Casi listo…']); app.append(espera);
-  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, importado, saldo_inicial, saldo_final, cuentas_bancarias(alias, banco, ultimos4, negocio_id, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(200)); }
+  let rows=[]; try{ rows=await sel(sb.from('estados_cuenta').select('id, periodo_inicio, periodo_fin, archivo_drive_id, archivo_nombre, importado, saldo_inicial, saldo_final, cuentas_bancarias(alias, banco, ultimos4, negocio_id, negocios(nombre))').order('periodo_inicio',{ascending:false}).limit(200)); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   espera.remove();
   if(EC.texto){ const t=EC.texto.toLowerCase(); rows=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(t)); }
   if(FL.negocio) rows=rows.filter(r=>r.cuentas_bancarias&&r.cuentas_bancarias.negocio_id===FL.negocio);
   { const rg=rangoFiltro(); if(rg.desde) rows=rows.filter(r=>r.periodo_fin>=rg.desde && r.periodo_inicio<=rg.hasta); }
-  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(EC.texto||hayFiltros())?'Sin resultados':'Todavía no hay estados de cuenta'), (EC.texto||hayFiltros())?'':'Los sube Central cada mes; aquí aparecen para consulta.')); return; }
+  if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(EC.texto||hayFiltros())?'Sin resultados':'Todavía no hay estados de cuenta'), (EC.texto||hayFiltros())?'':esCentral()?'Súbelos en "Agregar estado de cuenta": la IA detecta banco, empresa y periodo.':'Los sube Central cada mes; aquí aparecen para consulta y descarga.')); return; }
   const list=h('div',{class:'list'});
   for(const r of rows){ const c=r.cuentas_bancarias||{}; const n=(c.negocios&&c.negocios.nombre)||'';
-    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${c.alias||c.banco||'Cuenta'}${c.ultimos4?' ···'+c.ultimos4:''}`), h('span',{class:'small muted'},`${n} · ${fmtFecha(r.periodo_inicio)} – ${fmtFecha(r.periodo_fin)}${r.saldo_final!=null?' · saldo final '+fmtMonto(r.saldo_final):''}`)),
-      h('a',{class:'btn sm ghost',href:driveLink(r.archivo_drive_id),target:'_blank',rel:'noopener'},'Abrir'))); }
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${c.alias||c.banco||'Cuenta'}${c.ultimos4?' ···'+c.ultimos4:''}`),
+        h('span',{class:'small muted'},`${n} · ${fmtFecha(r.periodo_inicio)} – ${fmtFecha(r.periodo_fin)}${r.saldo_final!=null?' · saldo final '+fmtMonto(r.saldo_final):''}${r.importado?' · movimientos importados':''}`),
+        r.archivo_nombre?h('span',{class:'small muted'},r.archivo_nombre):null),
+      h('div',{class:'row',style:'flex-wrap:wrap;justify-content:flex-end;gap:6px'},
+        h('a',{class:'btn sm ghost',href:driveLink(r.archivo_drive_id),target:'_blank',rel:'noopener'},'Abrir'),
+        h('a',{class:'btn sm ghost',href:`https://drive.google.com/uc?export=download&id=${r.archivo_drive_id}`,target:'_blank',rel:'noopener'},'Descargar'),
+        esCentral()?h('button',{class:'btn sm ghost danger',onclick:()=>eliminarEstadoUI(r)},'Borrar'):null))); }
   app.append(list);
 }
+// ---- Estados de cuenta (Central y dueño): subir PDF → IA lee banco/empresa/periodo → confirmar → Drive + registro
+const ES={wizard:null};
+async function agregarEstado(){
+  if(!ES.wizard || (ES.wizard.paso==='listo' && ES.wizard.visto)) ES.wizard={paso:'archivo'}; else if(ES.wizard.paso==='listo') ES.wizard.visto=true;
+  const w=ES.wizard; const card=h('div',{class:'card stack',style:'margin-bottom:12px'}); app.append(card);
+  const cerrar=h('button',{class:'btn sm ghost',onclick:()=>{ ES.wizard={paso:'archivo'}; render(); }},'Empezar de nuevo');
+  if(w.paso==='archivo'){
+    const inp=h('input',{type:'file',accept:'application/pdf',style:'display:none'});
+    inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
+      if(f.size>15*1024*1024){ aviso('El archivo pasa de 15 MB.','err'); return; }
+      w.archivo={ nombre:f.name, b64:await archivoABase64(f) }; w.paso='leyendo'; render();
+      const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime:'application/pdf', nombre_archivo:f.name },'registrar-estado').catch(e=>({ok:false,error:e.message}));
+      if(!j.ok){ w.paso='archivo'; render(); aviso(j.error||'No se pudo leer el estado de cuenta.','err',10000,'No se puede registrar'); return; }
+      const ia=j.extraido||{};
+      w.analisis=j; w.form={ cuentaId:j.cuenta_sugerida?j.cuenta_sugerida.id:'', inicio:ia.periodo_inicio||'', fin:ia.periodo_fin||'', saldoIni:ia.saldo_inicial!=null?String(ia.saldo_inicial):'', saldoFin:ia.saldo_final!=null?String(ia.saldo_final):'' };
+      w.original={ inicio:w.form.inicio, fin:w.form.fin, saldoIni:w.form.saldoIni, saldoFin:w.form.saldoFin }; w.editando=false;
+      w.paso='confirmar'; render(); });
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Estado de cuenta'), null),
+      h('p',{class:'small muted'},'Sube el PDF tal cual lo da el banco. La IA detecta banco, empresa y periodo, y lo guarda en la carpeta que le toca.'),
+      h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(inp)},'Elegir estado de cuenta (PDF)'), inp);
+    return;
+  }
+  if(w.paso==='leyendo'){ add(card, h('div',{class:'sechead'}, h('h3',{},'Leyendo el estado de cuenta…'), cerrar), omEsperando(['La IA está leyendo '+w.archivo.nombre+'…','Identificando banco y empresa…','Leyendo el periodo y los saldos…'])); return; }
+  if(w.paso==='confirmar'){
+    const a=w.analisis, f=w.form, ia=a.extraido||{};
+    const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta —'), ...(a.cuentas||[]).map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.alias}${c.ultimos4?' ···'+c.ultimos4:''} · ${c.negocio}`)));
+    cta.addEventListener('change',()=>f.cuentaId=cta.value);
+    const ini=h('input',{type:'date',value:f.inicio}); ini.addEventListener('input',()=>f.inicio=ini.value);
+    const fin=h('input',{type:'date',value:f.fin}); fin.addEventListener('input',()=>f.fin=fin.value);
+    const sIni=h('input',{type:'number',step:'0.01',inputmode:'decimal',value:f.saldoIni}); sIni.addEventListener('input',()=>f.saldoIni=sIni.value);
+    const sFin=h('input',{type:'number',step:'0.01',inputmode:'decimal',value:f.saldoFin}); sFin.addEventListener('input',()=>f.saldoFin=sFin.value);
+    const cIni=campoRO('Inicio del periodo',ini,f.inicio?fmtFechaLarga(f.inicio):''), cFin=campoRO('Fin del periodo',fin,f.fin?fmtFechaLarga(f.fin):''),
+          cSI=campoRO('Saldo inicial',sIni,f.saldoIni!==''?fmtMonto(f.saldoIni):''), cSF=campoRO('Saldo final',sFin,f.saldoFin!==''?fmtMonto(f.saldoFin):'');
+    cIni.reset=()=>{ ini.value=f.inicio; }; cFin.reset=()=>{ fin.value=f.fin; }; cSI.reset=()=>{ sIni.value=f.saldoIni; }; cSF.reset=()=>{ sFin.value=f.saldoFin; };
+    const bloqueo=bloqueoDatos(w,[cIni,cFin,cSI,cSF],'estado');
+    const como=a.cuenta_sugerida? ({numero:'por el número de cuenta', rfc:'por el RFC del titular', titular:'por el nombre del titular'})[a.cuenta_sugerida.por]||'' : '';
+    const leido=[ia.banco, ia.titular, ia.numero_cuenta?'cuenta ···'+String(ia.numero_cuenta).slice(-4):null, ia.rfc].filter(Boolean).join(' · ');
+    const msg=h('div',{class:'small muted'});
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
+      h('p',{class:'small muted'}, 'La IA leyó: '+(leido||'—')+(como?'. Cuenta identificada '+como+'.':'. No pude identificar la cuenta; elígela.')+(ia.confianza!=null&&ia.confianza<0.6?' Confianza baja: revisa con calma.':'')),
+      h('label',{class:'f'},h('span',{class:'l'},'Cuenta bancaria'),cta),
+      bloqueo.fila,
+      h('div',{class:'grid2'}, cIni.el, cFin.el),
+      h('div',{class:'grid2'}, cSI.el, cSF.el),
+      msg,
+      h('button',{class:'btn primary big block',onclick:async(ev)=>{
+        if(!f.cuentaId){ aviso('Elige la cuenta bancaria.','err'); return; }
+        if(!f.inicio||!f.fin||f.fin<f.inicio){ aviso('Revisa el periodo.','err'); return; }
+        ev.target.disabled=true; msg.textContent='Guardando en Drive y registrando…';
+        const r=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:'application/pdf', cuenta_id:f.cuentaId, periodo_inicio:f.inicio, periodo_fin:f.fin,
+          saldo_inicial:f.saldoIni!==''?Number(f.saldoIni):null, saldo_final:f.saldoFin!==''?Number(f.saldoFin):null, extraido_ia:ia },'registrar-estado').catch(err=>({ok:false,error:err.message}));
+        if(!r.ok){ ev.target.disabled=false; msg.textContent=''; aviso(r.error+(r.hint?' · '+r.hint:''),'err',10000,'No se puede registrar'); return; }
+        w.resultado=r; w.paso='listo'; render(); aviso(`${r.cuenta} · ${r.periodo}`,'ok',8000,'Estado de cuenta guardado'); }},'Guardar estado de cuenta'));
+    return;
+  }
+  if(w.paso==='listo'){ const r=w.resultado;
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Estado de cuenta guardado'), null),
+      h('p',{},h('b',{},`${r.cuenta} · ${r.periodo}`)), h('p',{class:'muted'},r.negocio+' → '+r.carpeta), h('p',{class:'small muted'},'Archivo: '+r.archivo),
+      r.editado?h('p',{class:'small',style:'color:var(--warn)'},'Se registró con datos editados a mano; quedó anotado.'):null,
+      h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ ES.wizard={paso:'archivo'}; render(); }},'Subir otro')));
+  }
+}
+function eliminarEstadoUI(r){
+  const c=r.cuentas_bancarias||{}; const motivo=h('textarea',{rows:'3',placeholder:'Por qué se borra (obligatorio; queda en bitácora)'});
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Borrar estado de cuenta'), h('p',{class:'muted'},`${c.alias||c.banco} · ${fmtFecha(r.periodo_inicio)} – ${fmtFecha(r.periodo_fin)}`),
+    h('p',{class:'small',style:'color:var(--err)'},'Se borra el registro y sus movimientos importados. El archivo en Drive se renombra como ELIMINADO_ (solo el dueño puede borrarlo allá).'), motivo,
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Volver'), h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; }
+      const j=await fnOficina({ accion:'eliminar', estado_id:r.id, motivo:motivo.value.trim() },'registrar-estado').catch(e=>({ok:false,error:e.message}));
+      if(!j.ok){ aviso(j.error+(j.hint?' · '+j.hint:''),'err'); return; }
+      sheet.remove(); render(); aviso(j.renombrado?'Registro borrado; el archivo quedó como ELIMINADO_ en Drive.':'Registro borrado. El archivo sigue en Drive con su nombre.','ok',10000,'Estado de cuenta borrado'); }},'Borrar'))));
+  document.body.append(sheet);
+}
+
 // ---- Proveedores
 let provAbierto=null;
 async function adminProveedores(){
