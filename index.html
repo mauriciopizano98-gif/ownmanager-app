@@ -88,6 +88,9 @@ body[data-om-login]{background:var(--negro);color:#F3F4F6;color-scheme:dark}
 body[data-om-login]::before{background:var(--negro)}
 body[data-om-login] .top{display:none}
 body[data-om-login] .foot{display:none}
+.foot .ver{opacity:.7;margin-left:4px;text-transform:none;letter-spacing:0}
+.ver-esq{position:fixed;right:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));font:500 11px var(--font-mono);color:#9AA3AF;opacity:.75;z-index:5;pointer-events:none}
+body:not([data-om-login]) .ver-esq{display:none}
 .om-login{min-height:calc(100vh - 62px);display:flex;flex-direction:column;justify-content:center;gap:22px;padding:24px 0;
   --bg:#0B0F14; --surface:#1B222B; --surface2:#222A34; --fg:#F3F4F6; --muted:#9AA3AF; --line:#2A323D; --line2:#343D49; --accent:#84FF00; --accent-fg:#0B0F14; --accent-soft:#1E2E10; --err:#F87171; --err-soft:#3A1A1F; --focus:#84FF00; --focus-soft:rgba(132,255,0,.28); --shadow:none}
 .om-login .hero{text-align:center;position:relative;padding:28px 0 4px}
@@ -576,7 +579,8 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
   <div class="who" id="who"></div>
 </div><div class="om-topbar" id="om-topbar" aria-hidden="true"></div></header>
 <main class="wrap" id="app"></main>
-<footer class="foot"><img class="mono" src="" alt="" id="foot-mono"><img class="lima" src="" alt="" id="foot-lima"><span>OwnManager</span></footer>
+<footer class="foot"><img class="mono" src="" alt="" id="foot-mono"><img class="lima" src="" alt="" id="foot-lima"><span>OwnManager</span><span class="ver" id="om-ver"></span></footer>
+<div class="ver-esq" id="om-ver-esq"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -590,6 +594,8 @@ const OM_LOGO=OM_LIMA;
 { const fm=document.getElementById('foot-mono'), fl=document.getElementById('foot-lima'); if(fm) fm.src='marca/om-icono-oscuro.png'; if(fl) fl.src='marca/om-icono-verde.png'; }
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
+// Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
+const OM_VERSION='1.2.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -818,7 +824,7 @@ function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empt
 async function cerrarCuenta(){ try{ if(S.token) await rpc('cerrar_sesion',{p_token:S.token}); }catch(e){} guardarToken(null); S.token=null; S.me=null; S.corte=null; S.adminOk=false; await sb.auth.signOut(); }
 // ---- render
 function render(){
-  app=$('#app'); S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
+  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; const e=$('#om-ver-esq'); if(e) e.textContent='OwnManager v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
   ({login:renderLogin, home:renderHome, corte:renderCorte, noche:renderNoche, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
@@ -1126,7 +1132,7 @@ function renderFotosListas(c){
   const loader=omLoader({id:'ia-prog',texto:'Leyendo los contadores en las fotos…'}); loader.id='ia-loader';
   app.append(h('div',{class:'card stack',style:'text-align:center'}, h('div',{style:'font-size:44px'},'📸'), h('h1',{},'Fotos guardadas'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
     h('div',{style:'display:flex;justify-content:center;padding:6px 0'},loader),
-    h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo · siguiente despachador')));
+    esCorteNoche(c)? siguienteFotosNoche(c) : h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo · siguiente despachador')));
   setWho();
 }
 function catAceites(){ return (S.config.aceites||[]).filter(a=>a.activo!==false); }
@@ -1914,6 +1920,26 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
     esCorteNoche(c)? siguienteNoche(c) : h('button',{class:'btn primary big block',onclick:()=>go('home')},'Listo')));
   setWho();
 }
+// Noche: después de guardar las fotos de una isla, directo a grabar la siguiente; cuando las tres tienen fotos, a lecturas y dinero.
+function siguienteFotosNoche(c){
+  const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
+  (async()=>{ const st=await estadoNoche(); let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(_){}
+    box.innerHTML='';
+    const tramo = c.turno===st.t1.id ? 1 : 2; const ests = tramo===1? st.e1 : st.e2;
+    const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
+    const conFotos = i => { const x=ests.find(y=>y.isla===i.id); if(!x) return false; if(hecho(x)) return true; if(x.id===c.id) return true; const m=mios.find(z=>z.id===x.id); return !!(m && (m.evidencia_en || (m.paso&&m.paso!=='evidencia'))); };
+    const isla=S.config.islas.find(i=>i.id===S.noche.islaId)||islaNocturna();
+    const orden = tramo===1 ? [isla] : [isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
+    const sinFotos = orden.filter(i=>!conFotos(i));
+    if(sinFotos.length){ box.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,tramo,sinFotos[0])},`Siguiente: grabar ${sinFotos[0].nombre}`), h('p',{class:'hint'},`Faltan ${sinFotos.length} de ${orden.length} islas por grabar. La IA lee los contadores mientras tanto.`)); }
+    else {
+      const pend = orden.find(i=>!hecho(ests.find(y=>y.isla===i.id)));
+      box.append(h('div',{class:'alert ok',style:'display:block'}, tramo===1? 'Fotos de medianoche guardadas.' : 'Las tres islas tienen fotos.'),
+        pend? h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,tramo,pend)},`Continuar: lecturas y dinero de ${pend.nombre}`) : null,
+        h('button',{class:'btn ghost block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Hacer la Parte 2 en la computadora · salir')); }
+  })().catch(()=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:()=>go('noche')},'Seguir con la noche')); });
+  return box;
+}
 // Después de enviar un corte de noche: directo a la siguiente isla, o "noche terminada".
 function siguienteNoche(c){
   const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
@@ -1924,7 +1950,7 @@ function siguienteNoche(c){
       return; }
     const isla=S.config.islas.find(i=>i.id===S.noche.islaId)||islaNocturna(); const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
     const sig=orden.find(i=>!hecho(st.e2.find(y=>y.isla===i.id)));
-    if(sig) box.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,2,sig)},`Siguiente: grabar ${sig.nombre}`), h('p',{class:'hint'},`Faltan ${orden.filter(i=>!hecho(st.e2.find(y=>y.isla===i.id))).length} de ${orden.length} islas.`));
+    if(sig) box.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,2,sig)},`Siguiente: ${sig.nombre}`), h('p',{class:'hint'},`Faltan ${orden.filter(i=>!hecho(st.e2.find(y=>y.isla===i.id))).length} de ${orden.length} islas por enviar.`));
     else box.append(h('div',{class:'alert ok',style:'display:block'},'🌙 Noche terminada: las tres islas enviadas. El turno de la mañana ya puede empezar.'), h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; try{ localStorage.removeItem('om_noche'); }catch(_){} go('home'); }},'Terminar'));
   })().catch(e=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:()=>go('noche')},'Seguir con la noche')); });
   return box;
