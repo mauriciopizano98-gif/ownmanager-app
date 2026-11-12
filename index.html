@@ -336,6 +336,12 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .om-splash .om-loader svg{width:200px}
 .om-splash .om-loader .pulso{width:200px}
 .om-splash .om-loader .txt{color:#9AA3AF}
+.om-trabajando{z-index:90;cursor:wait;user-select:none;-webkit-user-select:none;touch-action:none}
+.om-trabajando .trab-in{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px;text-align:center;max-width:420px}
+.om-trabajando .om-loader svg{width:min(260px,70vw)}
+.om-trabajando .om-loader .pulso{width:min(260px,70vw)}
+.om-trabajando .trab-t{font:600 22px var(--font-display);color:#fff;letter-spacing:-.01em}
+.om-trabajando .trab-s{font:500 14px/1.45 var(--font-mono);color:#9AA3AF;font-variant-numeric:tabular-nums}
 .progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .progress i{display:block;height:100%;background:var(--mod);width:0;transition:width .3s}
 
@@ -1175,20 +1181,22 @@ function renderEvidencia(){
     }catch(e){ console.warn('identificar', e); drawBomba({foto, k:null, r:null, error:e.message||e}); }
     btnBomba.disabled=false;
   });
-  vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; prog.hidden=false; status.hidden=false; status.textContent='Sacando cuadros del video…'; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
-    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ prog.firstChild.style.width=Math.round(p*100)+'%'; }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0) delete pendientes[l.manguera]; }); drawAll(); }
-    catch(e){ status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); prog.hidden=true; vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
-    prog.hidden=true; vidIn.value='';
-    // La IA revisa los cuadros, encuentra cada bomba por su código y lee el contador.
-    status.innerHTML=''; status.append(omLoader({tam:'chico',texto:`Buscando las bombas en ${S.frames.length} cuadros…`}));
+  vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; status.hidden=false; status.textContent=''; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
+    trabajando('OwnManager está trabajando', 'Sacando los cuadros del video… no toques la pantalla, tarda máximo 1 minuto.');
+    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ trabajando('OwnManager está trabajando', `Sacando los cuadros del video (${Math.round(p*100)} %)… no toques la pantalla, tarda máximo 1 minuto.`); }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0) delete pendientes[l.manguera]; }); drawAll(); }
+    catch(e){ trabajandoFin(); status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
+    vidIn.value='';
+    // La IA revisa los cuadros, encuentra cada bomba por su código y lee el contador. Pantalla bloqueada mientras tanto.
+    trabajando('OwnManager está trabajando', `Buscando las bombas en ${S.frames.length} cuadros… no toques la pantalla, tarda máximo 1 minuto.`);
     try{
-      const res=await identificarVideo(c, S.frames, (hechos,total)=>{ const t=status.querySelector('.om-loader .txt'); if(t) t.textContent=`Buscando las bombas… cuadro ${hechos} de ${total}`; });
+      const res=await identificarVideo(c, S.frames, (hechos,total)=>{ trabajando('OwnManager está trabajando', `Leyendo las bombas… cuadro ${hechos} de ${total}. No toques la pantalla, tarda máximo 1 minuto.`); });
       let rec=0; ms.forEach(l=>{ const mejor=res[l.mangueraId]; if(!mejor||l.omitida) return; const fr=S.frames[mejor.i]; if(!fr) return; pendientes[l.manguera]={blob:fr.blob,url:fr.url,t:fr.t,codigo:mejor.codigo,valor:mejor.valor,dudosa:!mejor.legible}; rec++; });
       S.iaVideoHecha=true; const falt=ms.filter(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida);
       status.textContent = rec===0 ? 'La IA no encontró ninguna pantalla en el video. Toca el cuadro de cada manguera o graba otra vez más cerca y más despacio.' : (falt.length? `La IA reconoció ${rec} de ${ms.length} bombas. Falta${falt.length>1?'n':''} ${falt.map(l=>l.manguera).join(', ')}: toca su cuadro abajo.` : `La IA reconoció las ${ms.length} bombas. Revisa y guarda.`);
       const next=ms.findIndex(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida); active = next>=0? next : 0;
     }catch(e){ console.warn('identificar_video', e); status.textContent='La IA no pudo revisar el video ('+(e.message||e)+'). Toca el cuadro de cada manguera.'; }
-    btnVideo.disabled=false; btnBomba.disabled=false; drawAll();
+    trabajandoFin(); btnVideo.disabled=false; btnBomba.disabled=false; drawAll();
+    const falt=ms.filter(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida); if(!falt.length && S.iaVideoHecha) btnSubir.scrollIntoView({block:'center',behavior:'smooth'});
   });
   fotoIn.addEventListener('change', async ()=>{ const f=fotoIn.files[0]; if(!f) return; const blob=await comprimirImagen(f); if(ms[active].omitida) restaurarManguera(ms[active]); pendientes[ms[active].manguera]={blob,url:URL.createObjectURL(blob),t:-1}; const next=ms.findIndex((l,k)=>k>active && !pendientes[l.manguera] && !l.fotoId && !l.omitida); if(next>=0) active=next; drawAll(); fotoIn.value=''; });
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
@@ -1213,6 +1221,11 @@ function panelAdelanto(c){
     h('button',{class:'btn block big'+(hechas?'':' primary'),onclick:()=>{ S.adelanto=true; render(); }},hechas?'✎ Seguir adelantando':'✎ Adelantar datos del turno'));
   return adel;
 }
+// Pantalla completa "OwnManager está trabajando": tapa todo y bloquea clics mientras la IA revisa el video.
+function trabajando(texto, detalle){ let el=$('#om-trabajando'); if(!el){ el=h('div',{id:'om-trabajando',class:'om-splash om-trabajando'}); const ld=omLoader({texto:''}); ld.id='om-trab-loader'; el.append(h('div',{class:'trab-in'}, ld, h('div',{class:'trab-t'},texto||'OwnManager está trabajando'), h('div',{class:'trab-s'},detalle||''))); document.body.append(el); el.addEventListener('click',e=>{ e.stopPropagation(); e.preventDefault(); },true); }
+  else { el.querySelector('.trab-t').textContent=texto||'OwnManager está trabajando'; el.querySelector('.trab-s').textContent=detalle||''; }
+  return el; }
+function trabajandoFin(){ const el=$('#om-trabajando'); if(!el) return; el.classList.add('off'); setTimeout(()=>el.remove(),260); }
 // Manda los cuadros del video a la IA por lotes y devuelve el mejor cuadro por manguera:
 // { manguera_id: {i, codigo, valor, legible, nitidez} }. Prefiere cuadros legibles y, entre ellos, el valor que más se repite.
 async function identificarVideo(c, frames, onProg){
