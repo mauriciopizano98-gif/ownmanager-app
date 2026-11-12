@@ -89,11 +89,11 @@ body[data-om-login]::before{background:var(--negro)}
 body[data-om-login] .top{display:none}
 body[data-om-login] .foot{display:none}
 .foot .ver{opacity:.7;margin-left:4px;text-transform:none;letter-spacing:0}
-.ver-esq{position:fixed;right:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));font:500 11px var(--font-mono);color:#9AA3AF;opacity:.75;z-index:5;pointer-events:none}
-body:not([data-om-login]) .ver-esq{display:none}
-.om-login{min-height:calc(100vh - 62px);display:flex;flex-direction:column;justify-content:center;gap:22px;padding:24px 0;
+.ver-login{text-align:right;font:500 11px var(--font-mono);color:#9AA3AF;opacity:.8;margin:-10px 4px 0}
+.om-login{min-height:calc(100dvh - 40px);display:flex;flex-direction:column;justify-content:center;gap:18px;padding:12px 0;
   --bg:#0B0F14; --surface:#1B222B; --surface2:#222A34; --fg:#F3F4F6; --muted:#9AA3AF; --line:#2A323D; --line2:#343D49; --accent:#84FF00; --accent-fg:#0B0F14; --accent-soft:#1E2E10; --err:#F87171; --err-soft:#3A1A1F; --focus:#84FF00; --focus-soft:rgba(132,255,0,.28); --shadow:none}
-.om-login .hero{text-align:center;position:relative;padding:28px 0 4px}
+.om-login .hero{text-align:center;position:relative;padding:12px 0 0}
+@media (max-height:760px){.om-login .om-hero{width:min(300px,68vw)}.om-login .hero::before{height:160px}.om-login{gap:12px}}
 .om-login .hero::before{content:"";position:absolute;left:50%;top:38%;width:min(560px,110vw);height:220px;transform:translate(-50%,-50%);background:radial-gradient(ellipse at center,rgba(132,255,0,.16),rgba(132,255,0,.05) 45%,transparent 70%);pointer-events:none;filter:blur(8px)}
 .om-login .om-hero{position:relative;width:min(400px,84vw);height:auto;display:block;margin:0 auto 6px;filter:drop-shadow(0 10px 30px rgba(0,0,0,.6))}
 .om-login .om-wordmark{display:none} /* el logotipo oficial ya lleva el nombre; no se recrea con la fuente de interfaz */
@@ -580,7 +580,6 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 </div><div class="om-topbar" id="om-topbar" aria-hidden="true"></div></header>
 <main class="wrap" id="app"></main>
 <footer class="foot"><img class="mono" src="" alt="" id="foot-mono"><img class="lima" src="" alt="" id="foot-lima"><span>OwnManager</span><span class="ver" id="om-ver"></span></footer>
-<div class="ver-esq" id="om-ver-esq"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -595,7 +594,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.0';
+const OM_VERSION='1.2.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -824,7 +823,7 @@ function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empt
 async function cerrarCuenta(){ try{ if(S.token) await rpc('cerrar_sesion',{p_token:S.token}); }catch(e){} guardarToken(null); S.token=null; S.me=null; S.corte=null; S.adminOk=false; await sb.auth.signOut(); }
 // ---- render
 function render(){
-  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; const e=$('#om-ver-esq'); if(e) e.textContent='OwnManager v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
+  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
   ({login:renderLogin, home:renderHome, corte:renderCorte, noche:renderNoche, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
@@ -863,7 +862,8 @@ function renderCuenta(){
   btn.addEventListener('click',entrar); pass.addEventListener('keydown',e=>{ if(e.key==='Enter') entrar(); });
   document.body.setAttribute('data-om-login','');
   app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:'marca/om-logo-transparente.png',alt:'OwnManager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro bajo tu control'), h('div',{class:'bar'})),
-    h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),conOjo(pass)), msg, btn)));
+    h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),conOjo(pass)), msg, btn),
+    h('div',{class:'ver-login'},'OwnManager v'+OM_VERSION)));
 }
 function pinScreen(d){
   app.innerHTML=''; let pin=''; let ocupado=false;
