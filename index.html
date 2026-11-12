@@ -242,6 +242,10 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .kv{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:var(--r-xs);background:var(--surface2)}
 .kv .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .kv b{font-size:14px}
+.noche-card{border-color:var(--mod-ink)}
+.npaso{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;padding:8px 10px;border-radius:var(--r-xs);background:var(--surface2)}
+.npaso .n{display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font:600 13px var(--font-mono);background:var(--line)}
+.npaso.ok .n{background:var(--ok);color:#fff}
 .adel-list{display:flex;flex-direction:column;gap:6px}
 .adel-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-xs);background:var(--surface2);color:var(--muted);font-size:13.5px}
 .adel-row.ok{color:var(--text);background:color-mix(in srgb,var(--ok) 10%,var(--surface2))}
@@ -599,6 +603,7 @@ let app = $('#app'), who = $('#who');
 
 // ---- tiempo en México
 function nowMX(){
+  if(window.__ahora) return window.__ahora(); // gancho para pruebas
   const p = new Intl.DateTimeFormat('es-MX',{timeZone:TZ,hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).formatToParts(new Date());
   const g = t => p.find(x=>x.type===t).value;
   const hh = Number(g('hour'))%24;
@@ -796,7 +801,7 @@ async function cargarConfig(){
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
     sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta').eq('estacion_id',estId).order('nombre')) ]);
   S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id, codigo:m.codigo_pantalla||null};
-  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[],
+  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[],
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
   for(const i of S.config.islas) for(const m of i.mangueras) m.producto=m.producto;
@@ -816,7 +821,7 @@ function render(){
   app=$('#app'); S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
-  ({login:renderLogin, home:renderHome, corte:renderCorte, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
+  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:renderNoche, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
 }
 
 // ---- LOGIN
@@ -875,6 +880,84 @@ function pinScreen(d){
 }
 async function logout(){ const t=S.token; S.me=null; S.corte=null; S.frames=[]; S.destino='home'; S.token=null; guardarToken(null); go('login'); try{ if(t) await rpc('cerrar_sesion',{p_token:t}); }catch(e){} }
 // ---- HOME: turno + isla
+// ---- TURNO DE NOCHE (velador): dos tramos (22–24 y 00–06), isla nocturna preseleccionada, las demás cerradas solas.
+function turnosNoche(){ return (S.config.turnos||[]).filter(t=>Number(t.noche)>=1).sort((a,b)=>Number(a.noche)-Number(b.noche)); }
+function hayModoNoche(){ return turnosNoche().length===2; }
+// Ventana en la que la pantalla ofrece primero el turno de noche: 23:00 → 07:30 (los turnos de día siguen disponibles abajo).
+function esHorarioNoche(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=23*60 || m<7*60+30; }
+function fechaNoche(){ const t=nowMX(); return t.hora>=12 ? t.fecha : addDays(t.fecha,-1); } // la noche se nombra por el día en que empieza
+function islaNocturna(){ return S.config.islas.find(i=>i.id===S.config.islaNocturna) || S.config.islas[0]; }
+async function estadoNoche(){
+  const [t1,t2]=turnosNoche(); const d1=fechaNoche(), d2=addDays(d1,1);
+  const leer=async(fecha,turno)=>{ try{ const rows=await rpc('estado_islas',{p_token:S.token, p_fecha:fecha, p_turno:turno}); return (rows||[]).map(r=>({ id:r.corte_id, isla:r.numero, estado:r.estado, mio:!!r.es_mio, quien:r.despachador||'' })); }catch(e){ return []; } };
+  const e1=await leer(d1,t1.id), e2=await leer(d2,t2.id);
+  const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
+  const islas=S.config.islas;
+  const t1Listo = islas.every(i=>hecho(e1.find(x=>x.isla===i.id)));
+  const t2Listo = islas.every(i=>hecho(e2.find(x=>x.isla===i.id)));
+  return { t1, t2, d1, d2, e1, e2, t1Listo, t2Listo, tramo: t1Listo? 2 : 1 };
+}
+async function renderNoche(){
+  const wrap=h('div',{class:'stack noche'}); app.append(wrap);
+  wrap.append(h('div',{class:'row between'}, h('div',{}, h('p',{class:'eyebrow'},'Hola, '+S.me.nombre.split(' ')[0]), h('h1',{},'Turno de noche')), h('button',{class:'btn sm ghost',onclick:()=>go('home')},'Ver turnos de día')));
+  const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Revisando la noche…'})); wrap.append(cargando);
+  const st=await estadoNoche(); cargando.remove();
+  const isla = S.noche && S.noche.islaId ? S.config.islas.find(i=>i.id===S.noche.islaId) : islaNocturna();
+  S.noche = Object.assign(S.noche||{}, { islaId: isla.id, fecha: st.d1 });
+  const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
+  const paso=(n,txt,estado)=>h('div',{class:'npaso '+(estado||'')}, h('span',{class:'n'},estado==='ok'?'✓':n), h('div',{}, txt));
+  // Tramo 1 · 22–24
+  const c1=h('div',{class:'card stack'});
+  c1.append(h('div',{class:'sechead'}, h('h3',{},`1. ${st.t1.nombre}`), h('span',{class:'chip '+(st.t1Listo?'ok':'acc')}, st.t1Listo?'Enviado':'A medianoche')));
+  if(st.t1Listo){ c1.append(h('p',{class:'small muted'},`Listo. ${isla.nombre} con su venta; las demás islas cerradas.`)); }
+  else {
+    c1.append(h('p',{class:'muted'},`Cuando den las 12: graba la pantalla de ${isla.nombre} (10 segundos) y cuenta tu dinero.`),
+      h('div',{class:'row',style:'gap:8px;flex-wrap:wrap;align-items:center'}, h('span',{class:'chip acc'},'Bomba de la noche: '+isla.nombre),
+        h('button',{class:'btn sm ghost',onclick:()=>elegirIslaNoche(st)},'Usé otra bomba')));
+    const abierto=st.e1.find(x=>x.isla===isla.id && x.estado==='abierto');
+    c1.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,1,isla)}, abierto? (abierto.mio?'Continuar el corte de medianoche':'Abierto por '+abierto.quien) : 'Empezar: grabar '+isla.nombre));
+  }
+  wrap.append(c1);
+  // Tramo 2 · 00–06
+  const c2=h('div',{class:'card stack'});
+  c2.append(h('div',{class:'sechead'}, h('h3',{},`2. ${st.t2.nombre}`), h('span',{class:'chip '+(st.t2Listo?'ok':(st.t1Listo?'acc':''))}, st.t2Listo?'Enviado':'A las 6 de la mañana')));
+  if(st.t2Listo){ c2.append(h('p',{class:'small muted'},'Listo. Noche terminada; el turno de la mañana ya puede empezar.')); }
+  else {
+    const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
+    c2.append(h('p',{class:'muted'},`A las 6: graba las ${S.config.islas.length} islas, una por una (${isla.nombre} primero, con tu dinero; las demás solo para comprobar que no se movieron).`));
+    const lista=h('div',{class:'stack',style:'gap:6px'});
+    orden.forEach((i,k)=>{ const x=st.e2.find(y=>y.isla===i.id); const ok=hecho(x); lista.append(paso(k+1, h('div',{}, h('b',{},i.nombre+(i.id===isla.id?' · con tu dinero':' · solo comprobar')), h('div',{class:'small muted'}, ok? (x.estado==='omitida'?'Cerrada':'Enviada') : (x&&x.estado==='abierto'? (x.mio?'Abierta · continuar':'Abierta por '+x.quien) : 'Pendiente'))), ok?'ok':'')); });
+    c2.append(lista);
+    const sig=orden.find(i=>!hecho(st.e2.find(y=>y.isla===i.id)));
+    if(sig) c2.append(h('button',{class:'btn '+(st.t1Listo?'primary':'')+' big block',onclick:()=>empezarTramo(st,2,sig)}, (st.e2.find(y=>y.isla===sig.id&&y.estado==='abierto')?'Continuar ':'Grabar ')+sig.nombre));
+  }
+  wrap.append(c2);
+  wrap.append(h('p',{class:'hint'},'Si algo no sale, toca "Ver turnos de día" y abre el corte como siempre.'));
+}
+function elegirIslaNoche(st){
+  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
+  const g=h('div',{class:'bgrid'}); for(const i of S.config.islas) g.append(h('button',{class:'btn'+(i.id===S.noche.islaId?' primary':''),onclick:()=>{ S.noche.islaId=i.id; sheet.remove(); render(); }}, h('b',{},i.nombre), h('span',{class:'small'},i.productos.join(' · '))));
+  sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Qué bomba usaste esta noche?'), h('p',{class:'muted'},'Las demás se cierran solas con cero litros.'), g, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Cancelar')));
+  document.body.append(sheet);
+}
+// Abre (o continúa) el corte de una isla en el tramo indicado. En el tramo 1 cierra las otras islas en cero.
+async function empezarTramo(st, tramo, isla){
+  const turno = tramo===1? st.t1.id : st.t2.id; const fecha = tramo===1? st.d1 : st.d2;
+  const estados = tramo===1? st.e1 : st.e2;
+  S.noche = Object.assign(S.noche||{}, { tramo, turno, fecha, islaId: S.noche&&S.noche.islaId||isla.id, activa: (tramo===1? isla.id : (S.noche&&S.noche.islaId)||isla.id) });
+  try{ localStorage.setItem('om_noche', JSON.stringify(S.noche)); }catch(_){}
+  try{
+    if(tramo===1){
+      for(const i of S.config.islas){ if(i.id===isla.id) continue; const x=estados.find(y=>y.isla===i.id); if(x&&(x.estado==='enviado'||x.estado==='omitida'||x.estado==='abierto')) continue;
+        await rpc('registrar_isla_omitida',{p_token:S.token, p_isla:i.uuid, p_fecha:fecha, p_turno:turno, p_motivo:'Bomba cerrada en la noche (sin venta) · tramo 22–24'}); }
+    }
+    const x=estados.find(y=>y.isla===isla.id && y.estado==='abierto');
+    const id = x? x.id : await rpc('abrir_corte',{p_token:S.token, p_isla:isla.uuid, p_fecha:fecha, p_turno:turno});
+    await cargarCorte(id);
+  }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),6000); }
+}
+function esCorteNoche(c){ if(!S.noche){ try{ const g=JSON.parse(localStorage.getItem('om_noche')||'null'); if(g && g.fecha===fechaNoche()) S.noche=g; }catch(_){} } return !!(S.noche && c && hayModoNoche() && turnosNoche().some(t=>t.id===c.turno)); }
+function islaActivaNoche(c){ return esCorteNoche(c) && S.noche.tramo===2 ? c.isla===S.noche.activa : true; }
 async function renderHome(){
   const sug=turnoSugerido();
   const sel={ turno:sug.turno, fecha:sug.fecha, isla:null };
@@ -883,6 +966,11 @@ async function renderHome(){
   // cortes abiertos del despachador en sesión (el servidor solo devuelve los suyos)
   let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(e){ toast('No se pudieron cargar tus cortes: '+(e.message||e.code),5000); if(/sesion_invalida/.test(e.message)) { logout(); return; } }
   const abiertos=mios.filter(x=>x.estado==='abierto');
+  if(hayModoNoche() && esHorarioNoche()){
+    wrap.append(h('div',{class:'card stack noche-card'}, h('div',{class:'sechead'}, h('h3',{},'🌙 Turno de noche'), h('span',{class:'chip acc'},'Velador')),
+      h('p',{class:'muted'},'Dos cortes chiquitos: uno a medianoche y otro a las 6. La app te dice qué grabar.'),
+      h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; go('noche'); }},'Entrar al turno de noche')));
+  }
   if(abiertos.length){
     const c=h('div',{class:'card'}, h('h3',{},'Tienes un corte sin terminar'));
     for(const x of abiertos){ const isla=S.config.islas.find(i=>i.uuid===x.isla_id);
@@ -932,7 +1020,7 @@ async function renderHome(){
 }
 async function cargarCorte(id){
   try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:id}); if(!j){ toast('Ese corte ya no está disponible.'); return; }
-    const c=corteDesdeServidor(j); await firmarFotos(c.fotos); S.corte=c; S.frames=[]; go('corte'); }
+    const c=corteDesdeServidor(j); await firmarFotos(c.fotos); S.corte=c; S.frames=[]; S.intentosVideo=0; S.repetirVideo=false; go('corte'); }
   catch(e){ toast('No se pudo abrir el corte: '+(e.message||e.code),5000); }
 }
 async function abrirCorte(sel){
@@ -1142,7 +1230,13 @@ function renderEvidencia(){
       film.append(fr); });
     const selEl=film.querySelector('.fr.sel'); if(selEl) selEl.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
   }
-  function drawAll(){ drawNow(); drawList(); drawFilm(); }
+  const repetir=h('div',{class:'card stack repetir',hidden:true});
+  function drawRepetir(){ if(!S.repetirVideo){ repetir.hidden=true; film.hidden=!S.frames.length; mlist.hidden=false; btnSubir.hidden=false; now.hidden=!S.frames.length; return; }
+    repetir.hidden=false; repetir.innerHTML=''; film.hidden=true; mlist.hidden=true; btnSubir.hidden=true; now.hidden=true;
+    repetir.append(h('div',{style:'font-size:40px;text-align:center'},'🎥'), h('h3',{style:'text-align:center'},'Hay que repetir el video'), h('p',{class:'muted',style:'text-align:center'},status.textContent),
+      h('button',{class:'btn primary big block',onclick:()=>{ S.repetirVideo=false; abrirArchivo(vidIn); }},'Repetir el video'),
+      h('p',{class:'hint',style:'text-align:center'},'Graba en horizontal, de frente a cada pantalla, 2 o 3 segundos sin moverte.')); }
+  function drawAll(){ drawNow(); drawList(); drawFilm(); drawRepetir(); }
   // ── Foto por bomba: la IA lee el código de la pantalla y asigna la manguera ──
   function asignar(k, foto){ const l=ms[k]; if(l.omitida) restaurarManguera(l); const previa=pendientes[l.manguera]||null; pendientes[l.manguera]={blob:foto.blob,url:foto.url,t:-1,codigo:foto.codigo||null,valor:foto.valor??null}; return previa; }
   function selector(foto, actualK, onElegida){ // botones grandes para decir qué manguera es
@@ -1175,7 +1269,7 @@ function renderEvidencia(){
     }
     bomba.append(img, info); bomba.scrollIntoView({block:'nearest',behavior:'smooth'});
   }
-  bombaIn.addEventListener('change', async ()=>{ const f=bombaIn.files[0]; bombaIn.value=''; if(!f) return;
+  bombaIn.addEventListener('change', async ()=>{ const f=bombaIn.files[0]; bombaIn.value=''; if(!f) return; S.repetirVideo=false; drawRepetir();
     const blob=await comprimirImagen(f); const foto={blob,url:URL.createObjectURL(blob)};
     bomba.hidden=false; bomba.innerHTML=''; bomba.append(h('img',{class:'bimg',src:foto.url}), h('div',{class:'binfo',style:'display:flex;align-items:center;min-height:120px'}, omLoader({tam:'medio',texto:'Leyendo la pantalla de la bomba…'})));
     btnBomba.disabled=true;
@@ -1202,7 +1296,11 @@ function renderEvidencia(){
       const res=await identificarVideo(c, S.frames, (hechos,total)=>{ trabajando('OwnManager está trabajando', `Leyendo las bombas… cuadro ${hechos} de ${total}. No toques la pantalla, tarda máximo 1 minuto.`); });
       let rec=0; ms.forEach(l=>{ const mejor=res[l.mangueraId]; if(!mejor||l.omitida) return; const fr=S.frames[mejor.i]; if(!fr) return; pendientes[l.manguera]={blob:fr.blob,url:fr.url,t:fr.t,codigo:mejor.codigo,valor:mejor.valor,dudosa:!mejor.legible}; rec++; });
       S.iaVideoHecha=true; const falt=ms.filter(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida);
-      status.textContent = rec===0 ? 'La IA no encontró ninguna pantalla en el video. Toca el cuadro de cada manguera o graba otra vez más cerca y más despacio.' : (falt.length? `La IA reconoció ${rec} de ${ms.length} bombas. Falta${falt.length>1?'n':''} ${falt.map(l=>l.manguera).join(', ')}: toca su cuadro abajo.` : `La IA reconoció las ${ms.length} bombas. Revisa y guarda.`);
+      const dud=ms.filter(l=>pendientes[l.manguera]&&pendientes[l.manguera].dudosa);
+      const fallas=falt.length+dud.length; S.intentosVideo=(S.intentosVideo||0)+1;
+      // Regla: si la IA falló en 2 bombas o más, se repite el video (la primera vez no se deja escoger a mano).
+      S.repetirVideo = fallas>=2 && S.intentosVideo<2;
+      status.textContent = rec===0 ? 'La IA no encontró ninguna pantalla en el video. Graba otra vez más cerca y más despacio.' : (fallas>=2? `La IA no pudo leer ${fallas} bombas (${[...falt,...dud].map(l=>l.manguera).join(', ')}). Repite el video: acércate a cada pantalla 2 o 3 segundos.` : (falt.length? `La IA reconoció ${rec} de ${ms.length} bombas. Falta ${falt.map(l=>l.manguera).join(', ')}: toca su cuadro abajo.` : (dud.length? `Falta leer bien el contador de ${dud.map(l=>l.manguera).join(', ')}: revisa su cuadro.` : `La IA reconoció las ${ms.length} bombas. Revisa y guarda.`)));
       const next=ms.findIndex(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida); active = next>=0? next : 0;
     }catch(e){ console.warn('identificar_video', e); status.textContent='La IA no pudo revisar el video ('+(e.message||e)+'). Toca el cuadro de cada manguera.'; }
     trabajandoFin(); btnVideo.disabled=false; btnBomba.disabled=false; drawAll();
@@ -1211,7 +1309,7 @@ function renderEvidencia(){
   fotoIn.addEventListener('change', async ()=>{ const f=fotoIn.files[0]; if(!f) return; const blob=await comprimirImagen(f); if(ms[active].omitida) restaurarManguera(ms[active]); pendientes[ms[active].manguera]={blob,url:URL.createObjectURL(blob),t:-1}; const next=ms.findIndex((l,k)=>k>active && !pendientes[l.manguera] && !l.fotoId && !l.omitida); if(next>=0) active=next; drawAll(); fotoIn.value=''; });
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
   const otras=h('details',{class:'otras'}, h('summary',{},'Otra forma de tomar la evidencia'), h('div',{style:'margin-top:8px'}, h('button',{class:'btn block',onclick:()=>{ abrirArchivo(fotoIn); }},'📷 Foto de la manguera marcada (sin IA)')));
-  card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, now, film, mlist, btnSubir, otras);
+  card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, repetir, now, film, mlist, btnSubir, otras);
   app.append(card); if(!esApk()) app.append(panelAdelanto(c)); drawAll();
 }
 // La APK (teléfono en bombas) se queda solo con las fotos; adelantar datos es de la app web en computadora.
@@ -1422,7 +1520,9 @@ function renderDinero(adelanto){
   const c=S.corte; for(const l of c.lecturas) if(l.inicial!=null&&l.final!=null) l.litros=Math.round((l.final-l.inicial)*1000)/1000;
   c.dinero = c.dinero || { tarjetas:[], efectivo:{billetes:{},monedas:{},extra:{billetes:{},monedas:{}}}, clientes:[], comentario:'', seccion:'tarjetas' };
   const d=c.dinero; if(!Array.isArray(d.tarjetas)) d.tarjetas=[]; d.efectivo=d.efectivo||{billetes:{},monedas:{}}; d.efectivo.extra=d.efectivo.extra||{billetes:{},monedas:{}}; d.efectivo.extra.billetes=d.efectivo.extra.billetes||{}; d.efectivo.extra.monedas=d.efectivo.extra.monedas||{}; d.clientes=d.clientes||[];
-  const ORDEN=adelanto?['tarjetas','arqueo','clientes','aceites']:['tarjetas','arqueo','clientes','aceites','resumen']; if(!ORDEN.includes(d.seccion)) d.seccion='tarjetas'; secDinero=d.seccion;
+  const noche=!adelanto && esCorteNoche(c); const cerradaNoche = noche && !islaActivaNoche(c);
+  if(noche && !d.masNoche){ d.masNoche = !!((d.tarjetas||[]).length || (d.clientes||[]).length || calcAceites(c).piezas>0); }
+  const ORDEN=adelanto?['tarjetas','arqueo','clientes','aceites']:(noche&&!d.masNoche? (cerradaNoche?['resumen']:['arqueo','resumen']) : ['tarjetas','arqueo','clientes','aceites','resumen']); if(!ORDEN.includes(d.seccion)) d.seccion=ORDEN[0]; secDinero=d.seccion;
   const venta=calcVenta(c); const tol=S.config.toleranciaPesos??50;
   const terminales=(S.config.terminales||['BBVA','Banorte','BanBajío']);
   const clientesCfg=(S.config.clientesMarcados||[]).filter(x=>x.activo!==false);
@@ -1431,6 +1531,14 @@ function renderDinero(adelanto){
   const nav=h('div',{class:'secnav'},...secciones.map(([k,l,ic],i)=>h('button',{class:(k===secDinero?'on':(hecho[k]?'done':'')),onclick:()=>{ d.seccion=k; secDinero=k; programarGuardado(); render(); }},h('b',{},i+1),l)));
   const card=h('div',{class:'card stack'});
   if(adelanto) card.append(h('div',{class:'sechead'},h('h2',{},'Adelantar datos del turno'),h('span',{class:'chip ok'},'Se guarda solo')), h('p',{class:'small muted',style:'margin:-4px 0 0'},'Ve llenando tarjetas, depósitos, clientes y aceites cuando tengas un momento. Las fotos y las lecturas se hacen al final, como siempre; todo lo que captures aquí ya estará puesto.'), nav);
+  else if(noche){
+    card.append(h('div',{class:'sechead'},h('h2',{},cerradaNoche?'3. Isla cerrada':'3. Tu dinero'),h('span',{class:'chip acc'},venta.completo?'Venta esperada '+fmtMXN(venta.importe):'Sin precios cargados')));
+    if(cerradaNoche){ const lt=c.lecturas.reduce((a,l)=>a+(Number(l.litros)||0),0);
+      card.append(lt>0.05? h('div',{class:'alert warn',style:'display:block'},`Esta isla estaba cerrada y marcó ${fmtL(lt)} L. Si tú vendiste aquí, toca "Hubo algo más" y captura el dinero; si no, envíala así: quedará señalada para revisión.`) : h('p',{class:'muted'},'Las lecturas coinciden: esta isla no se movió en la noche. Solo envíala.')); }
+    else card.append(h('p',{class:'muted'},'Cuenta el efectivo que juntaste en este tramo. Si hubo tarjeta, cliente marcado o aceite, toca "Hubo algo más".'));
+    if(!d.masNoche) card.append(h('button',{class:'btn block',onclick:()=>{ d.masNoche=true; d.seccion='tarjetas'; programarGuardado(); render(); }},'Hubo algo más (tarjeta · cliente · aceite)'));
+    else card.append(nav);
+  }
   else card.append(h('div',{class:'sechead'},h('h2',{},'3. Dinero del turno'),h('span',{class:'chip acc'},venta.completo?'Venta esperada '+fmtMXN(venta.importe):'Sin precios cargados')), nav);
   const body=h('div',{class:'stack'}); card.append(body);
   const irA=k=>{ d.seccion=k; secDinero=k; guardarAvance(); render(); };
@@ -1489,7 +1597,7 @@ function renderDinero(adelanto){
       return h('div',{class:'den'}, h('div',{class:'d'},fmtMXN(den).replace(/\.00$/,''),h('small',{},tipo==='billetes'?'billete':'moneda')), a, b, st); };
     const encabezadoDen=()=>h('div',{class:'denhead'},h('span',{},''),h('span',{},'Depositado'),h('span',{},'En mano'),h('span',{},''));
     body.append(h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:4px'},'Billetes'),encabezadoDen(),...BILLETES.map(b=>filaDen('billetes',b))), h('div',{},h('p',{class:'eyebrow',style:'margin:10px 0 4px'},'Monedas'),encabezadoDen(),...MONEDAS.map(m=>filaDen('monedas',m))), efTotal,
-      h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('tarjetas')},'Atrás'),h('button',{class:'btn primary big',onclick:()=>irA('clientes')},'Siguiente: clientes')));
+      h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA(ORDEN.includes('tarjetas')?'tarjetas':'arqueo')},'Atrás'),h('button',{class:'btn primary big',onclick:()=>irA(ORDEN.includes('clientes')?'clientes':'resumen')},ORDEN.includes('clientes')?'Siguiente: clientes':'Siguiente: resumen')));
     pinta();
   }
   else if(secDinero==='clientes'){
@@ -1796,7 +1904,7 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
     dif!=null? h('div',{class:'diff '+(Math.abs(dif)<=(S.config.toleranciaPesos??50)?'ok':(dif<0?'bad':'warn'))}, h('span',{class:'lbl'},dif<0?'Faltante':(dif>0?'Sobrante':'Cuadra exacto')), h('b',{},(dif>0?'+':'')+fmtMXN(dif))) : null,
     h('p',{class:'seal'},'Sello: '+hash.slice(0,24)+'…'),
     h('button',{class:'btn ok big block',onclick:e=>descargarPDF(c,e.currentTarget)},'Descargar PDF para firma'),
-    h('button',{class:'btn primary big block',onclick:()=>go('home')},'Listo')));
+    h('button',{class:'btn primary big block',onclick:()=>go(S.noche&&hayModoNoche()&&turnosNoche().some(t=>t.id===c.turno)?'noche':'home')}, S.noche&&hayModoNoche()&&turnosNoche().some(t=>t.id===c.turno)?'Seguir con la noche':'Listo')));
   setWho();
 }
 // TODO (paso posterior): avisos automáticos al dueño y reporte del turno cuando las 3 islas envían.
