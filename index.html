@@ -899,12 +899,19 @@ async function estadoNoche(){
 }
 async function renderNoche(){
   const wrap=h('div',{class:'stack noche'}); app.append(wrap);
-  wrap.append(h('div',{class:'row between'}, h('div',{}, h('p',{class:'eyebrow'},'Hola, '+S.me.nombre.split(' ')[0]), h('h1',{},'Turno de noche')), h('button',{class:'btn sm ghost',onclick:()=>go('home')},'Ver turnos de día')));
+  wrap.append(h('div',{class:'row between'}, h('div',{}, h('p',{class:'eyebrow'},'Hola, '+S.me.nombre.split(' ')[0]), h('h1',{},'Turno de noche')), h('button',{class:'btn sm ghost',onclick:()=>{ S.noche.sinAuto=true; go('home'); }},'Ver turnos de día')));
   const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Revisando la noche…'})); wrap.append(cargando);
-  const st=await estadoNoche(); cargando.remove();
+  const st=await estadoNoche();
   const isla = S.noche && S.noche.islaId ? S.config.islas.find(i=>i.id===S.noche.islaId) : islaNocturna();
   S.noche = Object.assign(S.noche||{}, { islaId: isla.id, fecha: st.d1 });
   const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
+  // A las 6 no hay nada que decidir: se graban las tres islas en orden. Se abre la siguiente pendiente sin pasar por aquí.
+  if(st.tramo===2 && !st.t2Listo && !S.noche.sinAuto){
+    const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
+    const sig=orden.find(i=>{ const x=st.e2.find(y=>y.isla===i.id); return !hecho(x) && !(x&&x.estado==='abierto'&&!x.mio); });
+    if(sig){ cargando.querySelector('.txt')&&(cargando.querySelector('.txt').textContent=`Abriendo ${sig.nombre}…`); await empezarTramo(st,2,sig); return; }
+  }
+  cargando.remove();
   const paso=(n,txt,estado)=>h('div',{class:'npaso '+(estado||'')}, h('span',{class:'n'},estado==='ok'?'✓':n), h('div',{}, txt));
   // Tramo 1 · 22–24
   const c1=h('div',{class:'card stack'});
@@ -969,7 +976,7 @@ async function renderHome(){
   if(hayModoNoche() && esHorarioNoche()){
     wrap.append(h('div',{class:'card stack noche-card'}, h('div',{class:'sechead'}, h('h3',{},'🌙 Turno de noche'), h('span',{class:'chip acc'},'Velador')),
       h('p',{class:'muted'},'Dos cortes chiquitos: uno a medianoche y otro a las 6. La app te dice qué grabar.'),
-      h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; go('noche'); }},'Entrar al turno de noche')));
+      h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; esCorteNoche(null); if(S.noche) S.noche.sinAuto=false; go('noche'); }},'Entrar al turno de noche')));
   }
   if(abiertos.length){
     const c=h('div',{class:'card'}, h('h3',{},'Tienes un corte sin terminar'));
@@ -1904,8 +1911,23 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
     dif!=null? h('div',{class:'diff '+(Math.abs(dif)<=(S.config.toleranciaPesos??50)?'ok':(dif<0?'bad':'warn'))}, h('span',{class:'lbl'},dif<0?'Faltante':(dif>0?'Sobrante':'Cuadra exacto')), h('b',{},(dif>0?'+':'')+fmtMXN(dif))) : null,
     h('p',{class:'seal'},'Sello: '+hash.slice(0,24)+'…'),
     h('button',{class:'btn ok big block',onclick:e=>descargarPDF(c,e.currentTarget)},'Descargar PDF para firma'),
-    h('button',{class:'btn primary big block',onclick:()=>go(S.noche&&hayModoNoche()&&turnosNoche().some(t=>t.id===c.turno)?'noche':'home')}, S.noche&&hayModoNoche()&&turnosNoche().some(t=>t.id===c.turno)?'Seguir con la noche':'Listo')));
+    esCorteNoche(c)? siguienteNoche(c) : h('button',{class:'btn primary big block',onclick:()=>go('home')},'Listo')));
   setWho();
+}
+// Después de enviar un corte de noche: directo a la siguiente isla, o "noche terminada".
+function siguienteNoche(c){
+  const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
+  (async()=>{ const st=await estadoNoche(); box.innerHTML='';
+    const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
+    if(S.noche.tramo===1 || c.turno===st.t1.id){
+      box.append(h('p',{class:'muted'},'Corte de medianoche enviado. A las 6 vuelve a entrar al turno de noche: ahí grabas las tres islas.'), h('button',{class:'btn primary big block',onclick:()=>{ S.noche.sinAuto=false; go('home'); }},'Listo por ahora'));
+      return; }
+    const isla=S.config.islas.find(i=>i.id===S.noche.islaId)||islaNocturna(); const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
+    const sig=orden.find(i=>!hecho(st.e2.find(y=>y.isla===i.id)));
+    if(sig) box.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,2,sig)},`Siguiente: grabar ${sig.nombre}`), h('p',{class:'hint'},`Faltan ${orden.filter(i=>!hecho(st.e2.find(y=>y.isla===i.id))).length} de ${orden.length} islas.`));
+    else box.append(h('div',{class:'alert ok',style:'display:block'},'🌙 Noche terminada: las tres islas enviadas. El turno de la mañana ya puede empezar.'), h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; try{ localStorage.removeItem('om_noche'); }catch(_){} go('home'); }},'Terminar'));
+  })().catch(e=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:()=>go('noche')},'Seguir con la noche')); });
+  return box;
 }
 // TODO (paso posterior): avisos automáticos al dueño y reporte del turno cuando las 3 islas envían.
 // Se harán con una función del servidor o una tarea programada, no desde la app.
