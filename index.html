@@ -336,6 +336,14 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .om-splash .om-loader svg{width:200px}
 .om-splash .om-loader .pulso{width:200px}
 .om-splash .om-loader .txt{color:#9AA3AF}
+/* Velo de proceso: tapa toda la pantalla y no deja tocar nada mientras la app trabaja (video → cuadros → IA) */
+.om-velo{position:fixed;inset:0;z-index:75;background:#0B0F14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;touch-action:none;overscroll-behavior:contain;transition:opacity .2s ease;--om-stroke:#84FF00;--om-g1:#00C9F6;--om-g2:#84FF00;--om-g3:#D4FF66}
+.om-velo.off{opacity:0;pointer-events:none}
+.om-velo .om-loader svg{width:180px}
+.om-velo .om-loader .pulso{width:180px}
+.om-velo .om-loader .txt{color:#E5E7EB;font:500 15px/1.4 var(--font-body);min-height:22px}
+.om-velo .nota{color:#9AA3AF;font:500 13px/1.4 var(--font-body);max-width:280px}
+body.om-velado{overflow:hidden}
 .progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .progress i{display:block;height:100%;background:var(--mod);width:0;transition:width .3s}
 
@@ -657,6 +665,18 @@ function omCarga(delta){ omPend=Math.max(0,omPend+delta); const bar=$('#om-topba
 function mostrarSplash(){ const sp=h('div',{class:'om-splash',id:'om-splash'}); sp.append(omLoader({})); document.body.append(sp); const t0=Date.now(); let fuera=false;
   const quitar=()=>{ if(fuera) return; fuera=true; const espera=Math.max(0,600-(Date.now()-t0)); setTimeout(()=>{ sp.classList.add('off'); setTimeout(()=>sp.remove(),260); },espera); };
   setTimeout(quitar,1500); return {quitar}; }
+// Velo de proceso: pantalla completa con el loader de marca. Mientras está puesto no se puede tocar ni teclear nada.
+function omVelo(texto, nota){
+  const ld=omLoader({texto}); const v=h('div',{class:'om-velo',id:'om-velo',role:'alertdialog','aria-modal':'true','aria-busy':'true',tabindex:'-1'}, ld, h('div',{class:'nota'},nota||'Espera un momento, no cierres la app.'));
+  const para=e=>{ e.preventDefault(); e.stopPropagation(); };
+  ['click','pointerdown','touchstart','touchmove','wheel','contextmenu'].forEach(ev=>v.addEventListener(ev,para,{passive:false}));
+  const teclas=e=>{ e.preventDefault(); e.stopPropagation(); }; document.addEventListener('keydown',teclas,true);
+  if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
+  document.body.classList.add('om-velado'); document.body.append(v);
+  const vivo=setInterval(()=>{ try{ tocar(); }catch(_){} },20000); // el proceso cuenta como actividad: no se cierra la sesión a medias
+  let fuera=false;
+  return { texto:t=>ld.texto(t), quitar(){ if(fuera) return; fuera=true; clearInterval(vivo); document.removeEventListener('keydown',teclas,true); document.body.classList.remove('om-velado'); v.classList.add('off'); setTimeout(()=>v.remove(),220); } };
+}
 async function rpc(fn, args){ omCarga(1); try{ const {data,error}=await sb.rpc(fn,args||{}); if(error) throw errSrv(error); return data; } finally{ omCarga(-1); } }
 async function sel(q){ omCarga(1); try{ const {data,error}=await q; if(error) throw errSrv(error); return data; } finally{ omCarga(-1); } }
 function tokenGuardado(){ try{ return sessionStorage.getItem('om_token')||null; }catch(e){ return null; } }
@@ -1175,20 +1195,22 @@ function renderEvidencia(){
     }catch(e){ console.warn('identificar', e); drawBomba({foto, k:null, r:null, error:e.message||e}); }
     btnBomba.disabled=false;
   });
-  vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; prog.hidden=false; status.hidden=false; status.textContent='Sacando cuadros del video…'; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
-    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ prog.firstChild.style.width=Math.round(p*100)+'%'; }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0) delete pendientes[l.manguera]; }); drawAll(); }
-    catch(e){ status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); prog.hidden=true; vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
-    prog.hidden=true; vidIn.value='';
+  vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; status.hidden=true; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
+    // Todo el proceso (sacar cuadros + IA) va detrás del velo: nadie toca nada hasta que haya algo que revisar o elegir.
+    const velo=omVelo('Sacando cuadros del video…','No toques nada: la app está revisando el video. Tarda menos de un minuto.');
+    try{ S.frames=await extraerCuadros(f, 2, (p)=>{ velo.texto(`Sacando cuadros del video… ${Math.min(100,Math.round(p*100))}%`); }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0) delete pendientes[l.manguera]; }); }
+    catch(e){ velo.quitar(); status.hidden=false; status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
+    vidIn.value='';
     // La IA revisa los cuadros, encuentra cada bomba por su código y lee el contador.
-    status.innerHTML=''; status.append(omLoader({tam:'chico',texto:`Buscando las bombas en ${S.frames.length} cuadros…`}));
+    velo.texto(`Buscando las bombas en ${S.frames.length} cuadros…`);
     try{
-      const res=await identificarVideo(c, S.frames, (hechos,total)=>{ const t=status.querySelector('.om-loader .txt'); if(t) t.textContent=`Buscando las bombas… cuadro ${hechos} de ${total}`; });
+      const res=await identificarVideo(c, S.frames, (hechos,total)=>{ velo.texto(`Buscando las bombas… cuadro ${hechos} de ${total}`); });
       let rec=0; ms.forEach(l=>{ const mejor=res[l.mangueraId]; if(!mejor||l.omitida) return; const fr=S.frames[mejor.i]; if(!fr) return; pendientes[l.manguera]={blob:fr.blob,url:fr.url,t:fr.t,codigo:mejor.codigo,valor:mejor.valor,dudosa:!mejor.legible}; rec++; });
       S.iaVideoHecha=true; const falt=ms.filter(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida);
       status.textContent = rec===0 ? 'La IA no encontró ninguna pantalla en el video. Toca el cuadro de cada manguera o graba otra vez más cerca y más despacio.' : (falt.length? `La IA reconoció ${rec} de ${ms.length} bombas. Falta${falt.length>1?'n':''} ${falt.map(l=>l.manguera).join(', ')}: toca su cuadro abajo.` : `La IA reconoció las ${ms.length} bombas. Revisa y guarda.`);
       const next=ms.findIndex(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida); active = next>=0? next : 0;
     }catch(e){ console.warn('identificar_video', e); status.textContent='La IA no pudo revisar el video ('+(e.message||e)+'). Toca el cuadro de cada manguera.'; }
-    btnVideo.disabled=false; btnBomba.disabled=false; drawAll();
+    status.hidden=false; btnVideo.disabled=false; btnBomba.disabled=false; drawAll(); velo.quitar();
   });
   fotoIn.addEventListener('change', async ()=>{ const f=fotoIn.files[0]; if(!f) return; const blob=await comprimirImagen(f); if(ms[active].omitida) restaurarManguera(ms[active]); pendientes[ms[active].manguera]={blob,url:URL.createObjectURL(blob),t:-1}; const next=ms.findIndex((l,k)=>k>active && !pendientes[l.manguera] && !l.fotoId && !l.omitida); if(next>=0) active=next; drawAll(); fotoIn.value=''; });
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
@@ -1249,7 +1271,7 @@ async function extraerCuadros(file, cada, onProg){
   if(!isFinite(v.duration)){ v.currentTime=1e8; await new Promise(r=>{ v.onseeked=r; setTimeout(r,2000); }); }
   const dur=isFinite(v.duration)?v.duration:0; if(!dur) throw new Error('sin duración');
   const MAX=(S.config&&S.config.maxSegVideo)||40; if(dur>MAX+1){ URL.revokeObjectURL(url); const e=new Error(`El video dura ${Math.round(dur)} segundos y el máximo es ${MAX}. Graba otra vez: 2 o 3 segundos frente a cada pantalla, sin detenerte en lo demás.`); e.largo=true; throw e; }
-  const paso=Math.max(cada, dur/48); // un cuadro por segundo, máximo 48
+  const paso=Math.max(cada, dur/48); // un cuadro cada `cada` segundos (2 en el video de bombas), máximo 48
   const canvas=document.createElement('canvas'); const ctx=canvas.getContext('2d');
   await new Promise(r=>{ if(v.readyState>=2) r(); else v.onloadeddata=r; });
   const scale=Math.min(1, 1400/Math.max(v.videoWidth||1400, v.videoHeight||1400)); canvas.width=Math.round((v.videoWidth||1280)*scale); canvas.height=Math.round((v.videoHeight||720)*scale);
