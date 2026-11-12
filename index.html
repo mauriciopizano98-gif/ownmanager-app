@@ -582,9 +582,18 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 <main class="wrap" id="app"></main>
 <footer class="foot"><img class="mono" src="" alt="" id="foot-mono"><img class="lima" src="" alt="" id="foot-lima"><span>OwnManager</span><span class="ver" id="om-ver"></span></footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<!-- Librerías servidas desde aquí mismo (no desde CDN): en datos móviles algunos operadores bloquean o tardan con jsdelivr/cdnjs y la app se quedaba en negro. -->
+<script src="vendor/supabase-2.49.4.js"></script>
 <script src="config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf-2.5.1.umd.min.js" defer></script>
+<script>
+// Si algo impide arrancar (librería que no cargó, error inesperado), que nunca se quede en negro: pantalla con el motivo y Reintentar.
+window.addEventListener('error', function(ev){ try{ if(document.querySelector('#om-caida')) return; var app=document.querySelector('#app'); if(app && app.children.length) return;
+  var d=document.createElement('div'); d.id='om-caida'; d.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#0B0F14;color:#F3F4F6;font:15px/1.5 system-ui,sans-serif;text-align:center;z-index:999';
+  d.innerHTML='<div style="max-width:380px"><div style="font-size:40px">⚠️</div><h2 style="margin:8px 0">OwnManager no pudo arrancar</h2><p style="color:#9AA3AF">'+(ev&&ev.message?String(ev.message).replace(/</g,'&lt;'):'Error al cargar')+'</p><p style="color:#9AA3AF;font-size:13px">Revisa tu conexión (datos o Wi-Fi) y vuelve a intentar.</p><button onclick="location.reload()" style="margin-top:10px;padding:14px 22px;border:0;border-radius:12px;background:#84FF00;color:#0B0F14;font:600 16px system-ui">Reintentar</button></div>';
+  document.body.appendChild(d); }catch(_){ } }, true);
+if(!window.supabase || !window.supabase.createClient){ window.dispatchEvent(new ErrorEvent('error',{message:'No se pudo cargar la librería de conexión (vendor/supabase). Puede ser la conexión de datos.'})); }
+</script>
 <script>
 (function(){
 'use strict';
@@ -595,7 +604,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.2';
+const OM_VERSION='1.2.3';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
