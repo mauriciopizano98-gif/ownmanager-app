@@ -336,7 +336,8 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .om-splash .om-loader svg{width:200px}
 .om-splash .om-loader .pulso{width:200px}
 .om-splash .om-loader .txt{color:#9AA3AF}
-.om-trabajando{z-index:90;cursor:wait;user-select:none;-webkit-user-select:none;touch-action:none}
+.om-trabajando{z-index:90;cursor:wait;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:contain}
+body.om-velado{overflow:hidden}
 .om-trabajando .trab-in{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px;text-align:center;max-width:420px}
 .om-trabajando .om-loader svg{width:min(260px,70vw)}
 .om-trabajando .om-loader .pulso{width:min(260px,70vw)}
@@ -1222,10 +1223,13 @@ function panelAdelanto(c){
   return adel;
 }
 // Pantalla completa "OwnManager está trabajando": tapa todo y bloquea clics mientras la IA revisa el video.
-function trabajando(texto, detalle){ let el=$('#om-trabajando'); if(!el){ el=h('div',{id:'om-trabajando',class:'om-splash om-trabajando'}); const ld=omLoader({texto:''}); ld.id='om-trab-loader'; el.append(h('div',{class:'trab-in'}, ld, h('div',{class:'trab-t'},texto||'OwnManager está trabajando'), h('div',{class:'trab-s'},detalle||''))); document.body.append(el); el.addEventListener('click',e=>{ e.stopPropagation(); e.preventDefault(); },true); }
+function trabajando(texto, detalle){ let el=$('#om-trabajando'); if(!el){ el=h('div',{id:'om-trabajando',class:'om-splash om-trabajando',role:'alertdialog','aria-modal':'true','aria-busy':'true'}); const ld=omLoader({texto:''}); ld.id='om-trab-loader'; el.append(h('div',{class:'trab-in'}, ld, h('div',{class:'trab-t'},texto||'OwnManager está trabajando'), h('div',{class:'trab-s'},detalle||''))); document.body.append(el);
+    const para=e=>{ e.preventDefault(); e.stopPropagation(); }; ['click','pointerdown','touchstart','touchmove','wheel','contextmenu'].forEach(ev=>el.addEventListener(ev,para,{passive:false,capture:true}));
+    el._teclas=e=>{ e.preventDefault(); e.stopPropagation(); }; document.addEventListener('keydown',el._teclas,true); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
+    document.body.classList.add('om-velado'); el._vivo=setInterval(()=>{ try{ tocar(); }catch(_){} },20000); } // el proceso cuenta como actividad: la sesión no se cierra a medias
   else { el.querySelector('.trab-t').textContent=texto||'OwnManager está trabajando'; el.querySelector('.trab-s').textContent=detalle||''; }
   return el; }
-function trabajandoFin(){ const el=$('#om-trabajando'); if(!el) return; el.classList.add('off'); setTimeout(()=>el.remove(),260); }
+function trabajandoFin(){ const el=$('#om-trabajando'); if(!el) return; clearInterval(el._vivo); document.removeEventListener('keydown',el._teclas,true); document.body.classList.remove('om-velado'); el.classList.add('off'); setTimeout(()=>el.remove(),260); }
 // Manda los cuadros del video a la IA por lotes y devuelve el mejor cuadro por manguera:
 // { manguera_id: {i, codigo, valor, legible, nitidez} }. Prefiere cuadros legibles y, entre ellos, el valor que más se repite.
 async function identificarVideo(c, frames, onProg){
