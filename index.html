@@ -234,6 +234,7 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .steps i{flex:1;height:4px;border-radius:2px;background:var(--line);display:block}
 .steps i.on{background:var(--mod)} .steps i.done{background:var(--ok)}
 [hidden]{display:none!important}
+.item.prog{border-left:4px solid var(--mod-ink)}
 .adel-list{display:flex;flex-direction:column;gap:6px}
 .adel-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-xs);background:var(--surface2);color:var(--muted);font-size:13.5px}
 .adel-row.ok{color:var(--text);background:color-mix(in srgb,var(--ok) 10%,var(--surface2))}
@@ -2038,11 +2039,50 @@ function pedirPin(d){ return new Promise(res=>{ const inp=h('input',{type:'passw
 async function adminPrecios(){
   const c=S.config; if(!c){ app.append(h('div',{class:'card empty'},'Elige una estación.')); return; }
   const productos=[...new Set(c.islas.flatMap(i=>i.productos))]; c.precios=c.precios||{};
+  const puede = S.rol==='dueno' || S.rol==='central' || S.rol==='oficina';
+  const fmtCuando = iso => new Date(iso).toLocaleString('es-MX',{timeZone:TZ,weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false});
+  const listaPrecios = pr => productos.filter(p=>pr&&pr[p]!=null).map(p=>`${p} ${fmtMonto(pr[p])}`).join(' · ');
+  // Si ya tocó la hora de un cambio programado y el minutero del servidor aún no pasa, se aplica aquí mismo.
+  try{ const n=await rpc('aplicar_cambios_precio',{}); if(n>0){ const e=await sel(sb.from('estaciones').select('precios').eq('id',c.estacionId).maybeSingle()); if(e&&e.precios) c.precios=e.precios; } }catch(_){}
+  // ── Precios de hoy ──
   const pIn={};
-  app.append(h('div',{class:'card stack'},
-    h('p',{class:'small muted'},'Con estos precios la app calcula la venta esperada de cada corte (litros × precio). Actualízalos cada vez que cambie el precio en bomba.'),
-    h('div',{class:'grid3'},...productos.map(p=>{ pIn[p]=h('input',{type:'number',step:'0.01',min:'0',class:'num',id:'pr-'+p,value:c.precios[p]??'',placeholder:'0.00',style:'font-size:26px;font-weight:700;min-height:64px'}); return h('label',{class:'f'},h('span',{class:'l'},p),pIn[p]); })),
-    h('button',{class:'btn primary big',onclick:async()=>{ const pr={}; for(const p of productos) pr[p]=pIn[p].value===''?0:Number(pIn[p].value); try{ await rpc('fijar_precios',{p_estacion:c.estacionId, p_precios:pr}); c.precios=pr; aviso(productos.map(p=>`${p} ${fmtMonto(pr[p])}`).join(' · '),'ok',6000,'Precios guardados'); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); } }},'Guardar precios')));
+  const hoy=h('div',{class:'card stack'},
+    h('div',{class:'sechead'},h('h3',{},'Precio vigente'),h('span',{class:'chip acc'},'Ahora')),
+    h('p',{class:'small muted'},'Con estos precios la app calcula la venta esperada de cada corte (litros × precio). Cambia aquí cuando el precio ya está en bomba; si el cambio es más tarde, prográmalo abajo.'),
+    h('div',{class:'grid3'},...productos.map(p=>{ pIn[p]=h('input',{type:'number',step:'0.01',min:'0',class:'num',id:'pr-'+p,value:c.precios[p]??'',placeholder:'0.00',style:'font-size:26px;font-weight:700;min-height:64px',disabled:!puede}); return h('label',{class:'f'},h('span',{class:'l'},p),pIn[p]); })));
+  if(puede) hoy.append(h('button',{class:'btn primary big',onclick:async()=>{ const pr={}; for(const p of productos) pr[p]=pIn[p].value===''?0:Number(pIn[p].value); try{ await rpc('fijar_precios',{p_estacion:c.estacionId, p_precios:pr}); c.precios=pr; aviso(listaPrecios(pr),'ok',6000,'Precios cambiados ahora'); pintarHist(); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); } }},'Cambiar precios ahora'));
+  app.append(hoy);
+  // ── Programar un cambio ──
+  const qIn={}; const nota=h('input',{type:'text',placeholder:'Nota (opcional): "sube 69 centavos por CRE"',maxlength:'120'});
+  const local=d=>{ const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
+  const manana=hh=>{ const d=new Date(); d.setDate(d.getDate()+1); d.setHours(hh,0,0,0); return d; };
+  const cuando=h('input',{type:'datetime-local',value:local(manana(0)),step:'60',style:'font-family:var(--font-mono);font-size:16px;min-height:48px'});
+  const rapidos=h('div',{class:'row',style:'gap:6px;flex-wrap:wrap'}, ...[[0,'Mañana 00:00'],[6,'Mañana 06:00'],[12,'Mañana 12:00']].map(([hh,t])=>h('button',{class:'btn sm',onclick:()=>{ cuando.value=local(manana(hh)); }},t)), h('button',{class:'btn sm ghost',onclick:()=>{ const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+(d<new Date()?1:0)); cuando.value=local(d); }},'Hoy a medianoche'));
+  const prog=h('div',{class:'card stack'},
+    h('div',{class:'sechead'},h('h3',{},'Programar un cambio'),h('span',{class:'chip'},'Se aplica solo')),
+    h('p',{class:'small muted'},'Para los cambios que ya se saben de antemano (a las 12 de la noche, a las 6 de la mañana). A esa hora OwnManager cambia el precio solo, y queda registrado quién lo programó.'),
+    h('div',{class:'grid3'},...productos.map(p=>{ qIn[p]=h('input',{type:'number',step:'0.01',min:'0',class:'num',id:'pq-'+p,value:c.precios[p]??'',placeholder:'0.00',style:'font-size:22px;font-weight:700;min-height:56px'}); return h('label',{class:'f'},h('span',{class:'l'},p+' (nuevo)'),qIn[p]); })),
+    h('label',{class:'f'},h('span',{class:'l'},'Día y hora del cambio (hora de Michoacán)'),cuando), rapidos, nota,
+    h('button',{class:'btn primary big',onclick:async(ev)=>{ const b=ev.currentTarget; const pr={}; for(const p of productos){ if(qIn[p].value==='') { aviso('Escribe el precio nuevo de '+p+'. Si no cambia, deja el mismo de hoy.','err',6000); return; } pr[p]=Number(qIn[p].value); }
+      if(!cuando.value){ aviso('Elige el día y la hora.','err'); return; } const d=new Date(cuando.value); if(!(d>new Date())){ aviso('La hora ya pasó; elige una hora futura o usa "Cambiar precios ahora".','err',7000); return; }
+      if(productos.every(p=>Number(pr[p])===Number(c.precios[p]))){ aviso('Los precios son iguales a los de hoy; no hay nada que programar.','err',6000); return; }
+      b.disabled=true; try{ await rpc('programar_cambio_precio',{p_estacion:c.estacionId, p_precios:pr, p_cuando:d.toISOString(), p_nota:nota.value.trim()||null}); aviso(`${fmtCuando(d.toISOString())} · ${listaPrecios(pr)}`,'ok',8000,'Cambio programado'); nota.value=''; pintarHist(); }
+      catch(e){ const m=String(e.message||e.code||e); aviso(m.includes('fecha_pasada')?'La hora ya pasó.':m.includes('fecha_lejana')?'Máximo 60 días adelante.':'No se programó: '+m,'err',8000); } b.disabled=false; }},'Programar cambio'));
+  if(puede) app.append(prog);
+  // ── Pendientes e historial ──
+  const histBox=h('div',{class:'card stack'}); app.append(histBox);
+  async function pintarHist(){ histBox.innerHTML=''; histBox.append(h('h3',{},'Programados e historial'));
+    let rows=[]; try{ rows=await rpc('cambios_precio_de',{p_estacion:c.estacionId, p_limite:30})||[]; }catch(e){ histBox.append(h('p',{class:'hint'},'No se pudo cargar el historial: '+(e.message||e.code))); return; }
+    const pend=rows.filter(r=>r.estado==='pendiente'), hist=rows.filter(r=>r.estado!=='pendiente');
+    if(!pend.length) histBox.append(h('p',{class:'hint'},'No hay cambios programados.'));
+    for(const r of pend){ const fila=h('div',{class:'item prog',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},'⏰ '+fmtCuando(r.programado_para)), h('div',{},listaPrecios(r.precios)), h('div',{class:'small muted'},`Programó ${r.creado_por_nombre||'—'}`+(r.nota?' · '+r.nota:''))),
+        puede? h('button',{class:'btn sm ghost',onclick:async(ev)=>{ if(!ev.currentTarget.dataset.ok){ ev.currentTarget.dataset.ok='1'; ev.currentTarget.textContent='¿Cancelar? toca otra vez'; setTimeout(()=>{ ev.currentTarget&&(delete ev.currentTarget.dataset.ok, ev.currentTarget.textContent='Cancelar'); },4000); return; } try{ await rpc('cancelar_cambio_precio',{p_cambio:r.id}); toast('Cambio cancelado.'); pintarHist(); }catch(e){ aviso('No se canceló: '+(e.message||e.code),'err'); } }},'Cancelar'):null);
+      histBox.append(fila); }
+    if(hist.length){ histBox.append(h('p',{class:'eyebrow',style:'margin-top:8px'},'Últimos cambios'));
+      for(const r of hist.slice(0,15)){ const cambio=productos.filter(p=>r.precios&&r.precios[p]!=null).map(p=>{ const a=r.precios_anteriores&&r.precios_anteriores[p]; return `${p} ${a!=null&&Number(a)!==Number(r.precios[p])?fmtMonto(a)+' → ':''}${fmtMonto(r.precios[p])}`; }).join(' · ');
+        histBox.append(h('div',{class:'item',style:'cursor:default;opacity:'+(r.estado==='cancelado'?'.6':'1')}, h('div',{class:'l'}, h('b',{},(r.estado==='cancelado'?'✕ Cancelado · ':'')+fmtCuando(r.aplicado_en||r.programado_para)), h('div',{},cambio), h('div',{class:'small muted'},(r.aplicado_en&&Math.abs(new Date(r.aplicado_en)-new Date(r.creado_en))<90000?'Cambio inmediato':'Programado')+` · ${r.creado_por_nombre||'—'}`+(r.nota?' · '+r.nota:''))))); } }
+  }
+  pintarHist();
 }
 // ---- Clientes marcados (empresas que cargan a cuenta; acceso directo)
 async function adminClientes(){
