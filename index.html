@@ -2119,7 +2119,8 @@ async function adminSat(){
   const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : '—';
   let est; try{ est = await fnOficina({accion:'estado'},'sat-descarga'); }catch(e){ est={ok:false,error:e.message}; }
   if(!est.ok){ box.append(h('div',{class:'card'}, h('b',{},'No se pudo consultar el enlace con el SAT'), h('p',{class:'small muted'},est.error||''), h('p',{class:'hint'},'Si la función sat-descarga todavía no está desplegada, primero hay que subirla en Supabase.'))); return; }
-  let resumen=[]; try{ resumen = await rpc('sat_resumen',{})||[]; }catch(e){ resumen=[]; }
+  let resumen=[]; let errResumen=null; try{ resumen = await rpc('sat_resumen',{})||[]; }catch(e){ resumen=[]; errResumen=e.message||e.code||String(e); }
+  if(errResumen) box.append(h('div',{class:'alert warn',style:'display:block'},'No se pudo leer el resumen del SAT (sat_resumen): '+errResumen+'. ¿Ya corrió el SQL 033?'));
   const porId = {}; for(const r of resumen) porId[r.negocio_id]=r;
   const faltan = est.negocios.filter(n=>!n.llaves);
   if(dueno) box.append(h('div',{class:'card stack'}, h('div',{class:'sechead'},h('h3',{},'Cómo funciona'),h('span',{class:'chip '+(est.bot?'ok':'warn')},est.bot?'Cuenta robot lista':'Falta la cuenta robot')),
@@ -2162,7 +2163,7 @@ async function adminSat(){
     if(cf.length){ const t=h('div',{class:'card stack'}, h('h3',{},'Últimas facturas que llegaron del SAT'));
       for(const x of cf) t.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.emisor_nombre||x.emisor_rfc||'—'} · ${[x.serie,x.folio].filter(Boolean).join('')||x.uuid.slice(0,8)} · ${fmtMonto(x.total||0)}`), h('div',{class:'small muted'},`${x.negocios?x.negocios.nombre:''} · ${fmtD(x.fecha)} · ${x.resultado==='registrada'?'registrada':x.resultado==='ya_registrada'?'ya estaba':x.resultado}${x.detalle?' · '+x.detalle:''}`)), h('span',{class:'chip '+(x.resultado==='registrada'?'ok':x.resultado==='error'?'warn':'')},x.resultado==='registrada'?'Nueva':x.resultado==='ya_registrada'?'Ya estaba':x.resultado)));
       box.append(t); }
-  }catch(e){ console.warn('sat listas', e); }
+  }catch(e){ console.warn('sat listas', e); box.append(h('p',{class:'hint'},'No se pudieron leer las solicitudes/CFDI del SAT: '+(e.message||e.code||e))); }
 }
 // ---- Clientes marcados (empresas que cargan a cuenta; acceso directo)
 async function adminClientes(){
