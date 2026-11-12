@@ -235,6 +235,10 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .steps i.on{background:var(--mod)} .steps i.done{background:var(--ok)}
 [hidden]{display:none!important}
 .item.prog{border-left:4px solid var(--mod-ink)}
+.mono{font-family:var(--font-mono)}
+.kv{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:var(--r-xs);background:var(--surface2)}
+.kv .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kv b{font-size:14px}
 .adel-list{display:flex;flex-direction:column;gap:6px}
 .adel-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-xs);background:var(--surface2);color:var(--muted);font-size:13.5px}
 .adel-row.ok{color:var(--text);background:color-mix(in srgb,var(--ok) 10%,var(--surface2))}
@@ -1800,23 +1804,24 @@ async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
   const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],['aestado','bancomas','Agregar estado de cuenta'],
     ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep',
-    ['precios','precio','Precios'],['clientes','clientes','Clientes marcados']];
+    ['precios','precio','Precios'],['clientes','clientes','Clientes marcados'],['sat','sat','SAT']];
   if(S.rol==='dueno') items.push(['aceites','aceites','Aceites'],['desp','desp','Despachadores']);
   items.push(['config','config','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', precios:'Precios de venta por litro', clientes:'Clientes marcados', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados'].includes(adminTab);
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', precios:'Precios de venta por litro', clientes:'Clientes marcados', sat:'Enlace con el SAT', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','sat'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, sat:adminSat, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  sat:'<path d="M12 3 3 8v8l9 5 9-5V8l-9-5Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/><path d="M7.5 10.5 16.5 5.5"/>',
   precio:'<path d="M20 13 11 22 2 13V4h9l9 9Z"/><circle cx="7" cy="9" r="1.5"/>',
   clientes:'<path d="M4 21V7l6-3v17"/><path d="M10 21V11l6-3v13"/><path d="M16 21v-8l4-2v10"/><path d="M2 21h20"/>',
   carpeta:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>',
@@ -2100,6 +2105,59 @@ async function adminPrecios(){
         histBox.append(h('div',{class:'item',style:'cursor:default;opacity:'+(r.estado==='cancelado'?'.6':'1')}, h('div',{class:'l'}, h('b',{},(r.estado==='cancelado'?'✕ Cancelado · ':'')+fmtCuando(r.aplicado_en||r.programado_para)), h('div',{},cambio), h('div',{class:'small muted'},(r.aplicado_en&&Math.abs(new Date(r.aplicado_en)-new Date(r.creado_en))<90000?'Cambio inmediato':'Programado')+` · ${r.creado_por_nombre||'—'}`+(r.nota?' · '+r.nota:''))))); } }
   }
   pintarHist();
+}
+// ---- Enlace con el SAT (Descarga Masiva con la e.firma de cada empresa). Las llaves viven solo como secretos del servidor.
+async function adminSat(){
+  const dueno = S.rol==='dueno';
+  const box=h('div',{class:'stack'}); app.append(box);
+  const fmtF = iso => iso ? new Date(iso).toLocaleString('es-MX',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : '—';
+  const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : '—';
+  let est; try{ est = await fnOficina({accion:'estado'},'sat-descarga'); }catch(e){ est={ok:false,error:e.message}; }
+  if(!est.ok){ box.append(h('div',{class:'card'}, h('b',{},'No se pudo consultar el enlace con el SAT'), h('p',{class:'small muted'},est.error||''), h('p',{class:'hint'},'Si la función sat-descarga todavía no está desplegada, primero hay que subirla en Supabase.'))); return; }
+  let resumen=[]; try{ resumen = await rpc('sat_resumen',{})||[]; }catch(e){ resumen=[]; }
+  const porId = {}; for(const r of resumen) porId[r.negocio_id]=r;
+  const faltan = est.negocios.filter(n=>!n.llaves);
+  if(dueno) box.append(h('div',{class:'card stack'}, h('div',{class:'sechead'},h('h3',{},'Cómo funciona'),h('span',{class:'chip '+(est.bot?'ok':'warn')},est.bot?'Cuenta robot lista':'Falta la cuenta robot')),
+    h('p',{class:'small muted'},'Cada 20 minutos OwnManager le pide al SAT las facturas recibidas (vigentes, tipo ingreso) de cada empresa activa, descarga los XML y los registra como facturas de proveedor a nombre del usuario "OwnManager SAT". Las que la oficina ya había subido se marcan como "ya registrada"; nada se duplica.'),
+    h('p',{class:'small muted'},'Las e.firmas no están en la base ni pasan por la app: cada una vive como tres secretos de Edge Functions que solo tú cargas: ', h('code',{},'SAT_<RFC>_CER'),' (el .cer en base64), ',h('code',{},'SAT_<RFC>_KEY'),' (el .key en base64) y ',h('code',{},'SAT_<RFC>_PASS'),' (la contraseña). Y dos más para la cuenta robot: ',h('code',{},'SAT_BOT_EMAIL'),' y ',h('code',{},'SAT_BOT_PASSWORD'),'.'),
+    faltan.length? h('p',{class:'small',style:'color:var(--warn)'},'Sin llaves todavía: '+faltan.map(n=>`${n.nombre} (SAT_${n.rfc}_…)`).join(' · ')) : h('p',{class:'small',style:'color:var(--ok)'},'Todas las empresas tienen sus llaves cargadas.')));
+  const lista=h('div',{class:'stack'}); box.append(lista);
+  for(const n of est.negocios){
+    const r = porId[n.id]||{};
+    const card=h('div',{class:'card stack'});
+    const estadoChip = !n.llaves? h('span',{class:'chip warn'},'Sin llaves') : n.sat_activo? h('span',{class:'chip ok'},'Activo') : h('span',{class:'chip'},'Pausado');
+    card.append(h('div',{class:'sechead'}, h('div',{}, h('h3',{},n.nombre), h('div',{class:'small muted mono'},n.rfc)), estadoChip));
+    const datos=h('div',{class:'grid3'},
+      h('div',{class:'kv'}, h('span',{class:'l'},'Pide desde'), h('b',{},fmtD(r.sat_desde||n.sat_desde))),
+      h('div',{class:'kv'}, h('span',{class:'l'},'Cubierto hasta'), h('b',{},fmtF(r.sat_cubierto_hasta||n.sat_cubierto_hasta))),
+      h('div',{class:'kv'}, h('span',{class:'l'},'En camino'), h('b',{},String(r.solicitudes_pendientes||0)+' solicitud'+((r.solicitudes_pendientes||0)===1?'':'es'))),
+      h('div',{class:'kv'}, h('span',{class:'l'},'Últimos 30 días'), h('b',{},`${r.registradas_30d||0} nuevas · ${r.ya_registradas_30d||0} ya estaban · ${r.errores_30d||0} con error`)),
+      h('div',{class:'kv',style:'grid-column:span 2'}, h('span',{class:'l'},'Última solicitud'), h('b',{},r.ultima_solicitud? `${fmtF(r.ultima_solicitud)} · ${r.ultimo_estado||''}` : 'Ninguna'), r.ultimo_mensaje? h('div',{class:'small muted'},r.ultimo_mensaje):null));
+    card.append(datos);
+    const msg=h('p',{class:'hint'});
+    if(dueno){
+      const acciones=h('div',{class:'row',style:'gap:8px;flex-wrap:wrap'});
+      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Probando la e.firma con el SAT…'; try{ const j=await fnOficina({accion:'probar',negocio_id:n.id},'sat-descarga'); msg.textContent = j.ok? `✓ e.firma de ${j.nombre||j.rfc} (${j.rfc}) vigente hasta ${fmtD(j.vigente_hasta)} · el SAT dio token.` : '✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Probar e.firma'));
+      const desde=h('input',{type:'date',value:(n.sat_desde||'').slice(0,10)||new Date(Date.now()-30*864e5).toISOString().slice(0,10),style:'min-height:40px'});
+      acciones.append(h('button',{class:'btn '+(n.sat_activo?'ghost':'primary'),disabled:!n.llaves,onclick:async()=>{ try{ await rpc('sat_configurar',{p_negocio:n.id,p_activo:!n.sat_activo,p_desde:desde.value||null}); toast(n.sat_activo?'Sincronización pausada.':'Sincronización activada; la primera solicitud sale en la próxima corrida.'); render(); }catch(e){ aviso('No se pudo: '+(e.message||e.code),'err'); } }}, n.sat_activo?'Pausar':'Activar'));
+      acciones.append(h('label',{class:'f',style:'margin:0'},h('span',{class:'l'},'Desde'),desde));
+      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; const d=desde.value; if(!d){ toast('Elige la fecha inicial.'); return; } b.disabled=true; msg.textContent=`Pidiendo al SAT las facturas desde ${fmtD(d)}…`; try{ const j=await fnOficina({accion:'solicitar',negocio_id:n.id,desde:d},'sat-descarga'); msg.textContent = j.ok? `✓ El SAT aceptó la solicitud ${j.id_solicitud}. Tarda de minutos a horas; cada 20 minutos se revisa y se descarga sola.` : '✕ '+(j.error||j.mensaje||'No se pudo'); if(j.ok) setTimeout(()=>render(),1500); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Pedir al SAT ahora'));
+      card.append(acciones);
+    }
+    card.append(h('button',{class:'btn sm ghost',style:'align-self:flex-start',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Revisando con el SAT…'; try{ const j=await fnOficina({accion:'avanzar',negocio_id:n.id},'sat-descarga'); const r=j.resumen||{}; msg.textContent = j.ok? `✓ ${r.verificadas||0} verificadas · ${r.descargados||0} paquetes · ${r.registradas||0} facturas nuevas · ${r.ya_registradas||0} ya estaban · ${r.errores||0} errores` + ((j.log||[]).length? ' — '+j.log.slice(-2).join(' | '):'') : '✕ '+(j.error||'No se pudo'); if(j.ok) setTimeout(()=>render(),2500); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Revisar ahora'), msg);
+    lista.append(card);
+  }
+  // Últimas solicitudes y últimos CFDI (lo que ve el usuario por RLS)
+  try{
+    const sols = await sel(sb.from('sat_solicitudes').select('id, negocio_id, fecha_inicial, fecha_final, estado, numero_cfdis, mensaje, error, creada_en, negocios(nombre)').order('creada_en',{ascending:false}).limit(12));
+    if(sols.length){ const t=h('div',{class:'card stack'}, h('h3',{},'Últimas solicitudes al SAT'));
+      for(const x of sols) t.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.negocios?x.negocios.nombre:''} · ${fmtD(String(x.fecha_inicial).slice(0,10))} → ${fmtD(String(x.fecha_final).slice(0,10))}`), h('div',{class:'small muted'},`${fmtF(x.creada_en)} · ${x.estado}${x.numero_cfdis!=null?' · '+x.numero_cfdis+' CFDI':''}${x.error?' · '+x.error:(x.mensaje?' · '+x.mensaje:'')}`))));
+      box.append(t); }
+    const cf = await sel(sb.from('sat_cfdis').select('uuid, emisor_nombre, emisor_rfc, fecha, total, serie, folio, resultado, detalle, creado_en, negocios(nombre)').order('creado_en',{ascending:false}).limit(25));
+    if(cf.length){ const t=h('div',{class:'card stack'}, h('h3',{},'Últimas facturas que llegaron del SAT'));
+      for(const x of cf) t.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.emisor_nombre||x.emisor_rfc||'—'} · ${[x.serie,x.folio].filter(Boolean).join('')||x.uuid.slice(0,8)} · ${fmtMonto(x.total||0)}`), h('div',{class:'small muted'},`${x.negocios?x.negocios.nombre:''} · ${fmtD(x.fecha)} · ${x.resultado==='registrada'?'registrada':x.resultado==='ya_registrada'?'ya estaba':x.resultado}${x.detalle?' · '+x.detalle:''}`)), h('span',{class:'chip '+(x.resultado==='registrada'?'ok':x.resultado==='error'?'warn':'')},x.resultado==='registrada'?'Nueva':x.resultado==='ya_registrada'?'Ya estaba':x.resultado)));
+      box.append(t); }
+  }catch(e){ console.warn('sat listas', e); }
 }
 // ---- Clientes marcados (empresas que cargan a cuenta; acceso directo)
 async function adminClientes(){
