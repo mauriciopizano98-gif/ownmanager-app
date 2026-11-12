@@ -89,6 +89,7 @@ body[data-om-login]::before{background:var(--negro)}
 body[data-om-login] .top{display:none}
 body[data-om-login] .foot{display:none}
 .foot .ver{opacity:.7;margin-left:4px;text-transform:none;letter-spacing:0}
+.om-nueva{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top,0px));z-index:80;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:var(--r-sm);background:var(--carbon,#1B222B);color:#F3F4F6;border:1px solid var(--lima);box-shadow:var(--shadow);font-size:13.5px}
 .ver-login{text-align:right;font:500 11px var(--font-mono);color:#9AA3AF;opacity:.8;margin:-10px 4px 0}
 .om-login{min-height:calc(100dvh - 40px);display:flex;flex-direction:column;justify-content:center;gap:18px;padding:12px 0;
   --bg:#0B0F14; --surface:#1B222B; --surface2:#222A34; --fg:#F3F4F6; --muted:#9AA3AF; --line:#2A323D; --line2:#343D49; --accent:#84FF00; --accent-fg:#0B0F14; --accent-soft:#1E2E10; --err:#F87171; --err-soft:#3A1A1F; --focus:#84FF00; --focus-soft:rgba(132,255,0,.28); --shadow:none}
@@ -594,7 +595,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.1';
+const OM_VERSION='1.2.2';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -3040,6 +3041,25 @@ async function cerrarPorInactividad(){
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=='visible') return; if(S.esperandoArchivo){ S.esperandoArchivo=false; tocar(); return; } if(S.me && Date.now()-ultimaActividad>=INACTIVO_MS) cerrarPorInactividad(); else tocar(); });
 window.addEventListener('focus',()=>{ if(S.esperandoArchivo){ S.esperandoArchivo=false; tocar(); } });
 // ---- go
+
+// ---- Actualización automática: la APK y los navegadores guardan index.html en caché; version.json se pide sin caché
+// y, si hay una versión nueva, se recarga con ?v=<nueva> (la caché no la reconoce y baja la página fresca).
+function versionMayor(a,b){ const pa=String(a).split('.').map(Number), pb=String(b).split('.').map(Number); for(let i=0;i<3;i++){ if((pa[i]||0)>(pb[i]||0)) return true; if((pa[i]||0)<(pb[i]||0)) return false; } return false; }
+function aplicarVersion(v){ const base=location.href.split('?')[0].split('#')[0]; location.replace(base+'?v='+encodeURIComponent(v)); }
+async function revisarVersion(){
+  try{
+    const r=await fetch('version.json?ts='+Date.now(),{cache:'no-store'}); if(!r.ok) return; const j=await r.json(); const v=j&&j.version; if(!v || !versionMayor(v, OM_VERSION)) return;
+    // Sin trabajo a medias (entrada, PIN, inicio): se actualiza sola. Con un corte abierto: aviso con botón.
+    const tranquilo = !S.corte && ['login','home','admin','oficina'].includes(S.screen||'login') && !document.querySelector('#om-trabajando');
+    if(tranquilo && !S.rol){ aplicarVersion(v); return; }
+    if(tranquilo && S.rol==='kiosco'){ aplicarVersion(v); return; }
+    if($('#om-nueva')) return;
+    const b=h('div',{id:'om-nueva',class:'om-nueva'}, h('span',{},`Hay una versión nueva de OwnManager (v${v}).`), h('button',{class:'btn sm primary',onclick:()=>aplicarVersion(v)},'Actualizar'), h('button',{class:'btn sm ghost',onclick:()=>b.remove()},'Luego'));
+    document.body.append(b);
+  }catch(_){}
+}
+setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
 if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render }; // solo para la prueba de humo
 boot();
 })();
