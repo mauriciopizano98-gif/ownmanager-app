@@ -482,12 +482,16 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 @keyframes aviso-in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
 @keyframes aviso-bar{from{width:100%}to{width:0}}
 @media (max-width:760px){.avisos{top:calc(70px + env(safe-area-inset-top,0px));right:12px;left:12px;width:auto}}
-.modulo{display:block;flex:none;width:100%;max-width:230px;margin:0 0 10px;border-radius:10px;background:#000;padding:0;box-sizing:border-box;overflow:hidden;border:1px solid var(--chrome-line)}
+.modulo{display:flex;align-items:center;gap:9px;flex:none;width:100%;max-width:230px;margin:0 0 10px;padding:11px 11px 10px;box-sizing:border-box;border-radius:11px;text-decoration:none;color:var(--chrome-fg);border:1px solid color-mix(in srgb,var(--mod) 38%,var(--chrome-line));background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--mod) 16%,transparent),transparent 62%),var(--chrome);box-shadow:inset 0 0 14px -8px var(--mod);transition:border-color .15s}
+.modulo:hover{border-color:color-mix(in srgb,var(--mod) 70%,var(--chrome-line))}
+.modulo .wm{display:block;flex:1 1 0;min-width:0;width:auto;height:auto;max-height:30px;object-fit:contain;object-position:left center}
+.modulo .dv{flex:none;width:1px;align-self:stretch;margin:2px 0;background:color-mix(in srgb,var(--mod) 55%,transparent)}
+.modulo .mi{flex:none;display:inline-flex;color:var(--mod);line-height:0}
+.modulo .mn{flex:none;font:600 13px/1 var(--font-display);letter-spacing:.01em;color:var(--chrome-fg);white-space:nowrap}
 .sidenav>*{flex:none} /* con el menú más largo que la pantalla, nada se encoge: el menú se desplaza */
 .sidenav.desborda{-webkit-mask-image:linear-gradient(#000 calc(100% - 34px),transparent);mask-image:linear-gradient(#000 calc(100% - 34px),transparent)}
-.modulo img{display:block;width:100%;height:auto}
 .modulo.kiosko{max-width:260px;margin:0 auto 14px}
-@media (max-width:760px){.sidenav .modulo{display:none}.modulo.movil{display:block;max-width:220px;margin:0 0 10px}}
+@media (max-width:760px){.sidenav .modulo{display:none}.modulo.movil{display:flex;max-width:230px;margin:0 0 10px}}
 .sidenav button{display:flex;align-items:center;gap:12px;width:100%;border:1px solid transparent;background:transparent;border-radius:var(--r-sm);padding:9px 12px;font:500 14px var(--font-body);color:var(--chrome-muted);cursor:pointer;text-align:left;position:relative;transition:background .12s,color .12s}
 .sidenav button .ic{width:22px;display:inline-flex;justify-content:center;line-height:0;opacity:.85}
 .sidenav button.on .ic{opacity:1;color:var(--mod)}
@@ -500,6 +504,7 @@ body[data-om-sesion] .top .in{max-width:none;padding-block:10px;padding-left:max
 .sidenav .sub button .ic{width:18px}
 .sidenav .sub button .ic svg{width:16px;height:16px}
 .sidenav button .car{margin-left:auto;font-size:11px;opacity:.6}
+.sidenav .sub.cerr{display:none}
 .buscar{display:flex;gap:8px;align-items:center}
 .buscar input{flex:1;min-width:0;font-size:15px;padding:12px 14px;border-radius:var(--r-sm);appearance:none;-webkit-appearance:none}
 .buscar input::-webkit-search-decoration,.buscar input::-webkit-search-cancel-button{-webkit-appearance:none}
@@ -606,7 +611,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.3.0';
+const OM_VERSION='1.3.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1989,7 +1994,7 @@ async function avisar(c){ }
 let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  // Menú por grupos (orden de Mauricio, 12-nov-2026): un grupo abierto a la vez.
+  // Menú por grupos (orden de Mauricio, 12-nov-2026): cada grupo se queda abierto hasta que él lo cierra.
   const dueno=S.rol==='dueno';
   const items=[['chat','chat','Asistente'],
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy'],['cortes','cortes','Lista de cortes'],['anulados','anulados','Anulados']]],
@@ -2045,22 +2050,39 @@ const ICONS={
 };
 function ico(nombre, tam){ const sp=h('span',{class:'ic'}); sp.innerHTML=`<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nombre]||''}</svg>`; return sp; }
 
-function logoModulo(mod, extra){ return h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else adminTab='chat'; render(); }}, h('img',{src:`marca/om-${mod}.png`,alt:'OwnManager '+mod})); }
+const MODULOS={central:['Central','<path d="M12 3.2 21 8l-9 4.8L3 8l9-4.8Z" fill="currentColor" stroke="none"/><path d="M3.6 12.3 12 16.8l8.4-4.5"/><path d="M3.6 16.4 12 20.9l8.4-4.5"/>'], oficina:['Oficina',null], kiosko:['Kiosko',null], logistica:['Logística',null]};
+const LOGO_MOD={};
+function logoModulo(mod, extra){ const kk=mod+'|'+(extra||''); if(LOGO_MOD[kk]) return LOGO_MOD[kk];
+  const [nom,svg]=MODULOS[mod]||[mod,null]; const mi=ico('cortes',19); mi.className='mi'; if(svg) mi.querySelector('svg').innerHTML=svg;
+  return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else adminTab='chat'; render(); }},
+    h('img',{class:'wm',src:'marca/om-logo-transparente.png',alt:'Own Manager'}), h('span',{class:'dv'}), mi, h('span',{class:'mn'},nom)); }
+// Menú lateral por grupos. Abrir o cerrar un grupo solo toca el menú (no se vuelve a pintar la pantalla),
+// y cada grupo se queda abierto hasta que el usuario lo cierra (se recuerda en el dispositivo).
+const NAV={abiertos:null, scroll:0};
+function navAbiertos(items, actual){ if(NAV.abiertos) return NAV.abiertos;
+  let g=null; try{ const v=JSON.parse(localStorage.getItem('om-nav-abiertos')||'null'); if(Array.isArray(v)) g=v; }catch(e){}
+  if(!g){ g=[]; for(const it of items){ if(it!=='sep' && it[3] && it[3].some(x=>x[0]===actual)) g.push(it[0]); } }
+  return NAV.abiertos=new Set(g); }
 function navLateral(items, actual, onpick, mod){
   const nav=h('nav',{class:'sidenav'}); if(mod) nav.append(logoModulo(mod));
+  const abiertos=navAbiertos(items, actual);
   const btn=(k,ic,l,extra,fn)=>h('button',{class:k===actual?'on':'',onclick:fn||(()=>onpick(k))}, ico(ic), h('span',{},l), extra||null);
-  for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; }
-    const [k,ic,l,subs]=it;
-    if(subs){ const abierto = NAV.abierto==null ? subs.some(x=>x[0]===actual) : NAV.abierto===k; // un grupo abierto a la vez
-      nav.append(btn('__grupo:'+k, ic, l, h('span',{class:'car'},abierto?'–':'+'), ()=>{ NAV.abierto = abierto? '' : k; render(); }));
-      if(abierto){ const sub=h('div',{class:'sub'}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl,null,()=>{ NAV.abierto=k; onpick(sk); })); nav.append(sub); } }
-    else nav.append(btn(k,ic,l)); }
   // Si el menú no cabe en la pantalla, se desplaza; el degradado de abajo avisa que hay más opciones.
   const marcar=()=>nav.classList.toggle('desborda', nav.scrollTop+nav.clientHeight < nav.scrollHeight-4);
-  nav.addEventListener('scroll', marcar, {passive:true}); requestAnimationFrame(marcar); setTimeout(marcar, 400);
+  for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; }
+    const [k,ic,l,subs]=it;
+    if(subs){ const car=h('span',{class:'car'},abiertos.has(k)?'–':'+');
+      const sub=h('div',{class:'sub'+(abiertos.has(k)?'':' cerr')}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl));
+      const cab=btn('__grupo:'+k, ic, l, car, ()=>{ const ab=!abiertos.has(k); if(ab) abiertos.add(k); else abiertos.delete(k);
+        sub.classList.toggle('cerr', !ab); car.textContent=ab?'–':'+'; cab.setAttribute('aria-expanded', ab?'true':'false');
+        try{ localStorage.setItem('om-nav-abiertos', JSON.stringify([...abiertos])); }catch(e){} marcar(); });
+      cab.setAttribute('aria-expanded', abiertos.has(k)?'true':'false');
+      nav.append(cab, sub); }
+    else nav.append(btn(k,ic,l)); }
+  nav.addEventListener('scroll', ()=>{ NAV.scroll=nav.scrollTop; marcar(); }, {passive:true});
+  requestAnimationFrame(()=>{ if(NAV.scroll) nav.scrollTop=NAV.scroll; marcar(); }); setTimeout(marcar, 400);
   return nav;
 }
-const NAV={abierto:null};
 async function cortesTablero(filtro){
   let q=sb.from('cortes').select('*, despachadores(nombre)').eq('estacion_id',S.config.estacionId);
   q=filtro(q); const rows=await sel(q);
