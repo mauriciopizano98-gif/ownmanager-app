@@ -606,7 +606,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.6';
+const OM_VERSION='1.2.7';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -926,6 +926,7 @@ async function estadoNoche(){
   const t2Listo = islas.every(i=>hecho(e2.find(x=>x.isla===i.id)));
   return { t1, t2, d1, d2, e1, e2, t1Listo, t2Listo, tramo: t1Listo? 2 : 1 };
 }
+let avisoNoche=false; // al entrar por el botón, un recordatorio de 5 s de lo que toca grabar
 async function renderNoche(){
   const wrap=h('div',{class:'stack noche'}); app.append(wrap);
   wrap.append(h('div',{class:'row between'}, h('div',{}, h('p',{class:'eyebrow'},'Hola, '+S.me.nombre.split(' ')[0]), h('h1',{},'Turno de noche')), h('button',{class:'btn sm ghost',onclick:()=>{ S.noche.sinAuto=true; go('home'); }},'Ver turnos de día')));
@@ -933,6 +934,7 @@ async function renderNoche(){
   const st=await estadoNoche();
   const isla = S.noche && S.noche.islaId ? S.config.islas.find(i=>i.id===S.noche.islaId) : islaNocturna();
   S.noche = Object.assign(S.noche||{}, { islaId: isla.id, fecha: st.d1 });
+  if(avisoNoche){ avisoNoche=false; const n=S.config.islas.length; toast(st.tramo===2 && !st.t2Listo ? `Recuerda: ahora grabas las ${n} islas, una por una, sin salir. ${isla.nombre} primero, con tu dinero.` : `A medianoche solo grabas ${isla.nombre}. A las 6 van las ${n} islas.`, 5000); }
   const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
   // A las 6 no hay nada que decidir: se graban las tres islas en orden. Se abre la siguiente pendiente sin pasar por aquí.
   if(st.tramo===2 && !st.t2Listo && !S.noche.sinAuto){
@@ -1005,7 +1007,7 @@ async function renderHome(){
   if(hayModoNoche() && esHorarioNoche()){
     wrap.append(h('div',{class:'card stack noche-card'}, h('div',{class:'sechead'}, h('h3',{},'🌙 Turno de noche'), h('span',{class:'chip acc'},'Velador')),
       h('p',{class:'muted'},'Dos cortes chiquitos: uno a medianoche y otro a las 6. La app te dice qué grabar.'),
-      h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; esCorteNoche(null); if(S.noche) S.noche.sinAuto=false; go('noche'); }},'Entrar al turno de noche')));
+      h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; esCorteNoche(null); if(S.noche) S.noche.sinAuto=false; avisoNoche=true; go('noche'); }},'Últimas lecturas del velador')));
   }
   if(abiertos.length){
     const c=h('div',{class:'card'}, h('h3',{},'Tienes un corte sin terminar'));
