@@ -606,7 +606,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.7';
+const OM_VERSION='1.2.8';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -934,7 +934,7 @@ async function renderNoche(){
   const st=await estadoNoche();
   const isla = S.noche && S.noche.islaId ? S.config.islas.find(i=>i.id===S.noche.islaId) : islaNocturna();
   S.noche = Object.assign(S.noche||{}, { islaId: isla.id, fecha: st.d1 });
-  if(avisoNoche){ avisoNoche=false; const n=S.config.islas.length; toast(st.tramo===2 && !st.t2Listo ? `Recuerda: ahora grabas las ${n} islas, una por una, sin salir. ${isla.nombre} primero, con tu dinero.` : `A medianoche solo grabas ${isla.nombre}. A las 6 van las ${n} islas.`, 5000); }
+  if(avisoNoche){ avisoNoche=false; const n=S.config.islas.length; toast(st.tramo===2 && !st.t2Listo ? `Ahora grabas las ${n} islas. Siempre inicia con ${isla.nombre}.` : `A medianoche solo grabas ${isla.nombre}. A las 6 van las ${n} islas.`, 5000); }
   const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
   // A las 6 no hay nada que decidir: se graban las tres islas en orden. Se abre la siguiente pendiente sin pasar por aquí.
   if(st.tramo===2 && !st.t2Listo && !S.noche.sinAuto){
