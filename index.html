@@ -217,6 +217,7 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .pin i.on{background:var(--mod);border-color:var(--mod)}
 .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:320px;margin:0 auto}
 .key{aspect-ratio:1.5;border-radius:var(--r);border:1px solid var(--line2);background:var(--surface);font:600 24px var(--font-mono);color:var(--fg);cursor:pointer;transition:background .1s}
+@media (max-width:640px){.keys{max-width:min(380px,100%);gap:12px}.key{aspect-ratio:1.3;font-size:38px;min-height:72px}.pin{gap:16px}.pin i{width:18px;height:18px}}
 .key:active{background:var(--accent-soft)}
 
 /* Islas */
@@ -604,7 +605,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.3';
+const OM_VERSION='1.2.4';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
