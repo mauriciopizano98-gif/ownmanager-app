@@ -341,6 +341,22 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 @keyframes om-trazo{0%{clip-path:inset(0 100% 0 0)}55%{clip-path:inset(0 0% 0 0)}88%{clip-path:inset(0 0% 0 0)}100%{clip-path:inset(0 100% 0 0)}}
 @keyframes om-gota{0%,52%{transform:scale(0);opacity:1}70%{transform:scale(1.08)}78%{transform:scale(1)}88%{transform:scale(1);opacity:1}96%{transform:scale(1);opacity:0}100%{transform:scale(0);opacity:0}}
 @keyframes om-slide{from{background-position:0 0}to{background-position:220% 0}}
+/* Animación de terminado (idea de Mauricio, 13-nov): la marca se dibuja UNA vez, nace la gota y la gota se transforma en la palomita,
+   que se queda fija. La barra se llena de verde. Misma tinta que el logo. */
+.om-loader.fin .sw{animation:om-trazo-fin 1.1s cubic-bezier(.65,0,.35,1) forwards}
+.om-loader.fin .gt{animation:om-gota-fin .45s .95s cubic-bezier(.34,1.4,.64,1) forwards, om-gota-va .32s 1.7s ease-in forwards}
+.om-loader .chk{fill:none;stroke:currentColor;stroke-width:34;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:260;stroke-dashoffset:260;transform-box:fill-box;transform-origin:50% 50%;transform:scale(.35);opacity:0}
+.om-loader.fin .chk{animation:om-chk .6s 1.82s cubic-bezier(.2,.9,.3,1.15) forwards}
+.om-loader.fin .pulso{animation:none;background:var(--line2);position:relative;overflow:hidden}
+.om-loader.fin .pulso::after{content:'';position:absolute;inset:0;background:var(--ok);transform-origin:left;transform:scaleX(0);animation:om-llena 1.2s .2s ease forwards}
+.fin h1{margin-top:4px}
+@keyframes om-gota-va{to{transform:scale(0);opacity:0}}
+@keyframes om-chk{0%{stroke-dashoffset:260;transform:scale(.35);opacity:1}100%{stroke-dashoffset:0;transform:scale(1);opacity:1}}
+@keyframes om-trazo-fin{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0% 0 0)}}
+@keyframes om-gota-fin{0%{transform:scale(0);opacity:1}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes om-llena{to{transform:scaleX(1)}}
+@keyframes om-dibuja{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.om-loader.fin .sw,.om-loader.fin .gt,.om-loader.fin .pulso::after,.om-loader.fin .chk{animation:none}.om-loader.fin .sw{clip-path:none}.om-loader.fin .gt{transform:scale(0);opacity:0}.om-loader.fin .pulso::after{transform:none}.om-loader.fin .chk{stroke-dashoffset:0;transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.om-loader .sw,.om-loader .gt,.om-loader .pulso{animation:none}.om-loader .sw{clip-path:none}.om-loader .gt{transform:none}}
 /* Barra de pulso bajo la cabecera (carga del tablero) */
 .top{position:sticky}
@@ -611,7 +627,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.3.1';
+const OM_VERSION='1.4.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -702,6 +718,10 @@ function omLoader(o){ o=o||{}; const id='omg'+(++omSeq); const chico=o.tam==='ch
   el.listo=t=>{ el.classList.add('listo'); if(t!=null) txt.textContent=t; return el; };
   return el;
 }
+// Terminado: el mismo isotipo, una sola pasada, y una palomita que se queda fija. Es la señal única de "ya quedó" en toda la app.
+function omListo(o){ o=o||{}; const el=omLoader({texto:o.texto||''}); el.classList.add('fin'); el.removeAttribute('aria-busy');
+  // La palomita nace donde está la gota (caja de la gota: x 990–1091, y 414–564 en el viewBox del isotipo) y se queda ahí.
+  const chk=document.createElementNS('http://www.w3.org/2000/svg','path'); chk.setAttribute('class','chk'); chk.setAttribute('d','M962 500 L1026 562 L1126 426'); el.querySelector('svg').append(chk); return el; }
 // Barra de pulso bajo la cabecera mientras el tablero espera al servidor (con retardo para no parpadear).
 let omPend=0, omPendT=null;
 function omCarga(delta){ omPend=Math.max(0,omPend+delta); const bar=$('#om-topbar'); if(!bar) return;
@@ -831,13 +851,13 @@ async function cargarConfig(){
     sel(sb.from('islas').select('*').eq('estacion_id',estId).eq('activa',true).order('orden').order('numero')),
     sel(sb.from('mangueras').select('*').eq('estacion_id',estId).eq('activa',true).order('orden')),
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
-    sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta').eq('estacion_id',estId).order('nombre')) ]);
+    sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta,velador').eq('estacion_id',estId).order('nombre')) ]);
   S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id, codigo:m.codigo_pantalla||null};
   S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[],
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
   for(const i of S.config.islas) for(const m of i.mangueras) m.producto=m.producto;
-  S.desp = desp.map(d=>({ id:d.id, clave:d.clave, nombre:d.nombre, activo:d.activo, bloqueadoHasta:d.bloqueado_hasta }));
+  S.desp = desp.map(d=>({ id:d.id, clave:d.clave, nombre:d.nombre, activo:d.activo, bloqueadoHasta:d.bloqueado_hasta, velador:!!d.velador }));
   ESTACION = est.nombre;
   medirLogo();
 }
@@ -853,7 +873,7 @@ function render(){
   app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
-  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:renderNoche, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
+  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:nocheAuto, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
 }
 
 // ---- LOGIN
@@ -870,8 +890,11 @@ function renderLogin(){
     h('button',{class:esDep?'':'on',onclick:()=>{ S.destino='home'; render(); }}, h('span',{class:'ic'},'⛽'), h('span',{}, h('b',{},'Iniciar corte'), h('small',{},'de turno'))),
     h('button',{class:esDep?'on dep':'',onclick:()=>{ S.destino='deposito'; render(); }}, h('span',{class:'ic'},'🔒'), h('span',{}, h('b',{},'Depósito'), h('small',{},'a caja fuerte'))));
   if(!esApk()) box.append(modo);
+  const vel=veladores(); const soloVel = hayModoNoche() && esEntradaNoche() && vel.length && !S.verTodos;
+  const lista = soloVel ? vel : activos;
   if(!activos.length){ box.append(h('div',{class:'card empty'}, h('b',{},'Todavía no hay despachadores dados de alta'), 'Mauricio los agrega desde el tablero de administración.')); }
-  else box.append(h('div',{class:'people'}, ...activos.map(d=>h('button',{class:'person',onclick:()=>pinScreen(d)}, h('span',{class:'avatar'},iniciales(d.nombre)), h('span',{},d.nombre)))));
+  else box.append(h('div',{class:'people'+(soloVel?' noche':'')}, ...lista.map(d=>h('button',{class:'person',onclick:()=>{ S.verTodos=false; pinScreen(d); }}, h('span',{class:'avatar'},iniciales(d.nombre)), h('span',{},d.nombre)))));
+  if(soloVel) box.append(h('button',{class:'btn ghost block',onclick:()=>{ S.verTodos=true; render(); }},'Ver a todos los despachadores'));
   app.append(box);
 }
 // Botón de ver/ocultar contraseña (icono de ojo) para un campo password
@@ -918,7 +941,11 @@ async function logout(){ const t=S.token; S.me=null; S.corte=null; S.frames=[]; 
 function turnosNoche(){ return (S.config.turnos||[]).filter(t=>Number(t.noche)>=1).sort((a,b)=>Number(a.noche)-Number(b.noche)); }
 function hayModoNoche(){ return turnosNoche().length===2; }
 // Ventana en la que la pantalla ofrece primero el turno de noche: 23:00 → 07:30 (los turnos de día siguen disponibles abajo).
-function esHorarioNoche(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=23*60 || m<7*60+30; }
+function esHorarioNoche(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=23*60 || m<7*60+30; } // modo noche (veladores): 23:00–07:30
+function esEntradaNoche(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=23*60 || m<7*60; }    // entrada solo con veladores: 23:00–07:00
+function cierrePermitido(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=30 && m<7*60+30; }   // el cierre (3 islas) se abre a las 00:30
+function veladores(){ return S.desp.filter(d=>d.activo!==false && d.velador); }
+function esVelador(){ return !!(S.me && (S.desp.find(d=>d.id===S.me.id)||{}).velador); }
 function fechaNoche(){ const t=nowMX(); return t.hora>=12 ? t.fecha : addDays(t.fecha,-1); } // la noche se nombra por el día en que empieza
 function islaNocturna(){ return S.config.islas.find(i=>i.id===S.config.islaNocturna) || S.config.islas[0]; }
 async function estadoNoche(){
@@ -931,64 +958,54 @@ async function estadoNoche(){
   const t2Listo = islas.every(i=>hecho(e2.find(x=>x.isla===i.id)));
   return { t1, t2, d1, d2, e1, e2, t1Listo, t2Listo, tramo: t1Listo? 2 : 1 };
 }
-let avisoNoche=false; // al entrar por el botón, un recordatorio de 5 s de lo que toca grabar
-async function renderNoche(){
+// ---- NOCHE AUTOMÁTICA (13-nov-2026). El reloj decide; el velador solo graba y cuenta.
+//  · 23:00–00:30 (o mientras falte): medianoche → Isla 1 (las demás se cierran solas con cero). En la computadora: dinero igual que de día.
+//  · desde las 00:30: cierre → graba Isla 1, 2 y 3 en fila; las islas sin movimiento se sellan solas "sin ventas" (lo decide la IA);
+//    en la computadora solo pide el dinero de la isla que vendió. Un solo PDF con la noche separada en 22–24 y 00–06.
+function hechoNoche(x){ return !!(x&&(x.estado==='enviado'||x.estado==='omitida')); }
+function ordenNoche(){ const i1=islaNocturna(); return [i1, ...S.config.islas.filter(i=>i.id!==i1.id)]; }
+function guardarNoche(o){ S.noche=Object.assign(S.noche||{},o); try{ localStorage.setItem('om_noche', JSON.stringify(S.noche)); }catch(_){} }
+async function nocheAuto(){
   const wrap=h('div',{class:'stack noche'}); app.append(wrap);
-  wrap.append(h('div',{class:'row between'}, h('div',{}, h('p',{class:'eyebrow'},'Hola, '+S.me.nombre.split(' ')[0]), h('h1',{},'Turno de noche')), h('button',{class:'btn sm ghost',onclick:()=>{ S.noche.sinAuto=true; go('home'); }},'Ver turnos de día')));
-  const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Revisando la noche…'})); wrap.append(cargando);
-  const st=await estadoNoche();
-  const isla = S.noche && S.noche.islaId ? S.config.islas.find(i=>i.id===S.noche.islaId) : islaNocturna();
-  S.noche = Object.assign(S.noche||{}, { islaId: isla.id, fecha: st.d1 });
-  if(avisoNoche){ avisoNoche=false; const n=S.config.islas.length; toast(st.tramo===2 && !st.t2Listo ? `Ahora grabas las ${n} islas. Siempre inicia con ${isla.nombre}.` : `A medianoche solo grabas ${isla.nombre}. A las 6 van las ${n} islas.`, 5000); }
-  const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
-  // A las 6 no hay nada que decidir: se graban las tres islas en orden. Se abre la siguiente pendiente sin pasar por aquí.
-  if(st.tramo===2 && !st.t2Listo && !S.noche.sinAuto){
-    const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
-    const sig=orden.find(i=>{ const x=st.e2.find(y=>y.isla===i.id); return !hecho(x) && !(x&&x.estado==='abierto'&&!x.mio); });
-    if(sig){ cargando.querySelector('.txt')&&(cargando.querySelector('.txt').textContent=`Abriendo ${sig.nombre}…`); await empezarTramo(st,2,sig); return; }
+  const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Un momento…'})); wrap.append(cargando);
+  const st=await estadoNoche(); const i1=islaNocturna();
+  let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(_){}
+  const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; const m=mios.find(z=>z.id===x.id); return !!(m && (m.evidencia_en || (m.paso&&m.paso!=='evidencia'))); };
+  guardarNoche({ fecha:st.d1, islaId:i1.id });
+  const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
+  // 1) Medianoche pendiente (aunque sean las 3: se pide primero y queda con su hora real)
+  if(!st.t1Listo){
+    const x=st.e1.find(y=>y.isla===i1.id);
+    if(x && x.estado==='abierto' && !x.mio){ cargando.remove(); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},'Medianoche abierta por '+x.quien), h('p',{class:'muted'},'Solo esa persona puede continuarla.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
+    guardarNoche({tramo:1, turno:st.t1.id, activa:i1.id});
+    cargando.querySelector('.txt').textContent='Medianoche · '+i1.nombre+'…';
+    await empezarTramo(st,1,i1); return;
   }
+  // 2) Medianoche enviada y todavía no son las 00:30
+  if(!st.t2Listo && !cierrePermitido()){
+    cargando.remove(); wrap.append(pantallaFin({titulo:'Medianoche enviada', texto:'El cierre de la noche se abre a partir de las 00:30.', boton:'Salir', onclick:salir})); return;
+  }
+  // 3) Cierre: primero los videos de las islas que no tienen fotos, en orden
+  if(!st.t2Listo){
+    guardarNoche({tramo:2, turno:st.t2.id, activa:i1.id});
+    const orden=ordenNoche();
+    const ajena=orden.find(i=>{ const x=st.e2.find(y=>y.isla===i.id); return x&&x.estado==='abierto'&&!x.mio; });
+    if(ajena){ cargando.remove(); const x=st.e2.find(y=>y.isla===ajena.id); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},ajena.nombre+' abierta por '+x.quien), h('p',{class:'muted'},'Solo esa persona puede continuarla.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
+    const sinFotos=orden.find(i=>!conFotos(st.e2.find(y=>y.isla===i.id)));
+    if(sinFotos){ cargando.querySelector('.txt').textContent='Cierre · '+sinFotos.nombre+'…'; await empezarTramo(st,2,sinFotos); return; }
+    // todas con fotos: en la computadora toca el dinero de la que vendió (la nocturna primero)
+    const pend=orden.find(i=>!hechoNoche(st.e2.find(y=>y.isla===i.id)));
+    if(pend){ const x=st.e2.find(y=>y.isla===pend.id); cargando.querySelector('.txt').textContent='Abriendo '+pend.nombre+'…'; await cargarCorte(x.id); return; }
+  }
+  // 4) Noche cerrada
   cargando.remove();
-  const paso=(n,txt,estado)=>h('div',{class:'npaso '+(estado||'')}, h('span',{class:'n'},estado==='ok'?'✓':n), h('div',{}, txt));
-  // Tramo 1 · 22–24
-  const c1=h('div',{class:'card stack'});
-  c1.append(h('div',{class:'sechead'}, h('h3',{},`1. ${st.t1.nombre}`), h('span',{class:'chip '+(st.t1Listo?'ok':'acc')}, st.t1Listo?'Enviado':'A medianoche')));
-  if(st.t1Listo){ c1.append(h('p',{class:'small muted'},`Listo. ${isla.nombre} con su venta; las demás islas cerradas.`)); }
-  else {
-    c1.append(h('p',{class:'muted'},`Cuando den las 12: graba la pantalla de ${isla.nombre} (10 segundos) y cuenta tu dinero.`),
-      h('div',{class:'row',style:'gap:8px;flex-wrap:wrap;align-items:center'}, h('span',{class:'chip acc'},'Bomba de la noche: '+isla.nombre),
-        h('button',{class:'btn sm ghost',onclick:()=>elegirIslaNoche(st)},'Usé otra bomba')));
-    const abierto=st.e1.find(x=>x.isla===isla.id && x.estado==='abierto');
-    c1.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,1,isla)}, abierto? (abierto.mio?'Continuar el corte de medianoche':'Abierto por '+abierto.quien) : 'Empezar: grabar '+isla.nombre));
-  }
-  wrap.append(c1);
-  // Tramo 2 · 00–06
-  const c2=h('div',{class:'card stack'});
-  c2.append(h('div',{class:'sechead'}, h('h3',{},`2. ${st.t2.nombre}`), h('span',{class:'chip '+(st.t2Listo?'ok':(st.t1Listo?'acc':''))}, st.t2Listo?'Enviado':'A las 6 de la mañana')));
-  if(st.t2Listo){ c2.append(h('p',{class:'small muted'},'Listo. Noche terminada; el turno de la mañana ya puede empezar.')); }
-  else {
-    const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
-    c2.append(h('p',{class:'muted'},`A las 6: graba las ${S.config.islas.length} islas, una por una (${isla.nombre} primero, con tu dinero; las demás solo para comprobar que no se movieron).`));
-    const lista=h('div',{class:'stack',style:'gap:6px'});
-    orden.forEach((i,k)=>{ const x=st.e2.find(y=>y.isla===i.id); const ok=hecho(x); lista.append(paso(k+1, h('div',{}, h('b',{},i.nombre+(i.id===isla.id?' · con tu dinero':' · solo comprobar')), h('div',{class:'small muted'}, ok? (x.estado==='omitida'?'Cerrada':'Enviada') : (x&&x.estado==='abierto'? (x.mio?'Abierta · continuar':'Abierta por '+x.quien) : 'Pendiente'))), ok?'ok':'')); });
-    c2.append(lista);
-    const sig=orden.find(i=>!hecho(st.e2.find(y=>y.isla===i.id)));
-    if(sig) c2.append(h('button',{class:'btn '+(st.t1Listo?'primary':'')+' big block',onclick:()=>empezarTramo(st,2,sig)}, (st.e2.find(y=>y.isla===sig.id&&y.estado==='abierto')?'Continuar ':'Grabar ')+sig.nombre));
-  }
-  wrap.append(c2);
-  wrap.append(h('p',{class:'hint'},'Si algo no sale, toca "Ver turnos de día" y abre el corte como siempre.'));
-}
-function elegirIslaNoche(st){
-  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
-  const g=h('div',{class:'bgrid'}); for(const i of S.config.islas) g.append(h('button',{class:'btn'+(i.id===S.noche.islaId?' primary':''),onclick:()=>{ S.noche.islaId=i.id; sheet.remove(); render(); }}, h('b',{},i.nombre), h('span',{class:'small'},i.productos.join(' · '))));
-  sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Qué bomba usaste esta noche?'), h('p',{class:'muted'},'Las demás se cierran solas con cero litros.'), g, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Cancelar')));
-  document.body.append(sheet);
+  wrap.append(pantallaFin({titulo:'Noche cerrada', texto:'', boton:'Listo, gracias', onclick:salir, extra: await botonPDFNoche(st)}));
 }
 // Abre (o continúa) el corte de una isla en el tramo indicado. En el tramo 1 cierra las otras islas en cero.
 async function empezarTramo(st, tramo, isla){
   const turno = tramo===1? st.t1.id : st.t2.id; const fecha = tramo===1? st.d1 : st.d2;
   const estados = tramo===1? st.e1 : st.e2;
-  S.noche = Object.assign(S.noche||{}, { tramo, turno, fecha, islaId: S.noche&&S.noche.islaId||isla.id, activa: (tramo===1? isla.id : (S.noche&&S.noche.islaId)||isla.id) });
-  try{ localStorage.setItem('om_noche', JSON.stringify(S.noche)); }catch(_){}
+  guardarNoche({ tramo, turno, fecha:st.d1, islaId: islaNocturna().id, activa: islaNocturna().id });
   try{
     if(tramo===1){
       for(const i of S.config.islas){ if(i.id===isla.id) continue; const x=estados.find(y=>y.isla===i.id); if(x&&(x.estado==='enviado'||x.estado==='omitida'||x.estado==='abierto')) continue;
@@ -999,8 +1016,56 @@ async function empezarTramo(st, tramo, isla){
     await cargarCorte(id);
   }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),6000); }
 }
-function esCorteNoche(c){ if(!S.noche){ try{ const g=JSON.parse(localStorage.getItem('om_noche')||'null'); if(g && g.fecha===fechaNoche()) S.noche=g; }catch(_){} } return !!(S.noche && c && hayModoNoche() && turnosNoche().some(t=>t.id===c.turno)); }
-function islaActivaNoche(c){ return esCorteNoche(c) && S.noche.tramo===2 ? c.isla===S.noche.activa : true; }
+// Pantalla de final: animación de marca una sola vez que termina en palomita y se queda quieta.
+function pantallaFin(o){
+  const box=h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},o.titulo||'Listo'), o.texto? h('p',{class:'muted'},o.texto):null, o.extra||null,
+    o.boton? h('button',{class:'btn primary big block',onclick:o.onclick},o.boton):null);
+  return box;
+}
+// Entrada global de video para encadenar islas con un solo toque ("Ahora graba la Isla 2" abre la cámara y, mientras, carga el corte).
+const vidGlobal=h('input',{type:'file',accept:'video/*',capture:'environment',hidden:true}); document.addEventListener('DOMContentLoaded',()=>document.body.append(vidGlobal));
+vidGlobal.addEventListener('change',()=>{ const f=vidGlobal.files&&vidGlobal.files[0]; vidGlobal.value=''; if(!f) return; if(S._procesarVideo && S.screen==='corte') S._procesarVideo(f); else S.videoPendiente=f; });
+// Después de guardar las fotos de una isla en la noche: la IA lee; las islas cerradas se sellan solas; y sigue la siguiente isla con un toque.
+function siguienteFotosNoche(c){
+  const box=h('div',{class:'stack'}, h('p',{class:'hint',id:'noche-sig'},'Leyendo los contadores…'));
+  (async()=>{
+    try{ await leerConIA(c, true); }catch(_){}
+    const st=await estadoNoche(); const i1=islaNocturna(); const tramo = c.turno===st.t1.id ? 1 : 2;
+    let conVenta=null;
+    if(tramo===2 && c.isla!==i1.id){
+      try{ await rpc('cerrar_isla_sin_ventas',{p_token:S.token, p_corte:c.id}); }
+      catch(e){ conVenta = /hubo_movimiento/.test(e.message||'') ? 'venta' : 'otro'; }
+    }
+    box.innerHTML='';
+    if(conVenta==='venta') box.append(h('div',{class:'alert warn',style:'display:block'},`${c.islaNombre} marcó litros esta noche. En la computadora te pedirá su dinero.`));
+    if(tramo===1){ box.append(h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo')); return; }
+    let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(_){}
+    const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; if(x.id===c.id) return true; const m=mios.find(z=>z.id===x.id); return !!(m && (m.evidencia_en || (m.paso&&m.paso!=='evidencia'))); };
+    const sig=ordenNoche().find(i=>!conFotos(st.e2.find(y=>y.isla===i.id)));
+    if(sig){ box.append(h('button',{class:'btn primary big block',onclick:()=>{ abrirArchivo(vidGlobal); empezarTramo(st,2,sig); }},`Ahora graba la ${sig.nombre}`)); }
+    else box.append(h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo'));
+  })().catch(()=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:()=>go('home')},'Seguir')); });
+  return box;
+}
+// Después de enviar un corte de noche desde la computadora.
+function siguienteNoche(c){
+  const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
+  const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
+  (async()=>{ const st=await estadoNoche(); box.innerHTML='';
+    if(c.turno===st.t1.id){ box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias')); return; } // medianoche: nada se imprime
+    const pend=ordenNoche().find(i=>!hechoNoche(st.e2.find(y=>y.isla===i.id)));
+    if(pend){ const x=st.e2.find(y=>y.isla===pend.id); box.append(h('p',{class:'muted'},`${pend.nombre} marcó litros esta noche: captura su dinero.`), h('button',{class:'btn primary big block',onclick:()=>cargarCorte(x.id)},`Ahora el dinero de ${pend.nombre}`)); return; }
+    box.append(await botonPDFNoche(st), h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias'));
+  })().catch(()=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias')); });
+  return box;
+}
+async function botonPDFNoche(st){
+  return h('button',{class:'btn ok big block',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t=b.textContent; b.textContent='Generando…';
+    try{ const blob=await generarPDFNoche(st); const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:`Noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+    catch(e){ toast('No se pudo generar el PDF: '+(e.message||e),5000); }
+    b.disabled=false; b.textContent=t; }},'Imprimir el corte de la noche');
+}
+function esCorteNoche(c){ return !!(c && hayModoNoche() && turnosNoche().some(t=>t.id===c.turno)); } // un corte es de noche por su turno, en cualquier dispositivo
 async function renderHome(){
   const sug=turnoSugerido();
   const sel={ turno:sug.turno, fecha:sug.fecha, isla:null };
@@ -1009,11 +1074,8 @@ async function renderHome(){
   // cortes abiertos del despachador en sesión (el servidor solo devuelve los suyos)
   let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(e){ toast('No se pudieron cargar tus cortes: '+(e.message||e.code),5000); if(/sesion_invalida/.test(e.message)) { logout(); return; } }
   const abiertos=mios.filter(x=>x.estado==='abierto');
-  if(hayModoNoche() && esHorarioNoche()){
-    wrap.append(h('div',{class:'card stack noche-card'}, h('div',{class:'sechead'}, h('h3',{},'🌙 Turno de noche'), h('span',{class:'chip acc'},'Velador')),
-      h('p',{class:'muted'},'Dos cortes chiquitos: uno a medianoche y otro a las 6. La app te dice qué grabar.'),
-      h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; esCorteNoche(null); if(S.noche) S.noche.sinAuto=false; avisoNoche=true; go('noche'); }},'Últimas lecturas del velador')));
-  }
+  // Velador en horario de noche: la app decide sola (medianoche: Isla 1; desde las 00:30: las tres islas). No hay nada que elegir.
+  if(hayModoNoche() && esHorarioNoche() && esVelador() && !S.nocheManual){ wrap.remove(); await nocheAuto(); return; }
   if(abiertos.length){
     const c=h('div',{class:'card'}, h('h3',{},'Tienes un corte sin terminar'));
     for(const x of abiertos){ const isla=S.config.islas.find(i=>i.uuid===x.isla_id);
@@ -1156,13 +1218,23 @@ function renderCorte(){
   app.append(h('div',{class:'steps'}, ...orden.map((p,k)=>h('i',{class:k<idx?'done':(k===idx?'on':'')}))));
   if(paso==='evidencia' && S.adelanto && !esApk()){ renderDinero(true); return; }
   S.adelanto=false;
+  if(paso==='lecturas' && esCorteNoche(c) && !c._lecturasRevisar){ renderLecturasNoche(c); return; }
   ({evidencia:renderEvidencia, lecturas:renderLecturas, dinero:renderDinero})[paso]();
+}
+// Noche: lecturas sin revisar cuando la IA leyó bien todas (decisión de Mauricio, 13-nov-2026). Si algo falta o no cuadra, la pantalla normal.
+async function renderLecturasNoche(c){
+  const espera=h('div',{class:'card'},omLoader({tam:'medio',texto:'Leyendo los contadores…'})); app.append(espera);
+  if(c.lecturas.some(l=>!l.omitida && l.fotoId && l.final==null && l.lecturaIA==null && l.legibleIA==null)){ try{ await leerConIA(c, true); }catch(_){} }
+  if(S.corte!==c || S.screen!=='corte') return;
+  const max=S.config.maxLitrosTurno||8000;
+  const ok=c.lecturas.every(l=>l.omitida || (l.inicial!=null && l.final!=null && l.legibleIA && l.origen==='ia' && l.final>=l.inicial && (l.final-l.inicial)<=max && !(l.inicialCorregida&&!l.motivo)));
+  if(ok){ for(const l of c.lecturas){ l.litros = l.omitida? 0 : Math.round((l.final-l.inicial)*1000)/1000; } c.paso='dinero'; c.dinero=c.dinero||{ tarjetas:[], efectivo:{billetes:{},monedas:{}}, clientes:[], comentario:'' }; c.dinero.seccion='tarjetas'; try{ await guardarAvance(); }catch(_){} render(); return; }
+  c._lecturasRevisar=true; espera.remove(); renderLecturas();
 }
 function renderFotosListas(c){
   app.innerHTML='';
-  const loader=omLoader({id:'ia-prog',texto:'Leyendo los contadores en las fotos…'}); loader.id='ia-loader';
-  app.append(h('div',{class:'card stack',style:'text-align:center'}, h('div',{style:'font-size:44px'},'📸'), h('h1',{},'Fotos guardadas'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
-    h('div',{style:'display:flex;justify-content:center;padding:6px 0'},loader),
+  // Palomita fija = ya quedó; el teléfono terminó su parte. La IA sigue leyendo en segundo plano y el resultado espera en la computadora.
+  app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},'Fotos guardadas'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
     esCorteNoche(c)? siguienteFotosNoche(c) : h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo · siguiente despachador')));
   setWho();
 }
@@ -1213,10 +1285,11 @@ function moneyInput(id, value, onChange){
 // 1) Evidencia: video -> cuadros -> asignar
 function codigoBonito(c){ c=String(c||'').toUpperCase(); const m=c.match(/^([AB])N?(\d+)$/); return m? `Lado ${m[1]} · Nº ${Number(m[2])}` : (c||'—'); }
 function renderEvidencia(){
-  const c=S.corte; const ms=c.lecturas;
+  const c=S.corte; const ms=c.lecturas; const noche=esCorteNoche(c);
   const card=h('div',{class:'card stack'});
-  card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Graba un solo video de máximo 40 segundos, de preferencia en horizontal, deteniéndote 2 o 3 segundos frente a la pantalla de cada bomba. La IA busca cada bomba por el código de la pantalla ("b n1") y lee el contador; tú solo confirmas.'));
-  if(puedeOmitir(c)) card.append(h('div',{class:'alert warn',style:'display:block'},'Turno nocturno: si una manguera no se abrió, toca "Omitir" en su renglón. Queda registrada con cero litros y sin foto.'));
+  if(noche) card.append(h('h2',{},`Graba la ${c.islaNombre}`), h('p',{class:'muted'},'Un solo video, pasando despacio por la pantalla de cada bomba.'));
+  else card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Graba un solo video de máximo 40 segundos, de preferencia en horizontal, deteniéndote 2 o 3 segundos frente a la pantalla de cada bomba. La IA busca cada bomba por el código de la pantalla ("b n1") y lee el contador; tú solo confirmas.'));
+  if(puedeOmitir(c) && !noche) card.append(h('div',{class:'alert warn',style:'display:block'},'Turno nocturno: si una manguera no se abrió, toca "Omitir" en su renglón. Queda registrada con cero litros y sin foto.'));
   const vidIn=h('input',{type:'file',accept:'video/*',capture:'environment',hidden:true});
   const fotoIn=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true});
   const bombaIn=h('input',{type:'file',id:'bomba-in',accept:'image/*',capture:'environment',hidden:true});
@@ -1275,9 +1348,9 @@ function renderEvidencia(){
     const selEl=film.querySelector('.fr.sel'); if(selEl) selEl.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
   }
   const repetir=h('div',{class:'card stack repetir',hidden:true});
-  function drawRepetir(){ if(!S.repetirVideo){ repetir.hidden=true; film.hidden=!S.frames.length; mlist.hidden=false; btnSubir.hidden=false; now.hidden=!S.frames.length; return; }
+  function drawRepetir(){ if(!S.repetirVideo){ repetir.hidden=true; film.hidden=!S.frames.length; const sinNada = noche && !S.frames.length && !Object.keys(pendientes).length && !ms.some(l=>l.fotoId); mlist.hidden=sinNada; btnSubir.hidden=sinNada; now.hidden=!S.frames.length; return; } // de noche, antes del video solo se ve el botón de grabar
     repetir.hidden=false; repetir.innerHTML=''; film.hidden=true; mlist.hidden=true; btnSubir.hidden=true; now.hidden=true;
-    repetir.append(h('div',{style:'font-size:40px;text-align:center'},'🎥'), h('h3',{style:'text-align:center'},'Hay que repetir el video'), h('p',{class:'muted',style:'text-align:center'},status.textContent),
+    repetir.append(h('div',{style:'font-size:40px;text-align:center'},'🎥'), h('h3',{style:'text-align:center'},'Vuelve a grabar el video'), h('p',{class:'muted',style:'text-align:center'},status.textContent),
       h('button',{class:'btn primary big block',onclick:()=>{ S.repetirVideo=false; abrirArchivo(vidIn); }},'Repetir el video'),
       h('p',{class:'hint',style:'text-align:center'},'Graba en horizontal, de frente a cada pantalla, 2 o 3 segundos sin moverte.')); }
   function drawAll(){ drawNow(); drawList(); drawFilm(); drawRepetir(); }
@@ -1329,32 +1402,40 @@ function renderEvidencia(){
     }catch(e){ console.warn('identificar', e); drawBomba({foto, k:null, r:null, error:e.message||e}); }
     btnBomba.disabled=false;
   });
-  vidIn.addEventListener('change', async ()=>{ const f=vidIn.files[0]; if(!f) return; status.hidden=false; status.textContent=''; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
+  vidIn.addEventListener('change', ()=>{ const f=vidIn.files[0]; vidIn.value=''; if(f) procesarVideo(f); });
+  async function procesarVideo(f){ status.hidden=false; status.textContent=''; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
     trabajando('OwnManager está trabajando', 'Sacando los cuadros del video… no toques la pantalla, tarda máximo 1 minuto.');
-    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ trabajando('OwnManager está trabajando', `Sacando los cuadros del video (${Math.round(p*100)} %)… no toques la pantalla, tarda máximo 1 minuto.`); }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0) delete pendientes[l.manguera]; }); drawAll(); }
+    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ trabajando('OwnManager está trabajando', `Sacando los cuadros del video (${Math.round(p*100)} %)… no toques la pantalla, tarda máximo 1 minuto.`); }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0&&p.dudosa) delete pendientes[l.manguera]; }); drawAll(); } // lo bien leído en el video anterior se conserva
     catch(e){ trabajandoFin(); status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
-    vidIn.value='';
     // La IA revisa los cuadros, encuentra cada bomba por su código y lee el contador. Pantalla bloqueada mientras tanto.
     trabajando('OwnManager está trabajando', `Buscando las bombas en ${S.frames.length} cuadros… no toques la pantalla, tarda máximo 1 minuto.`);
     try{
       const res=await identificarVideo(c, S.frames, (hechos,total)=>{ trabajando('OwnManager está trabajando', `Leyendo las bombas… cuadro ${hechos} de ${total}. No toques la pantalla, tarda máximo 1 minuto.`); });
-      let rec=0; ms.forEach(l=>{ const mejor=res[l.mangueraId]; if(!mejor||l.omitida) return; const fr=S.frames[mejor.i]; if(!fr) return; pendientes[l.manguera]={blob:fr.blob,url:fr.url,t:fr.t,codigo:mejor.codigo,valor:mejor.valor,dudosa:!mejor.legible}; rec++; });
+      let rec=0; ms.forEach(l=>{ const mejor=res[l.mangueraId]; if(!mejor||l.omitida) return; const fr=S.frames[mejor.i]; if(!fr) return;
+        const previa=pendientes[l.manguera]; // de un video anterior: se queda la mejor (legible, más votos, más nítida)
+        const nueva={blob:fr.blob,url:fr.url,t:fr.t,codigo:mejor.codigo,valor:mejor.valor,dudosa:!mejor.legible,votos:mejor.votos||0,nitidez:mejor.nitidez||0};
+        const gana = !previa || previa.t<0 || (previa.dudosa && !nueva.dudosa) || (previa.dudosa===nueva.dudosa && ((nueva.votos||0)>(previa.votos||0) || ((nueva.votos||0)===(previa.votos||0) && (nueva.nitidez||0)>=(previa.nitidez||0))));
+        if(gana) pendientes[l.manguera]=nueva; rec++; });
       S.iaVideoHecha=true; const falt=ms.filter(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida);
       const dud=ms.filter(l=>pendientes[l.manguera]&&pendientes[l.manguera].dudosa);
-      const fallas=falt.length+dud.length; S.intentosVideo=(S.intentosVideo||0)+1;
-      // Regla: si la IA falló en 2 bombas o más, se repite el video (la primera vez no se deja escoger a mano).
-      S.repetirVideo = fallas>=2 && S.intentosVideo<2;
-      status.textContent = rec===0 ? 'La IA no encontró ninguna pantalla en el video. Graba otra vez más cerca y más despacio.' : (fallas>=2? `La IA no pudo leer ${fallas} bombas (${[...falt,...dud].map(l=>l.manguera).join(', ')}). Repite el video: acércate a cada pantalla 2 o 3 segundos.` : (falt.length? `La IA reconoció ${rec} de ${ms.length} bombas. Falta ${falt.map(l=>l.manguera).join(', ')}: toca su cuadro abajo.` : (dud.length? `Falta leer bien el contador de ${dud.map(l=>l.manguera).join(', ')}: revisa su cuadro.` : `La IA reconoció las ${ms.length} bombas. Revisa y guarda.`)));
+      const fallas=falt.length+dud.length; S.intentosVideo=(S.intentosVideo||0)+1; const leidas=ms.filter(l=>!l.omitida).length-fallas;
+      // Regla (Mauricio, 13-nov-2026): si falta UNA sola bomba se repite el video completo; lo ya leído se conserva y el nuevo
+      // video solo rescata lo que faltaba. Hasta 3 videos; después se permite tocar la tira o la foto por bomba. Sin códigos en el mensaje.
+      S.repetirVideo = fallas>=1 && S.intentosVideo<3;
+      status.textContent = leidas===0 ? 'La IA no encontró ninguna pantalla en el video. Graba otra vez más cerca y más despacio.' : (fallas>=1? (S.intentosVideo<3? `Ya leí ${leidas} de ${ms.length} bombas; otras no se vieron bien. Vuelve a grabar el video completo: lo que ya se leyó se conserva.` : `Ya leí ${leidas} de ${ms.length} bombas. Las que faltan: toca su cuadro abajo o usa la foto por bomba.`) : `La IA leyó las ${ms.length} bombas. Revisa y guarda.`);
       const next=ms.findIndex(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida); active = next>=0? next : 0;
     }catch(e){ console.warn('identificar_video', e); status.textContent='La IA no pudo revisar el video ('+(e.message||e)+'). Toca el cuadro de cada manguera.'; }
     trabajandoFin(); btnVideo.disabled=false; btnBomba.disabled=false; drawAll();
     const falt=ms.filter(l=>!pendientes[l.manguera]&&!l.fotoId&&!l.omitida); if(!falt.length && S.iaVideoHecha) btnSubir.scrollIntoView({block:'center',behavior:'smooth'});
-  });
+  }
+  S._procesarVideo=procesarVideo;
   fotoIn.addEventListener('change', async ()=>{ const f=fotoIn.files[0]; if(!f) return; const blob=await comprimirImagen(f); if(ms[active].omitida) restaurarManguera(ms[active]); pendientes[ms[active].manguera]={blob,url:URL.createObjectURL(blob),t:-1}; const next=ms.findIndex((l,k)=>k>active && !pendientes[l.manguera] && !l.fotoId && !l.omitida); if(next>=0) active=next; drawAll(); fotoIn.value=''; });
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
   const otras=h('details',{class:'otras'}, h('summary',{},'Otra forma de tomar la evidencia'), h('div',{style:'margin-top:8px'}, h('button',{class:'btn block',onclick:()=>{ abrirArchivo(fotoIn); }},'📷 Foto de la manguera marcada (sin IA)')));
+  if(noche){ btnBomba.hidden = (S.intentosVideo||0)<3; otras.hidden=true; } // de noche: solo el video; la foto por bomba aparece si tras 3 videos sigue faltando algo
   card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, repetir, now, film, mlist, btnSubir, otras);
-  app.append(card); if(!esApk()) app.append(panelAdelanto(c)); drawAll();
+  app.append(card); if(!esApk() && !noche) app.append(panelAdelanto(c)); drawAll();
+  if(S.videoPendiente){ const f=S.videoPendiente; S.videoPendiente=null; procesarVideo(f); } // video grabado desde "Ahora graba la Isla N"
 }
 // La APK (teléfono en bombas) se queda solo con las fotos; adelantar datos es de la app web en computadora.
 function esApk(){ try{ if(window.Capacitor && typeof window.Capacitor.isNativePlatform==='function' && window.Capacitor.isNativePlatform()) return true; }catch(_){} return /; wv\)/.test(navigator.userAgent||'') || /OwnManagerApp/.test(navigator.userAgent||''); }
@@ -1455,7 +1536,7 @@ async function subirEvidencia(pendientes){
     await rpc('guardar_avance',{p_token:S.token, p_corte:c.id, p_lecturas:lecturasParaServidor(c), p_dinero:null, p_aceites:null, p_paso:'lecturas'});
   }catch(e){ toast('No se pudieron guardar las fotos: '+(e.message||e.code),5000); render(); return; }
   renderFotosListas(c);
-  leerConIA(c, true); // sigue en segundo plano aunque entre el siguiente despachador
+  if(!esCorteNoche(c)) leerConIA(c, true); // sigue en segundo plano aunque entre el siguiente despachador (en la noche la espera siguienteFotosNoche)
 }
 
 // IA: la función del servidor "leer-medidor" lee cada totalizador desde el almacén y guarda la lectura.
@@ -1564,8 +1645,7 @@ function renderDinero(adelanto){
   const c=S.corte; for(const l of c.lecturas) if(l.inicial!=null&&l.final!=null) l.litros=Math.round((l.final-l.inicial)*1000)/1000;
   c.dinero = c.dinero || { tarjetas:[], efectivo:{billetes:{},monedas:{},extra:{billetes:{},monedas:{}}}, clientes:[], comentario:'', seccion:'tarjetas' };
   const d=c.dinero; if(!Array.isArray(d.tarjetas)) d.tarjetas=[]; d.efectivo=d.efectivo||{billetes:{},monedas:{}}; d.efectivo.extra=d.efectivo.extra||{billetes:{},monedas:{}}; d.efectivo.extra.billetes=d.efectivo.extra.billetes||{}; d.efectivo.extra.monedas=d.efectivo.extra.monedas||{}; d.clientes=d.clientes||[];
-  const noche=!adelanto && esCorteNoche(c); const cerradaNoche = noche && !islaActivaNoche(c);
-  if(noche && !d.masNoche){ d.masNoche = !!((d.tarjetas||[]).length || (d.clientes||[]).length || calcAceites(c).piezas>0); }
+  const noche=false, cerradaNoche=false; // 13-nov-2026: en la noche el dinero se captura con la misma pantalla que de día (sin atajos ni textos extra)
   const ORDEN=adelanto?['tarjetas','arqueo','clientes','aceites']:(noche&&!d.masNoche? (cerradaNoche?['resumen']:['arqueo','resumen']) : ['tarjetas','arqueo','clientes','aceites','resumen']); if(!ORDEN.includes(d.seccion)) d.seccion=ORDEN[0]; secDinero=d.seccion;
   const venta=calcVenta(c); const tol=S.config.toleranciaPesos??50;
   const terminales=(S.config.terminales||['BBVA','Banorte','BanBajío']);
@@ -1902,6 +1982,75 @@ function reducirLogo(file){ return new Promise((res,rej)=>{ if(!/^image\/(png|jp
     let out=file.type==='image/png'?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',0.88); if(out.length>400000) out=cv.toDataURL('image/jpeg',0.82); if(out.length>400000){ const cv2=document.createElement('canvas'); cv2.width=Math.round(w*0.6); cv2.height=Math.round(hh*0.6); cv2.getContext('2d').drawImage(im,0,0,cv2.width,cv2.height); out=cv2.toDataURL('image/jpeg',0.8); }
     if(out.length>400000) return rej(new Error('la imagen sigue pesando más de 300 KB; usa una más sencilla')); res(out); };
   im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('no se pudo leer la imagen')); }; im.src=url; }); }
+// PDF de la noche: UN formato con los dos cortes de la isla nocturna (22–24 y 00–06) separados, y las otras islas como comprobación.
+// A medianoche no se imprime nada; a las 6 sale este. Se arma con los cortes del propio velador (mi_corte).
+async function generarPDFNoche(st){
+  if(!window.jspdf) throw new Error('No se cargó el generador de PDF.');
+  const i1=islaNocturna();
+  const traer=async(x)=>{ if(!x||!x.id) return null; try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); return j? corteDesdeServidor(j):null; }catch(_){ return null; } };
+  const c1=await traer(st.e1.find(y=>y.isla===i1.id)), c2=await traer(st.e2.find(y=>y.isla===i1.id));
+  const otras=[]; for(const i of S.config.islas){ if(i.id===i1.id) continue; otras.push({isla:i, c: await traer(st.e2.find(y=>y.isla===i.id)), x: st.e2.find(y=>y.isla===i.id)}); }
+  const { jsPDF } = window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210, M=14; let y=0;
+  const NOCHE=[28,42,57], AZUL=[31,79,176], ROJO=[250,77,77], VERDE=[23,165,84], GRIS=[94,110,134], LINEA=[217,225,236], SUAVE=[243,246,250];
+  const esc=x=>String(x??'');
+  const txt=(x,yy,str,o={})=>{ doc.setFont('helvetica',o.b?'bold':'normal'); doc.setFontSize(o.s||10); doc.setTextColor(...(o.c||NOCHE)); doc.text(esc(str),x,yy,{align:o.a||'left',maxWidth:o.mw}); };
+  const linea=(yy,col)=>{ doc.setDrawColor(...(col||LINEA)); doc.setLineWidth(0.3); doc.line(M,yy,W-M,yy); };
+  const caja=(x,yy,w,hh,fill)=>{ doc.setFillColor(...fill); doc.setDrawColor(...fill); doc.roundedRect(x,yy,w,hh,2,2,'F'); };
+  const filete=()=>{ [[0,245,212],[204,255,0],[255,255,0]].forEach((col,i)=>{ doc.setFillColor(...col); doc.rect(i*W/3,0,W/3+0.2,1.4,'F'); }); };
+  const logoCab=()=>{ const ld=S.config&&S.config.logoData; if(ld){ try{ const r=S.config.logoRatio||2.5; const hh=15.2, ww=Math.min(60,hh*r); doc.addImage(ld,/^data:image\/png/i.test(ld)?'PNG':'JPEG',M,10,ww,hh); return; }catch(e){} } txt(M,16,ESTACION,{b:true,s:14}); };
+  const cabecera=(titulo)=>{ filete(); logoCab(); txt(W-M,14,'CORTE DE LA NOCHE',{b:true,s:12,a:'right',c:AZUL}); txt(W-M,19.5,titulo,{s:9,a:'right',c:GRIS}); linea(25,AZUL); y=31; };
+  const pie=(n,total)=>{ linea(283); try{ doc.addImage(OM_MONO,'PNG',M,284.6,4.3,5); }catch(e){} txt(M+6,288,`Generado con Own Manager · ${ESTACION} · Noche del ${fmtFecha(st.d1)} · Sellos ${(c1&&c1.hash||'').slice(0,10)}… / ${(c2&&c2.hash||'').slice(0,10)}…`,{s:7.5,c:GRIS}); txt(W-M,288,`Página ${n} de ${total}`,{s:7.5,c:GRIS,a:'right'}); };
+  const tabla=(cols,rows,opts={})=>{ const x0=M; const ws=cols.map(k=>k.w); const rowH=opts.rowH||6.2; const tw=ws.reduce((a,b)=>a+b,0);
+    const header=()=>{ caja(x0,y,tw,rowH,SUAVE); let x=x0; cols.forEach((k,i)=>{ txt(k.a==='right'?x+ws[i]-2:x+2,y+4.3,k.t,{b:true,s:8,c:GRIS,a:k.a||'left'}); x+=ws[i]; }); y+=rowH; };
+    header();
+    rows.forEach((r,ri)=>{ if(y>268){ pie(opts.pagina,opts.total); doc.addPage(); cabecera(opts.titulo||''); header(); } let x=x0; const bold=r.bold||(ri===rows.length-1&&opts.ultimaNegrita); cols.forEach((k,i)=>{ txt(k.a==='right'?x+ws[i]-2:x+2,y+4.3,r[i],{s:8.5,b:bold,a:k.a||'left',c:r.color||NOCHE}); x+=ws[i]; }); linea(y+rowH); y+=rowH; });
+    y+=3; };
+  const TOTAL=2; const t1n=st.t1.nombre, t2n=st.t2.nombre;
+  const quien=(c2&&c2.despachadorNombre)||(c1&&c1.despachadorNombre)||(S.me&&S.me.nombre)||'';
+  const lit=(c)=>c&&c.totales?Number(c.totales.litros)||0:0; const dec=(c)=>c?calcDinero(c.dinero||{}):{efectivo:0,tarjetas:0,clientes:0,declarado:0};
+  const vimp=(c)=>c&&c.venta&&c.venta.importe!=null?Number(c.venta.importe):null; const dif=(c)=>{ const v=vimp(c); return v==null?null:Math.round((dec(c).declarado-v)*100)/100; };
+  // ---------- Página 1: lecturas y venta, separadas por tramo
+  cabecera(`${ESTACION} · ${i1.nombre} · ${t1n} y ${t2n}`);
+  txt(M,y+2,`Noche del ${fmtFecha(st.d1)} · ${i1.nombre}`,{b:true,s:16}); txt(M,y+8,`Velador: ${quien}`,{s:10,c:GRIS}); y+=14;
+  const info=[[t1n+' enviado', c1&&c1.enviadoEn?fmtHora(c1.enviadoEn):'—'],[t2n+' enviado', c2&&c2.enviadoEn?fmtHora(c2.enviadoEn):'—'],['Litros '+t1n, fmtL(lit(c1))+' L'],['Litros '+t2n, fmtL(lit(c2))+' L']];
+  info.forEach((p,i)=>{ const col=i%2, row=Math.floor(i/2); const x=M+col*91; txt(x,y+row*6.5,p[0],{s:8,c:GRIS}); txt(x+40,y+row*6.5,p[1],{s:9,b:true}); }); y+=2*6.5+4;
+  const kw=(W-2*M-3*3)/4; const dT=dif(c1), dN=dif(c2);
+  [['Litros de la noche',fmtL(lit(c1)+lit(c2))+' L',AZUL],['Venta esperada',fmtMXN((vimp(c1)||0)+(vimp(c2)||0)),AZUL],['Declarado',fmtMXN(dec(c1).declarado+dec(c2).declarado),NOCHE],['Diferencia',(dT==null&&dN==null)?'—':((dT||0)+(dN||0)>=0?'+':'')+fmtMXN((dT||0)+(dN||0)),((dT||0)+(dN||0))<-(S.config.toleranciaPesos??50)?ROJO:VERDE]]
+    .forEach((k,i)=>{ const x=M+i*(kw+3); caja(x,y,kw,18,SUAVE); txt(x+3,y+5.5,k[0],{s:7.5,c:GRIS}); txt(x+3,y+13,k[1],{s:11.5,b:true,c:k[2]}); }); y+=24;
+  txt(M,y,`Lecturas del totalizador · ${i1.nombre}`,{b:true,s:11}); y+=3;
+  const l1=(c1&&c1.lecturas)||[], l2=(c2&&c2.lecturas)||[]; const claves=[...new Set([...l1,...l2].map(l=>l.manguera))];
+  const filasL=claves.map(k=>{ const a=l1.find(l=>l.manguera===k), b=l2.find(l=>l.manguera===k); return [k,(a||b||{}).producto||'', a&&a.inicial!=null?fmtL(a.inicial):'—', a&&a.final!=null?fmtL(a.final):'—', a&&a.litros!=null?fmtL(a.litros):'—', b&&b.final!=null?fmtL(b.final):'—', b&&b.litros!=null?fmtL(b.litros):'—', fmtL((a&&a.litros||0)+(b&&b.litros||0))]; });
+  filasL.push(Object.assign(['Total','','','',fmtL(lit(c1)),'',fmtL(lit(c2)),fmtL(lit(c1)+lit(c2))],{bold:true}));
+  tabla([{t:'Manguera',w:22},{t:'Producto',w:20},{t:'Inicial 22h',w:25,a:'right'},{t:'Final 24h',w:25,a:'right'},{t:'L 22–24',w:20,a:'right'},{t:'Final 6h',w:25,a:'right'},{t:'L 00–06',w:20,a:'right'},{t:'L noche',w:25,a:'right'}],filasL,{pagina:1,total:TOTAL,titulo:'Lecturas'});
+  txt(M,y,'Venta por producto',{b:true,s:11}); y+=3;
+  const prods=[...new Set([...Object.keys((c1&&c1.venta&&c1.venta.porProducto)||{}),...Object.keys((c2&&c2.venta&&c2.venta.porProducto)||{})])];
+  const vp=(c,p)=>(c&&c.venta&&c.venta.porProducto&&c.venta.porProducto[p])||{litros:0,importe:0,precio:null};
+  const filasV=prods.map(p=>[p, fmtL(vp(c1,p).litros)+' L', vp(c1,p).precio!=null?fmtMXN(vp(c1,p).importe):'—', fmtL(vp(c2,p).litros)+' L', vp(c2,p).precio!=null?fmtMXN(vp(c2,p).importe):'—', fmtMXN((Number(vp(c1,p).importe)||0)+(Number(vp(c2,p).importe)||0))]);
+  filasV.push(Object.assign(['Total',fmtL(lit(c1))+' L',vimp(c1)!=null?fmtMXN(vimp(c1)):'—',fmtL(lit(c2))+' L',vimp(c2)!=null?fmtMXN(vimp(c2)):'—',fmtMXN((vimp(c1)||0)+(vimp(c2)||0))],{bold:true}));
+  tabla([{t:'Producto',w:32},{t:'L 22–24',w:28,a:'right'},{t:'$ 22–24',w:30,a:'right'},{t:'L 00–06',w:28,a:'right'},{t:'$ 00–06',w:30,a:'right'},{t:'$ noche',w:34,a:'right'}],filasV,{pagina:1,total:TOTAL,titulo:'Venta'});
+  pie(1,TOTAL);
+  // ---------- Página 2: dinero por tramo, otras islas y firmas
+  doc.addPage(); cabecera('Dinero por tramo · comprobación de las otras islas');
+  txt(M,y,'Dinero entregado',{b:true,s:11}); y+=3;
+  const d1=dec(c1), d2=dec(c2);
+  const fd=(nombre,a,b)=>[nombre,fmtMXN(a),fmtMXN(b),fmtMXN(a+b)];
+  const filasD=[fd('Tarjetas',d1.tarjetas,d2.tarjetas), fd('Efectivo',d1.efectivo,d2.efectivo), fd('Clientes marcados u otros',d1.clientes,d2.clientes), Object.assign(fd('Declarado',d1.declarado,d2.declarado),{bold:true}),
+    ['Venta esperada',vimp(c1)!=null?fmtMXN(vimp(c1)):'—',vimp(c2)!=null?fmtMXN(vimp(c2)):'—',fmtMXN((vimp(c1)||0)+(vimp(c2)||0))],
+    Object.assign(['Diferencia',dT==null?'—':(dT>=0?'+':'')+fmtMXN(dT),dN==null?'—':(dN>=0?'+':'')+fmtMXN(dN),(dT==null&&dN==null)?'—':(((dT||0)+(dN||0))>=0?'+':'')+fmtMXN((dT||0)+(dN||0))],{bold:true,color:((dT||0)+(dN||0))<-(S.config.toleranciaPesos??50)?ROJO:NOCHE})];
+  tabla([{t:'',w:62},{t:t1n,w:40,a:'right'},{t:t2n,w:40,a:'right'},{t:'Noche',w:40,a:'right'}],filasD,{pagina:2,total:TOTAL,titulo:'Dinero'});
+  const coment=[c1&&c1.dinero&&c1.dinero.comentario?`${t1n}: ${c1.dinero.comentario}`:null, c2&&c2.dinero&&c2.dinero.comentario?`${t2n}: ${c2.dinero.comentario}`:null].filter(Boolean);
+  if(coment.length){ txt(M,y,'Comentarios: '+coment.join(' · '),{s:8,c:GRIS,mw:W-2*M}); y+=10; }
+  txt(M,y,'Otras islas a las 6 (comprobación)',{b:true,s:11}); y+=3;
+  const filasO=otras.map(o=>{ const c=o.c; const x=o.x; const l=(c&&c.lecturas)||[]; const lt=c&&c.totales?Number(c.totales.litros)||0:l.reduce((a,q)=>a+(Number(q.litros)||0),0);
+    const estado = !x? 'Sin corte' : x.estado==='omitida'? 'Cerrada' : (c&&c.dinero&&c.dinero.sinVentas)? 'Sin ventas (inicial = final, leído por la IA)' : x.estado==='enviado'? (lt>0.05?'Con venta · '+fmtL(lt)+' L':'Enviada') : 'Abierta';
+    return Object.assign([o.isla.nombre, estado, c&&c.enviadoEn?fmtHora(c.enviadoEn):'—', fmtL(lt)+' L'],{color: lt>0.05?ROJO:NOCHE}); });
+  tabla([{t:'Isla',w:30},{t:'Resultado',w:92},{t:'Hora',w:30},{t:'Litros',w:30,a:'right'}],filasO,{pagina:2,total:TOTAL,titulo:'Otras islas'});
+  const conDetalle=otras.filter(o=>o.c&&o.c.lecturas&&o.c.lecturas.length);
+  for(const o of conDetalle){ if(y>230) break; txt(M,y,o.isla.nombre+' · lecturas',{b:true,s:9,c:GRIS}); y+=2; tabla([{t:'Manguera',w:40},{t:'Producto',w:40},{t:'Inicial',w:34,a:'right'},{t:'Final',w:34,a:'right'},{t:'Litros',w:34,a:'right'}], o.c.lecturas.map(l=>[l.manguera,l.producto,l.inicial!=null?fmtL(l.inicial):'—',l.final!=null?fmtL(l.final):'—',l.litros!=null?fmtL(l.litros):'—']),{rowH:5.4,pagina:2,total:TOTAL}); }
+  y=Math.max(y+6,238); linea(y+14); txt(M,y+18,'Velador: '+quien,{s:9,c:GRIS}); linea(y+14,LINEA); doc.setDrawColor(...LINEA); doc.line(W/2+6,y+14,W-M,y+14); txt(W/2+6,y+18,'Revisó (administración)',{s:9,c:GRIS});
+  pie(2,TOTAL);
+  return doc.output('blob');
+}
 async function descargarPDF(c, btn){
   if(!window.jspdf){ toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return; }
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Generando PDF…'; }
@@ -1943,48 +2092,14 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
   Object.assign(c,{ estado:'enviado', enviadoEn, horaEnvio:fmtHora(enviadoEn), hash, totales:r.totales||{porProducto:tot,litros}, venta:r.venta||null, dinero, paso:'enviado' });
   sheet.remove(); S.corte=null; S.frames=[];
   app.innerHTML='';
-  app.append(h('div',{class:'card stack',style:'text-align:center'}, h('div',{style:'font-size:44px'},'✅'), h('h1',{},'Corte enviado'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)}`),
+  const noche=esCorteNoche(c);
+  app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},noche?'Listo, gracias':'Corte enviado'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)}`),
     h('div',{class:'tot'},...Object.entries(tot).map(([p,v])=>h('div',{},h('span',{class:'small muted'},p),h('b',{},fmtL(v))))),
     dif!=null? h('div',{class:'diff '+(Math.abs(dif)<=(S.config.toleranciaPesos??50)?'ok':(dif<0?'bad':'warn'))}, h('span',{class:'lbl'},dif<0?'Faltante':(dif>0?'Sobrante':'Cuadra exacto')), h('b',{},(dif>0?'+':'')+fmtMXN(dif))) : null,
     h('p',{class:'seal'},'Sello: '+hash.slice(0,24)+'…'),
-    h('button',{class:'btn ok big block',onclick:e=>descargarPDF(c,e.currentTarget)},'Descargar PDF para firma'),
-    esCorteNoche(c)? siguienteNoche(c) : h('button',{class:'btn primary big block',onclick:()=>go('home')},'Listo')));
+    noche? null : h('button',{class:'btn ok big block',onclick:e=>descargarPDF(c,e.currentTarget)},'Descargar PDF para firma'),
+    noche? siguienteNoche(c) : h('button',{class:'btn primary big block',onclick:()=>go('home')},'Listo')));
   setWho();
-}
-// Noche: después de guardar las fotos de una isla, directo a grabar la siguiente; cuando las tres tienen fotos, a lecturas y dinero.
-function siguienteFotosNoche(c){
-  const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
-  (async()=>{ const st=await estadoNoche(); let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(_){}
-    box.innerHTML='';
-    const tramo = c.turno===st.t1.id ? 1 : 2; const ests = tramo===1? st.e1 : st.e2;
-    const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
-    const conFotos = i => { const x=ests.find(y=>y.isla===i.id); if(!x) return false; if(hecho(x)) return true; if(x.id===c.id) return true; const m=mios.find(z=>z.id===x.id); return !!(m && (m.evidencia_en || (m.paso&&m.paso!=='evidencia'))); };
-    const isla=S.config.islas.find(i=>i.id===S.noche.islaId)||islaNocturna();
-    const orden = tramo===1 ? [isla] : [isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
-    const sinFotos = orden.filter(i=>!conFotos(i));
-    if(sinFotos.length){ box.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,tramo,sinFotos[0])},`Siguiente: grabar ${sinFotos[0].nombre}`), h('p',{class:'hint'},`Faltan ${sinFotos.length} de ${orden.length} islas por grabar. La IA lee los contadores mientras tanto.`)); }
-    else {
-      const pend = orden.find(i=>!hecho(ests.find(y=>y.isla===i.id)));
-      box.append(h('div',{class:'alert ok',style:'display:block'}, tramo===1? 'Fotos de medianoche guardadas.' : 'Las tres islas tienen fotos.'),
-        pend? h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,tramo,pend)},`Continuar: lecturas y dinero de ${pend.nombre}`) : null,
-        h('button',{class:'btn ghost block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Hacer la Parte 2 en la computadora · salir')); }
-  })().catch(()=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:()=>go('noche')},'Seguir con la noche')); });
-  return box;
-}
-// Después de enviar un corte de noche: directo a la siguiente isla, o "noche terminada".
-function siguienteNoche(c){
-  const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
-  (async()=>{ const st=await estadoNoche(); box.innerHTML='';
-    const hecho=x=>x&&(x.estado==='enviado'||x.estado==='omitida');
-    if(S.noche.tramo===1 || c.turno===st.t1.id){
-      box.append(h('p',{class:'muted'},'Corte de medianoche enviado. A las 6 vuelve a entrar al turno de noche: ahí grabas las tres islas.'), h('button',{class:'btn primary big block',onclick:()=>{ S.noche.sinAuto=false; go('home'); }},'Listo por ahora'));
-      return; }
-    const isla=S.config.islas.find(i=>i.id===S.noche.islaId)||islaNocturna(); const orden=[isla, ...S.config.islas.filter(i=>i.id!==isla.id)];
-    const sig=orden.find(i=>!hecho(st.e2.find(y=>y.isla===i.id)));
-    if(sig) box.append(h('button',{class:'btn primary big block',onclick:()=>empezarTramo(st,2,sig)},`Siguiente: ${sig.nombre}`), h('p',{class:'hint'},`Faltan ${orden.filter(i=>!hecho(st.e2.find(y=>y.isla===i.id))).length} de ${orden.length} islas por enviar.`));
-    else box.append(h('div',{class:'alert ok',style:'display:block'},'🌙 Noche terminada: las tres islas enviadas. El turno de la mañana ya puede empezar.'), h('button',{class:'btn primary big block',onclick:()=>{ S.noche=null; try{ localStorage.removeItem('om_noche'); }catch(_){} go('home'); }},'Terminar'));
-  })().catch(e=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:()=>go('noche')},'Seguir con la noche')); });
-  return box;
 }
 // TODO (paso posterior): avisos automáticos al dueño y reporte del turno cuando las 3 islas envían.
 // Se harán con una función del servidor o una tarea programada, no desde la app.
@@ -2100,7 +2215,13 @@ async function adminHoy(){
     const tol=S.config.toleranciaPesos??50;
     const dineroBox=h('div',{class:'stack'}, h('div',{class:'money'},h('span',{},'Venta esperada'),h('b',{},fmtMXN(venta))), h('div',{class:'money'},h('span',{},'Declarado'),h('b',{},fmtMXN(declarado))), conDif? h('div',{class:'diff '+(Math.abs(dif)<=tol?'ok':(dif<0?'bad':'warn'))},h('span',{class:'lbl'},dif<0?'Faltante del día':(dif>0?'Sobrante del día':'Cuadra exacto')),h('b',{},(dif>0?'+':'')+fmtMXN(dif))):null);
     const m=h('div',{class:'matrix'}); m.append(h('div'),...S.config.islas.map(i=>h('div',{class:'h'},i.nombre)));
-    for(const tu of S.config.turnos){ m.append(h('div',{class:'h',style:'text-align:left'},tu.nombre,h('br'),h('span',{class:'small',style:'font-weight:400'},tu.inicio)));
+    // PDF del turno (con fotos) a demanda: el reporte por turno ya no llega por correo (13-nov-2026), se pide aquí.
+    const pdfTurnoBtn=(tu)=>{ const completo=S.config.islas.every(i=>cs.some(x=>x.turno===tu.id&&x.isla===i.id&&(x.estado==='enviado'||x.estado==='omitida'))); if(!completo) return null;
+      return h('button',{class:'btn sm ghost',style:'margin-top:4px',title:'Reporte del turno en PDF, con fotos',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t0=b.textContent; b.textContent='Generando…';
+        try{ const j=await fnOficina({accion:'pdf', estacion_id:S.config.estacionId, fecha, turno:tu.id},'reporte-turno'); if(!j.ok) throw new Error(j.error||'No se pudo');
+          const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'turno.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+        catch(e){ aviso('No se pudo generar el PDF del turno: '+(e.message||e),'err'); } b.disabled=false; b.textContent=t0; }},'PDF'); };
+    for(const tu of S.config.turnos){ m.append(h('div',{class:'h',style:'text-align:left'},tu.nombre,h('br'),h('span',{class:'small',style:'font-weight:400'},tu.inicio),pdfTurnoBtn(tu)));
       for(const i of S.config.islas){ const c=cs.find(x=>x.turno===tu.id&&x.isla===i.id&&x.estado!=='abierto')||cs.find(x=>x.turno===tu.id&&x.isla===i.id);
         if(!c) m.append(h('div',{class:'c none'},'sin corte'));
         else if(c.estado==='omitida') m.append(h('div',{class:'c sent',onclick:()=>verCorte(c.id)},h('b',{},'no se usó'),h('span',{},(c.despachadorNombre||'').split(' ')[0])));
@@ -2268,8 +2389,9 @@ async function adminDesp(){
     catch(e){ toast('No se pudo agregar: '+(e.message||e.code),5000); } };
   box.append(h('div',{class:'card stack'}, h('h3',{},'Nuevo despachador'), h('div',{class:'grid2'},nombre,pin), h('button',{class:'btn primary',onclick:guardar},'Agregar')));
   const list=h('div',{class:'card list'}); if(!S.desp.length) list.append(h('div',{class:'empty'},'Sin despachadores.'));
-  for(const d of S.desp){ const bloq=d.bloqueadoHasta && new Date(d.bloqueadoHasta)>new Date(); list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'},h('b',{},d.nombre),h('span',{class:'small muted'},(d.activo===false?'Inactivo':'Activo')+(bloq?' · bloqueado por PIN hasta '+fmtHora(d.bloqueadoHasta):''))),
-    h('div',{class:'row'}, h('button',{class:'btn sm',onclick:async()=>{ const np=await pedirPin(d); if(np){ try{ await rpc('asignar_pin',{p_despachador:d.id, p_pin:np}); toast('PIN actualizado.'); await cargarConfig(); render(); }catch(e){ aviso(e.message||e.code,'err'); } } }},bloq?'Nuevo PIN · desbloquear':'Nuevo PIN'), h('button',{class:'btn sm '+(d.activo===false?'':'danger'),onclick:async()=>{ try{ await sel(sb.from('despachadores').update({activo:d.activo===false, baja:d.activo===false?null:new Date().toISOString()}).eq('id',d.id)); await cargarConfig(); render(); }catch(e){ aviso(e.message||e.code,'err'); } }},d.activo===false?'Activar':'Desactivar')))); }
+  box.append(h('p',{class:'hint'},'Velador: de 23:00 a 07:00 la pantalla de entrada muestra solo a los veladores y, al poner su PIN, la app los lleva directo a grabar la noche (medianoche: Isla 1; desde las 00:30: las tres islas en fila). Márcalo también si un día se queda alguien más a velar.'));
+  for(const d of S.desp){ const bloq=d.bloqueadoHasta && new Date(d.bloqueadoHasta)>new Date(); list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'},h('b',{},d.nombre),h('span',{class:'small muted'},(d.activo===false?'Inactivo':'Activo')+(d.velador?' · Velador':'')+(bloq?' · bloqueado por PIN hasta '+fmtHora(d.bloqueadoHasta):''))),
+    h('div',{class:'row'}, h('label',{class:'nouso',style:'margin:0',title:'De noche la app lo lleva directo a grabar'}, h('input',{type:'checkbox',checked:!!d.velador,onchange:async(ev)=>{ const v=ev.target.checked; try{ await sel(sb.from('despachadores').update({velador:v}).eq('id',d.id)); d.velador=v; toast(v? d.nombre+' queda como velador.' : d.nombre+' ya no es velador.'); render(); }catch(e){ ev.target.checked=!v; aviso('No se pudo cambiar: '+(e.message||e.code)+' (¿ya corrió el SQL 039?)','err'); } }}), h('span',{},'Velador')), h('button',{class:'btn sm',onclick:async()=>{ const np=await pedirPin(d); if(np){ try{ await rpc('asignar_pin',{p_despachador:d.id, p_pin:np}); toast('PIN actualizado.'); await cargarConfig(); render(); }catch(e){ aviso(e.message||e.code,'err'); } } }},bloq?'Nuevo PIN · desbloquear':'Nuevo PIN'), h('button',{class:'btn sm '+(d.activo===false?'':'danger'),onclick:async()=>{ try{ await sel(sb.from('despachadores').update({activo:d.activo===false, baja:d.activo===false?null:new Date().toISOString()}).eq('id',d.id)); await cargarConfig(); render(); }catch(e){ aviso(e.message||e.code,'err'); } }},d.activo===false?'Activar':'Desactivar')))); }
   box.append(list);
 }
 function pedirPin(d){ return new Promise(res=>{ const inp=h('input',{type:'password',inputmode:'numeric',maxlength:'4',placeholder:'Nuevo PIN de 4 dígitos'}); const sh=h('div',{class:'sheet',onclick:e=>{if(e.target===sh){sh.remove();res(null);}}}, h('div',{class:'in stack'}, h('h3',{},'Nuevo PIN para '+d.nombre), inp, h('button',{class:'btn primary block',onclick:()=>{ if(!/^\d{4}$/.test(inp.value)){toast('Deben ser 4 dígitos.');return;} sh.remove(); res(inp.value); }},'Guardar'))); document.body.append(sh); inp.focus(); }); }
