@@ -350,6 +350,8 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .om-loader.fin .pulso{animation:none;background:var(--line2);position:relative;overflow:hidden}
 .om-loader.fin .pulso::after{content:'';position:absolute;inset:0;background:var(--ok);transform-origin:left;transform:scaleX(0);animation:om-llena 1.2s .2s ease forwards}
 .fin h1{margin-top:4px}
+.codigo-vinc{font:700 34px/1.1 var(--font-mono);letter-spacing:.35em;text-align:center;padding:14px 10px}
+.codigo-grande{font:700 40px/1 var(--font-mono);letter-spacing:.12em;background:var(--surface2);border:1px solid var(--line2);border-radius:var(--r);padding:12px 18px}
 @keyframes om-gota-va{to{transform:scale(0);opacity:0}}
 @keyframes om-chk{0%{stroke-dashoffset:260;transform:scale(.35);opacity:1}100%{stroke-dashoffset:0;transform:scale(1);opacity:1}}
 @keyframes om-trazo-fin{0%{clip-path:inset(0 100% 0 0)}100%{clip-path:inset(0 0% 0 0)}}
@@ -627,7 +629,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.0';
+const OM_VERSION='1.4.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -776,7 +778,7 @@ function avatarEmpresa(){ const c=S.config; if(!c) return null;
   return h('span',{class:'row',style:'gap:10px'}, av, h('span',{class:'emp-nm'}, h('b',{},nombre), h('small',{},rol))); }
 function setWho(){ who.innerHTML='';
   if(S.me){ who.append(h('span',{class:'avatar'},iniciales(S.me.nombre)), h('span',{class:'name'},S.me.nombre), h('button',{class:'btn sm ghost',onclick:logout},'Salir')); }
-  else if(S.usuario){ const av=avatarEmpresa(); if(av) who.append(av); who.append(h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); }
+  else if(S.usuario){ const av=avatarEmpresa(); if(av) who.append(av); if(S.rol!=='kiosco') who.append(h('button',{class:'btn sm ghost',title:S.usuario.nombre,onclick:cerrarCuenta},'Cerrar cuenta')); } // en el kiosco no hay botón: se cierra manteniendo presionado el pie 3 s (13-nov-2026)
   if(S.usuario) document.body.setAttribute('data-om-sesion','1'); else document.body.removeAttribute('data-om-sesion');
 }
 function abrirTablero(){ if(S.rol==='oficina'){ go('oficina'); } else if(esTablero()){ S.adminOk=true; go('admin'); } }
@@ -868,6 +870,9 @@ function setBrand(){ const b=$('#brand'); if(!b) return; b.innerHTML='';
 function medirLogo(){ const c=S.config; if(!c||!c.logoData) return; const im=new Image(); im.onload=()=>{ if(S.config===c) c.logoRatio=im.naturalHeight?im.naturalWidth/im.naturalHeight:null; }; im.src=c.logoData; }
 function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empty'}, h('b',{},'No se pudo entrar'), msg||'', h('button',{class:'btn block',style:'margin-top:10px',onclick:cerrarCuenta},'Cerrar cuenta'))); }
 async function cerrarCuenta(){ try{ if(S.token) await rpc('cerrar_sesion',{p_token:S.token}); }catch(e){} guardarToken(null); S.token=null; S.me=null; S.corte=null; S.adminOk=false; await sb.auth.signOut(); }
+// Kiosco: salir de la cuenta de la estación está escondido (el velador no debe toparse con correo y contraseña). Mantener presionado el pie 3 s.
+(function(){ const pie=document.querySelector('footer.foot'); if(!pie) return; let t=null; const ini=()=>{ if(!S.usuario || S.rol!=='kiosco') return; clearTimeout(t); t=setTimeout(()=>{ if(confirm('¿Cerrar la cuenta de la estación en este teléfono?\n\nPara volver a entrar se necesita un código de vinculación de Central (o el correo y la contraseña del kiosco).')) cerrarCuenta(); },3000); }; const fin=()=>clearTimeout(t);
+  pie.addEventListener('pointerdown',ini); pie.addEventListener('pointerup',fin); pie.addEventListener('pointercancel',fin); pie.addEventListener('pointerleave',fin); })();
 // ---- render
 function render(){
   app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
@@ -902,18 +907,31 @@ function conOjo(inp){ const w=h('div',{class:'passwrap'}); const b=h('button',{t
   const pinta=()=>{ const ver=inp.type==='text'; b.innerHTML=ver?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6A2.5 2.5 0 0 0 13.4 13.4M6.6 6.7C4.3 8.2 2.8 10.2 2 12c1.8 4 5.6 7 10 7 1.7 0 3.3-.4 4.7-1.2M9.5 5.3C10.3 5.1 11.1 5 12 5c4.4 0 8.2 3 10 7-.5 1.1-1.2 2.2-2.1 3.1"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c1.8-4 5.6-7 10-7s8.2 3 10 7c-1.8 4-5.6 7-10 7S3.8 16 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'; b.title=ver?'Ocultar contraseña':'Mostrar contraseña'; };
   b.addEventListener('click',()=>{ inp.type=inp.type==='password'?'text':'password'; pinta(); inp.focus(); }); pinta(); w.append(inp,b); return w; }
 function renderCuenta(){
-  const email=h('input',{type:'email',autocomplete:'username',placeholder:'correo de la cuenta',id:'login-email'});
-  const pass=h('input',{type:'password',autocomplete:'current-password',placeholder:'contraseña',id:'login-pass'});
+  const email=h('input',{type:'email',name:'username',autocomplete:'username',placeholder:'correo de la cuenta',id:'login-email',inputmode:'email',autocapitalize:'off',spellcheck:'false'});
+  const pass=h('input',{type:'password',name:'password',autocomplete:'current-password',placeholder:'contraseña',id:'login-pass'});
   const msg=h('p',{class:'hint',style:'min-height:18px'});
-  const btn=h('button',{class:'btn primary big block'},'Entrar');
-  const entrar=async()=>{ btn.disabled=true; btn.textContent='Entrando…'; msg.textContent='';
+  const btn=h('button',{class:'btn primary big block',type:'submit'},'Entrar');
+  const entrar=async(ev)=>{ if(ev) ev.preventDefault(); btn.disabled=true; btn.textContent='Entrando…'; msg.textContent='';
     const {error}=await sb.auth.signInWithPassword({email:email.value.trim(), password:pass.value});
     if(error){ msg.textContent = /invalid/i.test(error.message)?'Correo o contraseña incorrectos.':error.message; btn.disabled=false; btn.textContent='Entrar'; return; }
     await entrarConCuenta(); };
-  btn.addEventListener('click',entrar); pass.addEventListener('keydown',e=>{ if(e.key==='Enter') entrar(); });
+  // Formulario de verdad: así Chrome / el teléfono ofrecen guardar y autocompletar la contraseña.
+  const form=h('form',{class:'stack',method:'post',action:'#',autocomplete:'on',onsubmit:entrar}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),conOjo(pass)), msg, btn);
+  // Código de vinculación (teléfono de la estación): 6 dígitos que genera Central; entra sin contraseña.
+  const cod=h('input',{type:'text',inputmode:'numeric',pattern:'[0-9]*',maxlength:'6',autocomplete:'one-time-code',placeholder:'000000',class:'codigo-vinc',id:'login-codigo'});
+  const msg2=h('p',{class:'hint',style:'min-height:18px'}); const btn2=h('button',{class:'btn big block',type:'button'},'Entrar con el código');
+  const vincular=async()=>{ const c=(cod.value||'').replace(/\D/g,''); if(c.length!==6){ msg2.textContent='Escribe los 6 dígitos.'; cod.focus(); return; } btn2.disabled=true; btn2.textContent='Conectando…'; msg2.textContent='';
+    try{ const r=await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/vincular`,{method:'POST',headers:{'Content-Type':'application/json','apikey':OM_CONFIG.SUPABASE_KEY},body:JSON.stringify({codigo:c})}); const j=await r.json().catch(()=>({}));
+      if(!j.ok) throw new Error(j.error==='codigo_invalido'?'Ese código no es válido o ya venció. Pide otro en Central.':(j.error||'No se pudo'));
+      const {error}=await sb.auth.verifyOtp({token_hash:j.token_hash, type:'magiclink'}); if(error) throw error;
+      msg2.textContent='Teléfono vinculado a '+(j.estacion||'la estación')+'.'; await entrarConCuenta(); }
+    catch(e){ msg2.textContent=e.message||String(e); btn2.disabled=false; btn2.textContent='Entrar con el código'; } };
+  btn2.addEventListener('click',vincular); cod.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); vincular(); } }); cod.addEventListener('input',()=>{ cod.value=cod.value.replace(/\D/g,'').slice(0,6); if(cod.value.length===6) vincular(); });
+  const conCodigo=h('div',{class:'card stack',hidden:true}, h('b',{},'Tengo un código de Central'), h('p',{class:'small muted'},'El dueño o Central lo genera en Configuración ▸ Ajustes avanzados ▸ Teléfono de la estación. Vale 15 minutos.'), cod, msg2, btn2);
+  const alternar=h('button',{class:'btn ghost block',type:'button',onclick:()=>{ conCodigo.hidden=!conCodigo.hidden; form.hidden=!conCodigo.hidden; alternar.textContent=conCodigo.hidden?'Tengo un código de Central':'Entrar con correo y contraseña'; if(!conCodigo.hidden) cod.focus(); }},'Tengo un código de Central');
   document.body.setAttribute('data-om-login','');
   app.append(h('div',{class:'om-login'}, h('div',{class:'hero'}, h('img',{class:'om-hero',src:'marca/om-logo-transparente.png',alt:'OwnManager'}), h('p',{class:'om-wordmark'},'Own Manager'), h('p',{class:'om-slogan'},'Cada litro bajo tu control'), h('div',{class:'bar'})),
-    h('div',{class:'card stack'}, h('label',{class:'f'},h('span',{class:'l'},'Correo'),email), h('label',{class:'f'},h('span',{class:'l'},'Contraseña'),conOjo(pass)), msg, btn),
+    h('div',{class:'card stack'}, form, conCodigo, alternar),
     h('div',{class:'ver-login'},'OwnManager v'+OM_VERSION)));
 }
 function pinScreen(d){
@@ -2597,11 +2615,24 @@ async function adminClientes(){
   app.append(h('div',{class:'card stack'}, h('p',{class:'small muted'},'Clientes que cargan a cuenta; aparecen en la lista de "Clientes" del corte.'),
     h('div',{class:'grid2'},nuevaC,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaC.value.trim(); if(!n||c.clientesMarcados.some(x=>x.nombre.toLowerCase()===n.toLowerCase())) return; c.clientesMarcados.push({id:'cm-'+uid().slice(-8),nombre:n,activo:true}); try{ await guardaCm(); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); c.clientesMarcados.pop(); return; } nuevaC.value=''; drawCm(); }},'Agregar')), cmList));
 }
+// Teléfono de la estación: código de 6 dígitos (15 min) para que el teléfono entre a la cuenta kiosco sin teclear la contraseña (SQL 041).
+function tarjetaVinculacion(){
+  const out=h('div',{class:'stack'}); const grande=h('div',{class:'codigo-grande',hidden:true}); const nota=h('p',{class:'hint'});
+  let timer=null;
+  const btn=h('button',{class:'btn primary',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; try{ const j=await rpc('crear_codigo_vinculacion',{p_estacion:S.config.estacionId}); grande.textContent=String(j.codigo).replace(/(\d{3})(\d{3})/,'$1 $2'); grande.hidden=false; clearInterval(timer);
+        const fin=new Date(j.expira_en).getTime(); const tic=()=>{ const s=Math.max(0,Math.round((fin-Date.now())/1000)); nota.textContent= s? `Vale ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')} más. En el teléfono: pantalla de entrada → "Tengo un código de Central" → los 6 dígitos.` : 'El código venció. Genera otro.'; if(!s){ clearInterval(timer); grande.hidden=true; } }; tic(); timer=setInterval(tic,1000); }
+      catch(e){ aviso('No se pudo generar el código: '+(e.message||e.code)+(/crear_codigo_vinculacion/.test(e.message||'')?' (¿ya corrió el SQL 041?)':''),'err'); } b.disabled=false; }},'Generar código para el teléfono');
+  out.append(h('div',{class:'card stack'}, h('h3',{},'Teléfono de la estación'),
+    h('p',{class:'small muted'},'Si el teléfono del kiosco se salió de la cuenta (alguien tocó "Cerrar cuenta" o es un teléfono nuevo), genera un código y escríbelo en el teléfono. Entra solo, sin teclear la contraseña del kiosco. Cada código sirve una vez y vale 15 minutos.'),
+    h('div',{class:'row',style:'gap:10px;align-items:center;flex-wrap:wrap'}, btn, grande), nota));
+  return out;
+}
 // vista: 'terminales' (solo esa sección) o 'ajustes' (identidad, alertas, islas y orden, integridad).
 async function adminConfig(vista){
   const c=S.config; const box=h('div',{class:'stack'}); app.append(box);
   const dueno=S.rol==='dueno';
-  if(!dueno){ box.append(h('p',{class:'hint'},vista==='terminales'?'Las terminales bancarias las cambia el dueño.':'Los ajustes avanzados (identidad, alertas, orden de mangueras) los cambia el dueño.')); return; }
+  if(vista!=='terminales') box.append(tarjetaVinculacion());
+  if(!dueno){ box.append(h('p',{class:'hint'},vista==='terminales'?'Las terminales bancarias las cambia el dueño.':'Los demás ajustes avanzados (identidad, alertas, orden de mangueras) los cambia el dueño.')); return; }
   // identidad de la estación: nombre, logo y remitente de los correos
   if(vista!=='terminales'){ const nom=h('input',{type:'text',value:c.nombre,id:'cfg-nombre',maxlength:'60'}); const remN=h('input',{type:'text',value:c.remitenteNombre||c.nombre,id:'cfg-remn',maxlength:'60'}); const rem=h('input',{type:'email',value:c.remitente||'',id:'cfg-rem',placeholder:'estacion@mauriciopizano.com'});
     let logoNuevo=c.logoData, logoTocado=false; const prev=h('div',{}); const file=h('input',{type:'file',accept:'image/png,image/jpeg',style:'display:none',id:'cfg-logo'}); const msg=h('p',{class:'hint'});
