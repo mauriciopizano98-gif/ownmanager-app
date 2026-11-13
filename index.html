@@ -606,7 +606,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.5';
+const OM_VERSION='1.2.6';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -857,13 +857,14 @@ function renderLogin(){
   if(esTablero()){ abrirTablero(); return; }
   const activos=S.desp.filter(d=>d.activo!==false);
   if(!S.destino || !['home','deposito'].includes(S.destino)) S.destino='home';
+  if(esApk()) S.destino='home'; // en el celular (APK) solo se inicia el corte; los depósitos a caja fuerte se registran en la compu de la estación
   const box=h('div',{class:'login'});
   const esDep=S.destino==='deposito';
   box.append(h('div',{}, h('p',{class:'eyebrow'},ESTACION), h('h1',{},esDep?'Depósito a caja fuerte':'Corte mecánico por turno'), h('p',{class:'muted'},esDep?'Registra el efectivo que vas a meter a la caja fuerte. Elige tu nombre y teclea tu PIN.':'Elige tu nombre y teclea tu PIN para abrir el corte de tu isla.')));
   const modo=h('div',{class:'modo'},
     h('button',{class:esDep?'':'on',onclick:()=>{ S.destino='home'; render(); }}, h('span',{class:'ic'},'⛽'), h('span',{}, h('b',{},'Iniciar corte'), h('small',{},'de turno'))),
     h('button',{class:esDep?'on dep':'',onclick:()=>{ S.destino='deposito'; render(); }}, h('span',{class:'ic'},'🔒'), h('span',{}, h('b',{},'Depósito'), h('small',{},'a caja fuerte'))));
-  box.append(modo);
+  if(!esApk()) box.append(modo);
   if(!activos.length){ box.append(h('div',{class:'card empty'}, h('b',{},'Todavía no hay despachadores dados de alta'), 'Mauricio los agrega desde el tablero de administración.')); }
   else box.append(h('div',{class:'people'}, ...activos.map(d=>h('button',{class:'person',onclick:()=>pinScreen(d)}, h('span',{class:'avatar'},iniciales(d.nombre)), h('span',{},d.nombre)))));
   app.append(box);
