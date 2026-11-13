@@ -230,9 +230,10 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .nouso input{width:18px;height:18px;accent-color:var(--mod-ink);margin:0}
 .nouso:hover{color:var(--fg);border-color:var(--mod-ink)}
 .isla .t{font:600 18px var(--font-display);letter-spacing:-.01em}
-.turno-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface2);padding:4px;border-radius:var(--r-sm);border:1px solid var(--line)}
+.turno-seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:4px;background:var(--surface2);padding:4px;border-radius:var(--r-sm);border:1px solid var(--line)}
 .turno-seg button{border:0;background:transparent;border-radius:var(--r-xs);padding:9px 6px;font:500 13px var(--font-body);color:var(--muted);cursor:pointer}
-.turno-seg button.on{background:var(--surface);color:var(--fg);box-shadow:var(--shadow);font-weight:600}
+.turno-seg button.on{background:var(--fg);color:var(--bg);box-shadow:var(--shadow);font-weight:700}
+.turno-seg button.on .small{color:var(--bg);opacity:.75}
 
 /* Captura */
 .steps{display:flex;gap:6px;margin-bottom:12px}
@@ -605,7 +606,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.4';
+const OM_VERSION='1.2.5';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -638,13 +639,22 @@ const VENTANA_CIERRE_MIN=240; // 4 h después del cierre, el corte sigue siendo 
 const toMin = s => { const [a,b]=s.split(':').map(Number); return a*60+b; };
 // Fecha en que EMPEZÓ la ocurrencia más reciente de un turno (si empezó antes de medianoche y ya pasó, fue ayer)
 function fechaInicioTurno(tu, t){ const ini=toMin(tu.inicio); const mins=t.hora*60+t.min; return mins>=ini ? t.fecha : addDays(t.fecha,-1); }
-// Turno preseleccionado para el corte: el que cerró hace menos de 4 h; si no, el que va corriendo.
+// Turnos de día (sin marca de noche), en orden: mañana y tarde.
+function turnosDia(){ return (S.config.turnos||[]).filter(t=>!(Number(t.noche)>=1)).sort((a,b)=>toMin(a.inicio)-toMin(b.inicio)); }
+// Turnos que se ofrecen según la hora: de día solo mañana y tarde; de 23:00 a 06:59 solo los dos de la noche ("Otros turnos" muestra todos).
+function turnosVisibles(){ const t=nowMX(); const m=t.hora*60+t.min; return (hayModoNoche() && (m>=23*60 || m<7*60)) ? turnosNoche() : turnosDia(); }
+// Turno preseleccionado para el corte, por reloj (regla de Mauricio, 12-nov-2026):
+//   07:00–14:59 → mañana (6–14) · 15:00–22:59 → tarde (14–22) · 23:00–00:59 → noche 22–24 · 01:00–06:59 → noche 00–06.
+// En los traslapes gana el turno que está cerrando (el que abre el corte casi siempre es quien termina).
 function turnoSugerido(){
-  const t=nowMX(); const mins=t.hora*60+t.min;
-  let best=null;
-  for(const tu of S.config.turnos){ const dist=(mins-toMin(tu.fin)+1440)%1440; if(best==null || dist<best.dist) best={tu,dist}; }
-  if(best && best.dist<=VENTANA_CIERRE_MIN){ const tu=best.tu; const dur=(toMin(tu.fin)-toMin(tu.inicio)+1440)%1440; const inicioMins=mins-best.dist-dur; return { turno:tu.id, fecha:addDays(t.fecha, Math.floor(inicioMins/1440)) }; }
-  return turnoEnCurso();
+  const t=nowMX(); const m=t.hora*60+t.min; const dia=turnosDia(); const [n1,n2]=turnosNoche();
+  let tu=null;
+  if(hayModoNoche() && (m>=23*60 || m<60)) tu=n1;
+  else if(hayModoNoche() && m<7*60) tu=n2;
+  else if(m<15*60) tu=dia[0];
+  else tu=dia[1]||dia[0];
+  if(!tu) return turnoEnCurso();
+  return { turno:tu.id, fecha:fechaDeTurno(tu.id) };
 }
 // Turno que va corriendo ahora mismo (para los depósitos a caja fuerte durante el turno)
 function turnoEnCurso(){
@@ -656,6 +666,7 @@ function turnoEnCurso(){
 }
 // Fecha para un turno elegido a mano: su ocurrencia más reciente (a mediodía, "Nocturno" es el de anoche)
 function fechaDeTurno(turnoId){ const tu=S.config.turnos.find(x=>x.id===turnoId); return fechaInicioTurno(tu, nowMX()); }
+window.__omPrueba={ turnoSugerido:()=>turnoSugerido(), turnosVisibles:()=>turnosVisibles() }; // gancho para pruebas (solo lectura)
 
 // ---- utilidades
 // Aviso lateral (errores y confirmaciones): aparece a la derecha y se va solo a los 10 s.
@@ -1012,7 +1023,8 @@ async function renderHome(){
     catch(e){ hoy=[]; toast('No se pudo consultar el turno: '+(e.message||e.code),5000); }
     drawIslas();
   }
-  function drawSeg(){ seg.innerHTML=''; for(const t of S.config.turnos){ seg.append(h('button',{class:t.id===sel.turno?'on':'',onclick:()=>{ sel.turno=t.id; sel.fecha=fechaDeTurno(t.id); sel.isla=null; drawSeg(); cargarHoy(); }}, `${t.nombre}`, h('br'), h('span',{class:'small',style:'font-weight:500'},`${t.inicio}–${t.fin}`))); } fechaLbl.textContent='Fecha del turno: '+fmtFecha(sel.fecha); }
+  let todos=false;
+  function drawSeg(){ seg.innerHTML=''; const lista=todos? S.config.turnos : turnosVisibles(); if(!lista.some(t=>t.id===sel.turno)) todos=true; for(const t of (todos? S.config.turnos : lista)){ seg.append(h('button',{class:t.id===sel.turno?'on':'',onclick:()=>{ sel.turno=t.id; sel.fecha=fechaDeTurno(t.id); sel.isla=null; drawSeg(); cargarHoy(); }}, `${t.nombre}`, h('br'), h('span',{class:'small',style:'font-weight:500'},`${t.inicio}–${t.fin}`))); } fechaLbl.innerHTML=''; fechaLbl.append('Fecha del turno: '+fmtFecha(sel.fecha)); if(!todos && S.config.turnos.length>lista.length) fechaLbl.append(' · ', h('a',{href:'#',onclick:e=>{ e.preventDefault(); todos=true; drawSeg(); }},'Otros turnos')); }
   function drawIslas(){ islas.innerHTML=''; btn.disabled=true;
     for(const i of S.config.islas){
       const c=hoy.find(x=>x.isla===i.id);
