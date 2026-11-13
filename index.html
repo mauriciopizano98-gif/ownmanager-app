@@ -606,7 +606,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.2.8';
+const OM_VERSION='1.3.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1989,20 +1989,25 @@ async function avisar(c){ }
 let adminTab='chat';
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
-  const items=[['chat','chat','Asistente'],['hoy','hoy','Hoy'],['cortes','cortes','Cortes'],['depositos','depositos','Depósitos'],['anulados','anulados','Anulados'],'sep',['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],['aestado','bancomas','Agregar estado de cuenta'],
-    ['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]],'sep',
-    ['precios','precio','Precios'],['clientes','clientes','Clientes marcados'],['sat','sat','SAT']];
-  if(S.rol==='dueno') items.push(['aceites','aceites','Aceites'],['desp','desp','Despachadores']);
-  items.push(['config','config','Configuración']);
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores', precios:'Precios de venta por litro', clientes:'Clientes marcados', sat:'Enlace con el SAT', aceites:'Aceites', desp:'Despachadores', config:'Configuración'};
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','sat'].includes(adminTab);
+  // Menú por grupos (orden de Mauricio, 12-nov-2026): un grupo abierto a la vez.
+  const dueno=S.rol==='dueno';
+  const items=[['chat','chat','Asistente'],
+    ['cortes','cortes','Cortes',[['hoy','hoy','Hoy'],['cortes','cortes','Lista de cortes'],['anulados','anulados','Anulados']]],
+    ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
+    ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
+    ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
+    ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]]];
+  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','satcert','satconsulta','satnuevas','sathist'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, config:adminConfig, anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, sat:adminSat, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -2046,9 +2051,9 @@ function navLateral(items, actual, onpick, mod){
   const btn=(k,ic,l,extra,fn)=>h('button',{class:k===actual?'on':'',onclick:fn||(()=>onpick(k))}, ico(ic), h('span',{},l), extra||null);
   for(const it of items){ if(it==='sep'){ nav.append(h('div',{class:'sep'})); continue; }
     const [k,ic,l,subs]=it;
-    if(subs){ const abierto = subs.some(x=>x[0]===actual) || NAV.abierto===k;
-      nav.append(btn('__grupo:'+k, ic, l, h('span',{class:'car'},abierto?'–':'+'), ()=>{ NAV.abierto = abierto? null : k; render(); }));
-      if(abierto){ const sub=h('div',{class:'sub'}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl)); nav.append(sub); } }
+    if(subs){ const abierto = NAV.abierto==null ? subs.some(x=>x[0]===actual) : NAV.abierto===k; // un grupo abierto a la vez
+      nav.append(btn('__grupo:'+k, ic, l, h('span',{class:'car'},abierto?'–':'+'), ()=>{ NAV.abierto = abierto? '' : k; render(); }));
+      if(abierto){ const sub=h('div',{class:'sub'}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl,null,()=>{ NAV.abierto=k; onpick(sk); })); nav.append(sub); } }
     else nav.append(btn(k,ic,l)); }
   // Si el menú no cabe en la pantalla, se desplaza; el degradado de abajo avisa que hay más opciones.
   const marcar=()=>nav.classList.toggle('desborda', nav.scrollTop+nav.clientHeight < nav.scrollHeight-4);
@@ -2297,42 +2302,46 @@ async function adminPrecios(){
   pintarHist();
 }
 // ---- Enlace con el SAT (Descarga Masiva con la e.firma de cada empresa). Las llaves viven solo como secretos del servidor.
-async function adminSat(){
+// ---- SAT (cuatro pantallas: Agregar certificado · Consulta de facturas · Facturas nuevas · Historial de solicitudes)
+const SATV={ negocio:'' }; // filtros que se recuerdan entre pantallas
+const satFmtF = iso => iso ? new Date(iso).toLocaleString('es-MX',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : '—';
+const satFmtD = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : '—';
+// Estado del servidor + resumen por empresa. Devuelve null (y pinta el aviso) si el enlace no responde.
+async function satCargar(box){
+  let est; try{ est = await fnOficina({accion:'estado'},'sat-descarga'); }catch(e){ est={ok:false,error:e.message}; }
+  if(!est.ok){ box.append(h('div',{class:'card'}, h('b',{},'No se pudo consultar el enlace con el SAT'), h('p',{class:'small muted'},est.error||''), h('p',{class:'hint'},'Si la función sat-descarga todavía no está desplegada, primero hay que subirla en Supabase.'))); return null; }
+  let resumen=[]; try{ resumen = await rpc('sat_resumen',{})||[]; }catch(e){ box.append(h('div',{class:'alert warn',style:'display:block'},'No se pudo leer el resumen del SAT (sat_resumen): '+(e.message||e.code||e)+'. ¿Ya corrió el SQL 033?')); }
+  const porId={}; for(const r of resumen) porId[r.negocio_id]=r;
+  return { est, negocios: est.negocios, porId };
+}
+function satSelectorEmpresa(negocios, conTodas, onchange){
+  const sel=h('select',{style:'min-height:40px;max-width:360px'}, conTodas? h('option',{value:'',selected:!SATV.negocio},'Todas las empresas'):null, ...negocios.map(n=>h('option',{value:n.id,selected:SATV.negocio===n.id},n.nombre+(n.llaves?'':' · sin e.firma'))));
+  if(!conTodas && !negocios.some(n=>n.id===SATV.negocio)) SATV.negocio = (negocios.find(n=>n.llaves)||negocios[0]||{}).id||'';
+  sel.value=SATV.negocio||''; sel.addEventListener('change',()=>{ SATV.negocio=sel.value; if(onchange) onchange(); });
+  return sel;
+}
+// 1) Agregar certificado: e.firma por empresa (subir / reemplazar / quitar), probar, pausar o activar. Solo el dueño sube.
+async function satCertificados(){
   const dueno = S.rol==='dueno';
   const box=h('div',{class:'stack'}); app.append(box);
-  const fmtF = iso => iso ? new Date(iso).toLocaleString('es-MX',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}) : '—';
-  const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : '—';
-  let est; try{ est = await fnOficina({accion:'estado'},'sat-descarga'); }catch(e){ est={ok:false,error:e.message}; }
-  if(!est.ok){ box.append(h('div',{class:'card'}, h('b',{},'No se pudo consultar el enlace con el SAT'), h('p',{class:'small muted'},est.error||''), h('p',{class:'hint'},'Si la función sat-descarga todavía no está desplegada, primero hay que subirla en Supabase.'))); return; }
-  let resumen=[]; let errResumen=null; try{ resumen = await rpc('sat_resumen',{})||[]; }catch(e){ resumen=[]; errResumen=e.message||e.code||String(e); }
-  if(errResumen) box.append(h('div',{class:'alert warn',style:'display:block'},'No se pudo leer el resumen del SAT (sat_resumen): '+errResumen+'. ¿Ya corrió el SQL 033?'));
-  const porId = {}; for(const r of resumen) porId[r.negocio_id]=r;
-  const faltan = est.negocios.filter(n=>!n.llaves);
+  const d=await satCargar(box); if(!d) return; const {est,negocios,porId}=d;
+  const faltan = negocios.filter(n=>!n.llaves);
   if(dueno) box.append(h('div',{class:'card stack'}, h('div',{class:'sechead'},h('h3',{},'Cómo funciona'),h('span',{class:'chip '+(est.bot&&est.llave_maestra?'ok':'warn')},est.bot&&est.llave_maestra?'Servidor listo':'Falta configurar el servidor')),
     h('p',{class:'small muted'},'Cada empresa sube aquí su e.firma (.cer, .key y contraseña) una sola vez. OwnManager la valida con el SAT, la guarda cifrada y desde entonces, cada 6 horas, pide las facturas recibidas, descarga los XML y los registra como facturas de proveedor a nombre del usuario "OwnManager SAT". Lo que la oficina ya había subido se marca "ya estaba"; nada se duplica.'),
     h('p',{class:'small muted'},'La e.firma nunca se puede volver a descargar ni ver: solo "cargada · vigente hasta". Quien la sube es el dueño; el resto solo ve el estado.'),
     (!est.llave_maestra? h('p',{class:'small',style:'color:var(--warn)'},'Falta el secreto ',h('code',{},'SAT_LLAVE_MAESTRA'),' en Edge Functions → Secrets (una frase larga y aleatoria, mínimo 24 caracteres). Con ella se cifran las e.firmas guardadas.') : null),
     (!est.bot? h('p',{class:'small',style:'color:var(--warn)'},'Faltan ',h('code',{},'SAT_BOT_EMAIL'),' y ',h('code',{},'SAT_BOT_PASSWORD'),' (la cuenta robot que registra las facturas).') : null),
     faltan.length? h('p',{class:'small',style:'color:var(--warn)'},'Sin e.firma todavía: '+faltan.map(n=>n.nombre).join(' · ')) : h('p',{class:'small',style:'color:var(--ok)'},'Todas las empresas tienen su e.firma.')));
-  const lista=h('div',{class:'stack'}); box.append(lista);
-  for(const n of est.negocios){
+  for(const n of negocios){
     const r = porId[n.id]||{};
     const card=h('div',{class:'card stack'});
     const estadoChip = !n.llaves? h('span',{class:'chip warn'},'Sin llaves') : n.sat_activo? h('span',{class:'chip ok'},'Activo') : h('span',{class:'chip'},'Pausado');
     card.append(h('div',{class:'sechead'}, h('div',{}, h('h3',{},n.nombre), h('div',{class:'small muted mono'},n.rfc)), estadoChip));
-    const datos=h('div',{class:'grid3'},
-      h('div',{class:'kv'}, h('span',{class:'l'},'Pide desde'), h('b',{},fmtD(r.sat_desde||n.sat_desde))),
-      h('div',{class:'kv'}, h('span',{class:'l'},'Cubierto hasta'), h('b',{},fmtF(r.sat_cubierto_hasta||n.sat_cubierto_hasta))),
-      h('div',{class:'kv'}, h('span',{class:'l'},'En camino'), h('b',{},String(r.solicitudes_pendientes||0)+' solicitud'+((r.solicitudes_pendientes||0)===1?'':'es'))),
-      h('div',{class:'kv'}, h('span',{class:'l'},'Últimos 30 días'), h('b',{},`${r.registradas_30d||0} nuevas · ${r.ya_registradas_30d||0} ya estaban · ${r.errores_30d||0} con error`)),
-      h('div',{class:'kv',style:'grid-column:span 2'}, h('span',{class:'l'},'Última solicitud'), h('b',{},r.ultima_solicitud? `${fmtF(r.ultima_solicitud)} · ${r.ultimo_estado||''}` : 'Ninguna'), r.ultimo_mensaje? h('div',{class:'small muted'},r.ultimo_mensaje):null));
-    card.append(datos);
     const msg=h('p',{class:'hint'});
-    // ── e.firma: estado y carga (solo el dueño) ──
     const firmaBox=h('div',{class:'firma stack'}); card.append(firmaBox);
-    const leerB64 = f => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]||''); r.onerror=()=>rej(new Error('No se pudo leer '+f.name)); r.readAsDataURL(f); });
+    const leerB64 = f => new Promise((res,rej)=>{ const rd=new FileReader(); rd.onload=()=>res(String(rd.result).split(',')[1]||''); rd.onerror=()=>rej(new Error('No se pudo leer '+f.name)); rd.readAsDataURL(f); });
     const pintaFirma=(abrirForma)=>{ firmaBox.innerHTML='';
-      const estadoTxt = n.origen_llaves==='bd' ? `e.firma cargada${n.firma_nombre?' · '+n.firma_nombre:''} · vigente hasta ${fmtD(n.firma_vigente_hasta)}${r.firma_cargada_por?' · la subió '+r.firma_cargada_por:''}` : n.origen_llaves==='secretos' ? 'e.firma en los secretos del servidor (modo manual). Puedes subirla aquí para que quede cifrada en la base y dejar de depender de los secretos.' : 'Sin e.firma. Sube el .cer, el .key y la contraseña de esta empresa.';
+      const estadoTxt = n.origen_llaves==='bd' ? `e.firma cargada${n.firma_nombre?' · '+n.firma_nombre:''} · vigente hasta ${satFmtD(n.firma_vigente_hasta)}${r.firma_cargada_por?' · la subió '+r.firma_cargada_por:''}` : n.origen_llaves==='secretos' ? 'e.firma en los secretos del servidor (modo manual). Puedes subirla aquí para que quede cifrada en la base y dejar de depender de los secretos.' : 'Sin e.firma. Sube el .cer, el .key y la contraseña de esta empresa.';
       firmaBox.append(h('div',{class:'sechead'}, h('div',{class:'small',style:n.origen_llaves==='bd'?'color:var(--ok)':(n.origen_llaves?'color:var(--warn)':'color:var(--muted)')}, (n.origen_llaves==='bd'?'✓ ':'')+estadoTxt),
         dueno&&!abrirForma? h('div',{class:'row',style:'gap:6px'}, h('button',{class:'btn sm'+(n.origen_llaves==='bd'?' ghost':' primary'),onclick:()=>pintaFirma(true)}, n.origen_llaves==='bd'?'Reemplazar':'Subir e.firma'),
           n.origen_llaves==='bd'? h('button',{class:'btn sm ghost',onclick:async(ev)=>{ const b=ev.currentTarget; if(!b.dataset.ok){ b.dataset.ok='1'; b.textContent='¿Quitar? toca otra vez'; setTimeout(()=>{ delete b.dataset.ok; b.textContent='Quitar'; },4000); return; } try{ const j=await fnOficina({accion:'quitar_firma',negocio_id:n.id},'sat-descarga'); if(!j.ok) throw new Error(j.error); toast('e.firma quitada; sincronización pausada.'); render(); }catch(e){ aviso('No se pudo quitar: '+e.message,'err'); } }},'Quitar'):null) : null));
@@ -2350,34 +2359,88 @@ async function adminSat(){
             b.disabled=true; b.textContent='Validando con el SAT…';
             try{ const j=await fnOficina({accion:'cargar_firma',negocio_id:n.id,cer_base64:await leerB64(fc),key_base64:await leerB64(fk),password:pass.value,desde:desde.value||null},'sat-descarga');
               if(!j.ok) throw new Error(j.error||'No se pudo');
-              const ps=j.primera_solicitud; aviso(`${j.nombre||j.rfc} · vigente hasta ${fmtD(j.vigente_hasta)}. Sincronización activa desde ${fmtD(j.desde)}.`+(ps? (ps.ok? ` Primera solicitud aceptada por el SAT (${ps.id_solicitud}).` : ` La primera solicitud no entró: ${ps.mensaje||''}; se reintenta sola.`) : ''),'ok',15000,'e.firma guardada y conectada'); render(); }
+              const ps=j.primera_solicitud; aviso(`${j.nombre||j.rfc} · vigente hasta ${satFmtD(j.vigente_hasta)}. Sincronización activa desde ${satFmtD(j.desde)}.`+(ps? (ps.ok? ` Primera solicitud aceptada por el SAT (${ps.id_solicitud}).` : ` La primera solicitud no entró: ${ps.mensaje||''}; se reintenta sola.`) : ''),'ok',15000,'e.firma guardada y conectada'); render(); }
             catch(e){ aviso(e.message,'err',12000,'No se guardó la e.firma'); b.disabled=false; b.textContent='Guardar e.firma y conectar'; } }},'Guardar e.firma y conectar'),
           h('button',{class:'btn big ghost',onclick:()=>pintaFirma(false)},'Cancelar')));
       firmaBox.append(forma); };
     pintaFirma(dueno && !n.llaves);
     if(dueno){
       const acciones=h('div',{class:'row',style:'gap:8px;flex-wrap:wrap'});
-      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Probando la e.firma con el SAT…'; try{ const j=await fnOficina({accion:'probar',negocio_id:n.id},'sat-descarga'); msg.textContent = j.ok? `✓ e.firma de ${j.nombre||j.rfc} (${j.rfc}) vigente hasta ${fmtD(j.vigente_hasta)} · el SAT dio token.` : '✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Probar e.firma'));
-      const desde=h('input',{type:'date',value:(n.sat_desde||'').slice(0,10)||new Date(Date.now()-30*864e5).toISOString().slice(0,10),style:'min-height:40px'});
-      acciones.append(h('button',{class:'btn '+(n.sat_activo?'ghost':'primary'),disabled:!n.llaves,onclick:async()=>{ try{ await rpc('sat_configurar',{p_negocio:n.id,p_activo:!n.sat_activo,p_desde:desde.value||null}); toast(n.sat_activo?'Sincronización pausada.':'Sincronización activada; la primera solicitud sale en la próxima corrida.'); render(); }catch(e){ aviso('No se pudo: '+(e.message||e.code),'err'); } }}, n.sat_activo?'Pausar':'Activar'));
-      acciones.append(h('label',{class:'f',style:'margin:0'},h('span',{class:'l'},'Desde'),desde));
-      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; const d=desde.value; if(!d){ toast('Elige la fecha inicial.'); return; } b.disabled=true; msg.textContent=`Pidiendo al SAT las facturas desde ${fmtD(d)}…`; try{ const j=await fnOficina({accion:'solicitar',negocio_id:n.id,desde:d},'sat-descarga'); if(j.ok){ aviso(`El SAT aceptó la solicitud ${j.id_solicitud} de ${n.nombre} desde ${fmtD(d)}. Tarda de minutos a horas; cada 20 minutos se revisa y se descarga sola.`,'ok',15000,'Solicitud enviada al SAT'); render(); } else msg.textContent='✕ '+(j.error||j.mensaje||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Pedir al SAT ahora'));
+      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Probando la e.firma con el SAT…'; try{ const j=await fnOficina({accion:'probar',negocio_id:n.id},'sat-descarga'); msg.textContent = j.ok? `✓ e.firma de ${j.nombre||j.rfc} (${j.rfc}) vigente hasta ${satFmtD(j.vigente_hasta)} · el SAT dio token.` : '✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Probar e.firma'));
+      acciones.append(h('button',{class:'btn '+(n.sat_activo?'ghost':'primary'),disabled:!n.llaves,onclick:async()=>{ try{ await rpc('sat_configurar',{p_negocio:n.id,p_activo:!n.sat_activo,p_desde:null}); toast(n.sat_activo?'Sincronización pausada.':'Sincronización activada; la primera solicitud sale en la próxima corrida.'); render(); }catch(e){ aviso('No se pudo: '+(e.message||e.code),'err'); } }}, n.sat_activo?'Pausar':'Activar'));
       card.append(acciones);
     }
-    card.append(h('button',{class:'btn sm ghost',style:'align-self:flex-start',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Revisando con el SAT…'; try{ const j=await fnOficina({accion:'avanzar',negocio_id:n.id},'sat-descarga'); const r=j.resumen||{}; if(j.ok){ aviso(`${r.verificadas||0} verificadas · ${r.descargados||0} paquetes · ${r.registradas||0} facturas nuevas · ${r.ya_registradas||0} ya estaban · ${r.errores||0} errores` + ((j.log||[]).length? ' — '+j.log.slice(-3).join(' | '):''),'ok',15000,'Revisión con el SAT'); render(); } else msg.textContent='✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Revisar ahora'), msg);
-    lista.append(card);
+    card.append(msg);
+    box.append(card);
   }
-  // Últimas solicitudes y últimos CFDI (lo que ve el usuario por RLS)
-  try{
-    const sols = await sel(sb.from('sat_solicitudes').select('id, negocio_id, fecha_inicial, fecha_final, estado, numero_cfdis, mensaje, error, creada_en, negocios(nombre)').order('creada_en',{ascending:false}).limit(12));
-    if(sols.length){ const t=h('div',{class:'card stack'}, h('h3',{},'Últimas solicitudes al SAT'));
-      for(const x of sols) t.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.negocios?x.negocios.nombre:''} · ${fmtD(String(x.fecha_inicial).slice(0,10))} → ${fmtD(String(x.fecha_final).slice(0,10))}`), h('div',{class:'small muted'},`${fmtF(x.creada_en)} · ${x.estado}${x.numero_cfdis!=null?' · '+x.numero_cfdis+' CFDI':''}${x.error?' · '+x.error:(x.mensaje?' · '+x.mensaje:'')}`))));
-      box.append(t); }
-    const cf = await sel(sb.from('sat_cfdis').select('uuid, emisor_nombre, emisor_rfc, fecha, total, serie, folio, resultado, detalle, creado_en, negocios(nombre)').order('creado_en',{ascending:false}).limit(25));
-    if(cf.length){ const t=h('div',{class:'card stack'}, h('h3',{},'Últimas facturas que llegaron del SAT'));
-      for(const x of cf) t.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.emisor_nombre||x.emisor_rfc||'—'} · ${[x.serie,x.folio].filter(Boolean).join('')||x.uuid.slice(0,8)} · ${fmtMonto(x.total||0)}`), h('div',{class:'small muted'},`${x.negocios?x.negocios.nombre:''} · ${fmtD(x.fecha)} · ${x.resultado==='registrada'?'registrada':x.resultado==='ya_registrada'?'ya estaba':x.resultado}${x.detalle?' · '+x.detalle:''}`)), h('span',{class:'chip '+(x.resultado==='registrada'?'ok':x.resultado==='error'?'warn':'')},x.resultado==='registrada'?'Nueva':x.resultado==='ya_registrada'?'Ya estaba':x.resultado)));
-      box.append(t); }
-  }catch(e){ console.warn('sat listas', e); box.append(h('p',{class:'hint'},'No se pudieron leer las solicitudes/CFDI del SAT: '+(e.message||e.code||e))); }
+}
+// 2) Consulta de facturas: elige la empresa y el periodo del calendario y pídele al SAT las facturas de esas fechas. Lo más simple posible.
+async function satConsulta(){
+  const dueno = S.rol==='dueno';
+  const box=h('div',{class:'stack'}); app.append(box);
+  const d=await satCargar(box); if(!d) return; const {negocios,porId}=d;
+  const conLlaves=negocios.filter(n=>n.llaves);
+  if(!conLlaves.length){ box.append(h('div',{class:'card empty'}, h('b',{},'Ninguna empresa tiene e.firma'), 'Primero súbela en SAT → Agregar certificado.')); return; }
+  const hoy=nowMX().fecha;
+  const sel=satSelectorEmpresa(conLlaves,false,()=>pintaEstado());
+  const desde=h('input',{type:'date',value:addDays(hoy,-7),max:hoy}), hasta=h('input',{type:'date',value:hoy,max:hoy});
+  const estado=h('p',{class:'small muted'}); const msg=h('p',{class:'hint'});
+  const pintaEstado=()=>{ const n=conLlaves.find(x=>x.id===SATV.negocio)||conLlaves[0]; const r=porId[n.id]||{}; estado.textContent=`${n.nombre} · pide desde ${satFmtD(r.sat_desde||n.sat_desde)} · cubierto hasta ${satFmtF(r.sat_cubierto_hasta||n.sat_cubierto_hasta)} · ${r.solicitudes_pendientes||0} en camino`; };
+  pintaEstado();
+  const pedir=h('button',{class:'btn primary big',disabled:!dueno,onclick:async(ev)=>{ const b=ev.currentTarget; const n=conLlaves.find(x=>x.id===SATV.negocio)||conLlaves[0]; const di=desde.value, df=hasta.value;
+      if(!di||!df){ toast('Elige las dos fechas.'); return; } if(di>df){ toast('La fecha inicial no puede ser después de la final.'); return; }
+      b.disabled=true; msg.textContent=`Pidiendo al SAT las facturas de ${n.nombre} del ${satFmtD(di)} al ${satFmtD(df)}…`;
+      try{ const j=await fnOficina({accion:'solicitar',negocio_id:n.id,desde:di,hasta:df},'sat-descarga');
+        if(j.ok){ aviso(`El SAT aceptó la solicitud ${j.id_solicitud} de ${n.nombre} (${satFmtD(di)} → ${satFmtD(df)}). Tarda de minutos a horas; cada 20 minutos se revisa y se descarga sola. Síguela en Historial de solicitudes.`,'ok',15000,'Solicitud enviada al SAT'); msg.textContent=''; }
+        else msg.textContent='✕ '+(j.error||j.mensaje||'No se pudo'); }
+      catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Pedir al SAT');
+  box.append(h('div',{class:'card stack'},
+    h('p',{class:'small muted'},'Elige la empresa y las fechas; OwnManager le pide al SAT todas las facturas recibidas en ese periodo. Las que ya estaban no se duplican. El robot además pide solo lo nuevo cada 6 horas; esto es para traer un periodo a mano.'),
+    h('label',{class:'f'},h('span',{class:'l'},'Empresa'),sel),
+    h('div',{class:'grid2'}, h('label',{class:'f'},h('span',{class:'l'},'Del día'),desde), h('label',{class:'f'},h('span',{class:'l'},'Al día'),hasta)),
+    estado, h('div',{class:'row',style:'gap:8px'}, pedir), msg,
+    dueno? null : h('p',{class:'hint'},'Solo el dueño puede pedir periodos al SAT; aquí puedes ver el estado.')));
+}
+// 3) Facturas nuevas: lo que llegó del SAT (registrada / ya estaba / error), con filtro por empresa.
+async function satNuevas(){
+  const box=h('div',{class:'stack'}); app.append(box);
+  const d=await satCargar(box); if(!d) return; const {negocios,porId}=d;
+  const lista=h('div',{class:'stack'});
+  const selEmp=satSelectorEmpresa(negocios,true,()=>pinta());
+  const tot=negocios.reduce((a,n)=>{ const r=porId[n.id]||{}; a.n+=r.registradas_30d||0; a.y+=r.ya_registradas_30d||0; a.e+=r.errores_30d||0; return a; },{n:0,y:0,e:0});
+  box.append(h('div',{class:'card stack'}, h('div',{class:'sechead'}, h('label',{class:'f',style:'margin:0'},h('span',{class:'l'},'Empresa'),selEmp), h('span',{class:'chip'},`Últimos 30 días: ${tot.n} nuevas · ${tot.y} ya estaban · ${tot.e} con error`)),
+    h('p',{class:'small muted'},'Cada factura que llega del SAT queda registrada como factura de proveedor a nombre de "OwnManager SAT"; aquí se ve la llegada. Para trabajarlas (pagarlas, ligar comprobantes) usa Facturas → Consultar facturas.')), lista);
+  async function pinta(){ lista.innerHTML=''; const espera=omEsperando(['Buscando facturas del SAT…','Casi listo…']); lista.append(espera);
+    try{ let q=sb.from('sat_cfdis').select('uuid, emisor_nombre, emisor_rfc, fecha, total, serie, folio, resultado, detalle, creado_en, negocios(nombre)').order('creado_en',{ascending:false}).limit(150); if(SATV.negocio) q=q.eq('negocio_id',SATV.negocio); const cf=await sel(q); espera.remove();
+      if(!cf.length){ lista.append(h('div',{class:'card empty'}, h('b',{},'Todavía no ha llegado ninguna factura del SAT'), 'En cuanto el SAT entregue un paquete, aquí aparecen.')); return; }
+      let dia=null; let card=null;
+      for(const x of cf){ const dd=String(x.creado_en).slice(0,10); if(dd!==dia){ dia=dd; card=h('div',{class:'card stack'}, h('h3',{},'Llegaron el '+satFmtD(dd))); lista.append(card); }
+        card.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.emisor_nombre||x.emisor_rfc||'—'} · ${[x.serie,x.folio].filter(Boolean).join('')||x.uuid.slice(0,8)} · ${fmtMonto(x.total||0)}`), h('div',{class:'small muted'},`${x.negocios?x.negocios.nombre:''} · factura del ${satFmtD(x.fecha)}${x.detalle?' · '+x.detalle:''}`)), h('span',{class:'chip '+(x.resultado==='registrada'?'ok':x.resultado==='error'?'warn':'')},x.resultado==='registrada'?'Nueva':x.resultado==='ya_registrada'?'Ya estaba':x.resultado))); }
+    }catch(e){ espera.remove(); lista.append(h('p',{class:'hint'},'No se pudieron leer las facturas del SAT: '+(e.message||e.code||e))); } }
+  pinta();
+}
+// 4) Historial de solicitudes: estado por empresa y cada petición hecha al SAT; "Revisar ahora" fuerza la revisión sin esperar al robot.
+async function satHistorial(){
+  const dueno = S.rol==='dueno';
+  const box=h('div',{class:'stack'}); app.append(box);
+  const d=await satCargar(box); if(!d) return; const {negocios,porId}=d;
+  const msg=h('p',{class:'hint'});
+  const resumen=h('div',{class:'card stack'}, h('h3',{},'Estado por empresa'));
+  for(const n of negocios){ const r=porId[n.id]||{};
+    resumen.append(h('div',{class:'item',style:'cursor:default;align-items:flex-start'}, h('div',{class:'l'}, h('b',{},n.nombre), h('div',{class:'small muted'},`Pide desde ${satFmtD(r.sat_desde||n.sat_desde)} · cubierto hasta ${satFmtF(r.sat_cubierto_hasta||n.sat_cubierto_hasta)} · ${r.solicitudes_pendientes||0} en camino · últimos 30 días: ${r.registradas_30d||0} nuevas, ${r.ya_registradas_30d||0} ya estaban, ${r.errores_30d||0} con error`), r.ultima_solicitud? h('div',{class:'small muted'},`Última solicitud ${satFmtF(r.ultima_solicitud)} · ${r.ultimo_estado||''}${r.ultimo_mensaje?' · '+r.ultimo_mensaje:''}`):null),
+      h('div',{class:'row',style:'gap:6px;align-items:center'}, !n.llaves? h('span',{class:'chip warn'},'Sin llaves') : n.sat_activo? h('span',{class:'chip ok'},'Activo') : h('span',{class:'chip'},'Pausado'),
+        h('button',{class:'btn sm ghost',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Revisando con el SAT…'; try{ const j=await fnOficina({accion:'avanzar',negocio_id:n.id},'sat-descarga'); const rr=j.resumen||{}; if(j.ok){ aviso(`${rr.verificadas||0} verificadas · ${rr.descargados||0} paquetes · ${rr.registradas||0} facturas nuevas · ${rr.ya_registradas||0} ya estaban · ${rr.errores||0} errores` + ((j.log||[]).length? ' — '+j.log.slice(-3).join(' | '):''),'ok',15000,'Revisión con el SAT'); render(); } else msg.textContent='✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Revisar ahora')))); }
+  resumen.append(msg); box.append(resumen);
+  const lista=h('div',{class:'stack'}); box.append(h('div',{class:'row between'}, h('label',{class:'f',style:'margin:0'},h('span',{class:'l'},'Empresa'),satSelectorEmpresa(negocios,true,()=>pinta()))), lista);
+  async function pinta(){ lista.innerHTML=''; const espera=omEsperando(['Cargando solicitudes…']); lista.append(espera);
+    try{ let q=sb.from('sat_solicitudes').select('id, negocio_id, id_solicitud, fecha_inicial, fecha_final, estado, numero_cfdis, mensaje, error, creada_en, negocios(nombre)').order('creada_en',{ascending:false}).limit(60); if(SATV.negocio) q=q.eq('negocio_id',SATV.negocio); const sols=await sel(q); espera.remove();
+      if(!sols.length){ lista.append(h('div',{class:'card empty'}, h('b',{},'Sin solicitudes todavía'), 'Pide un periodo en Consulta de facturas o activa la empresa en Agregar certificado.')); return; }
+      const t=h('div',{class:'card stack'}, h('h3',{},'Solicitudes al SAT'));
+      for(const x of sols){ const term=/termin|listo|descarg|proces/i.test(x.estado||''); const err=!!x.error||/rechaz|error|venc/i.test(x.estado||'');
+        t.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${x.negocios?x.negocios.nombre:''} · ${satFmtD(x.fecha_inicial)} → ${satFmtD(x.fecha_final)}`), h('div',{class:'small muted'},`Pedida ${satFmtF(x.creada_en)}${x.id_solicitud?' · '+x.id_solicitud:''}${x.numero_cfdis!=null?' · '+x.numero_cfdis+' CFDI':''}${x.error?' · '+x.error:(x.mensaje?' · '+x.mensaje:'')}`)), h('span',{class:'chip '+(err?'warn':term?'ok':'')},x.estado||'—'))); }
+      lista.append(t);
+    }catch(e){ espera.remove(); lista.append(h('p',{class:'hint'},'No se pudieron leer las solicitudes: '+(e.message||e.code||e))); } }
+  pinta();
 }
 // ---- Clientes marcados (empresas que cargan a cuenta; acceso directo)
 async function adminClientes(){
@@ -2390,12 +2453,13 @@ async function adminClientes(){
   app.append(h('div',{class:'card stack'}, h('p',{class:'small muted'},'Clientes que cargan a cuenta; aparecen en la lista de "Clientes" del corte.'),
     h('div',{class:'grid2'},nuevaC,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaC.value.trim(); if(!n||c.clientesMarcados.some(x=>x.nombre.toLowerCase()===n.toLowerCase())) return; c.clientesMarcados.push({id:'cm-'+uid().slice(-8),nombre:n,activo:true}); try{ await guardaCm(); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); c.clientesMarcados.pop(); return; } nuevaC.value=''; drawCm(); }},'Agregar')), cmList));
 }
-async function adminConfig(){
+// vista: 'terminales' (solo esa sección) o 'ajustes' (identidad, alertas, islas y orden, integridad).
+async function adminConfig(vista){
   const c=S.config; const box=h('div',{class:'stack'}); app.append(box);
   const dueno=S.rol==='dueno';
-  if(!dueno){ box.append(h('p',{class:'hint'},'El resto de la configuración (alertas, terminales, orden de mangueras) la cambia el dueño.')); return; }
+  if(!dueno){ box.append(h('p',{class:'hint'},vista==='terminales'?'Las terminales bancarias las cambia el dueño.':'Los ajustes avanzados (identidad, alertas, orden de mangueras) los cambia el dueño.')); return; }
   // identidad de la estación: nombre, logo y remitente de los correos
-  { const nom=h('input',{type:'text',value:c.nombre,id:'cfg-nombre',maxlength:'60'}); const remN=h('input',{type:'text',value:c.remitenteNombre||c.nombre,id:'cfg-remn',maxlength:'60'}); const rem=h('input',{type:'email',value:c.remitente||'',id:'cfg-rem',placeholder:'estacion@mauriciopizano.com'});
+  if(vista!=='terminales'){ const nom=h('input',{type:'text',value:c.nombre,id:'cfg-nombre',maxlength:'60'}); const remN=h('input',{type:'text',value:c.remitenteNombre||c.nombre,id:'cfg-remn',maxlength:'60'}); const rem=h('input',{type:'email',value:c.remitente||'',id:'cfg-rem',placeholder:'estacion@mauriciopizano.com'});
     let logoNuevo=c.logoData, logoTocado=false; const prev=h('div',{}); const file=h('input',{type:'file',accept:'image/png,image/jpeg',style:'display:none',id:'cfg-logo'}); const msg=h('p',{class:'hint'});
     const drawPrev=()=>{ prev.innerHTML=''; prev.append(logoNuevo? h('img',{class:'logo-prev',src:logoNuevo,alt:'Logo'}) : h('div',{class:'logo-prev',style:'display:flex;align-items:center;padding:6px 14px;font:800 18px var(--font-display)'},nom.value||c.nombre)); };
     drawPrev();
@@ -2408,17 +2472,19 @@ async function adminConfig(){
         b.disabled=true; try{ const upd={nombre:n, remitente:r||null, remitente_nombre:remN.value.trim()||n}; if(logoTocado) upd.logo_data=logoNuevo; await sel(sb.from('estaciones').update(upd).eq('id',c.estacionId));
           c.nombre=n; c.remitente=r; c.remitenteNombre=upd.remitente_nombre; if(logoTocado){ c.logoData=logoNuevo; c.logoRatio=null; medirLogo(); } ESTACION=n; const e=S.estaciones.find(x=>x.id===c.estacionId); if(e){ e.nombre=n; if(logoTocado) e.logo_data=logoNuevo; } logoTocado=false; setBrand(); toast('Identidad guardada.'); }
         catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } b.disabled=false; }},'Guardar identidad'))); }
-  const max=h('input',{type:'number',value:c.maxLitrosTurno||8000,id:'cfg-max'}); const tol=h('input',{type:'number',step:'1',min:'0',value:c.toleranciaPesos??50,id:'cfg-tol'});
-  const correos=h('input',{type:'text',value:(c.correosAviso||[]).join(', '),id:'cfg-correos',placeholder:'correo1@…, correo2@…'});
-  box.append(h('div',{class:'card stack'}, h('h3',{},'Alertas'), h('div',{class:'grid2',style:'align-items:end'}, h('label',{class:'f'},h('span',{class:'l'},'Litros máximos por manguera y turno'),max), h('label',{class:'f'},h('span',{class:'l'},'Tolerancia en pesos (no pide explicación)'),tol)),
-    h('label',{class:'f'},h('span',{class:'l'},'Correos que reciben el reporte de turno y la verificación nocturna (separados por coma)'),correos),
-    h('button',{class:'btn primary',onclick:async()=>{ const lista=correos.value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)); try{ await sel(sb.from('estaciones').update({max_litros_turno:Number(max.value)||8000, tolerancia_pesos:Number(tol.value)||0, correos_aviso:lista}).eq('id',c.estacionId)); c.maxLitrosTurno=Number(max.value)||8000; c.toleranciaPesos=Number(tol.value)||0; c.correosAviso=lista; correos.value=lista.join(', '); toast('Guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar')));
+  if(vista==='terminales'){
   // terminales bancarias
   c.terminales=c.terminales||[]; const nuevaT=h('input',{type:'text',placeholder:'Nombre de la terminal / banco',id:'tm-nueva'});
   const guardaT=()=>sel(sb.from('estaciones').update({terminales:c.terminales}).eq('id',c.estacionId));
   const tList=h('div',{class:'list'}); const drawT=()=>{ tList.innerHTML=''; c.terminales.forEach((t,i)=>tList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},t)),h('button',{class:'btn sm danger',onclick:async()=>{ c.terminales.splice(i,1); await guardaT(); drawT(); }},'Quitar')))); };
   drawT();
   box.append(h('div',{class:'card stack'}, h('h3',{},'Terminales bancarias'), h('p',{class:'small muted'},'Opciones que aparecen en la lista de tarjetas del corte.'), h('div',{class:'grid2'},nuevaT,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaT.value.trim(); if(!n||c.terminales.includes(n)) return; c.terminales.push(n); await guardaT(); nuevaT.value=''; drawT(); }},'Agregar')), tList));
+  return; }
+  const max=h('input',{type:'number',value:c.maxLitrosTurno||8000,id:'cfg-max'}); const tol=h('input',{type:'number',step:'1',min:'0',value:c.toleranciaPesos??50,id:'cfg-tol'});
+  const correos=h('input',{type:'text',value:(c.correosAviso||[]).join(', '),id:'cfg-correos',placeholder:'correo1@…, correo2@…'});
+  box.append(h('div',{class:'card stack'}, h('h3',{},'Alertas'), h('div',{class:'grid2',style:'align-items:end'}, h('label',{class:'f'},h('span',{class:'l'},'Litros máximos por manguera y turno'),max), h('label',{class:'f'},h('span',{class:'l'},'Tolerancia en pesos (no pide explicación)'),tol)),
+    h('label',{class:'f'},h('span',{class:'l'},'Correos que reciben el reporte de turno y la verificación nocturna (separados por coma)'),correos),
+    h('button',{class:'btn primary',onclick:async()=>{ const lista=correos.value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)); try{ await sel(sb.from('estaciones').update({max_litros_turno:Number(max.value)||8000, tolerancia_pesos:Number(tol.value)||0, correos_aviso:lista}).eq('id',c.estacionId)); c.maxLitrosTurno=Number(max.value)||8000; c.toleranciaPesos=Number(tol.value)||0; c.correosAviso=lista; correos.value=lista.join(', '); toast('Guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar')));
   const isl=h('div',{class:'card stack'}, h('h3',{},'Islas, orden y código de pantalla'), h('p',{class:'small muted'},'El código de pantalla es lo que muestra el display de la bomba (por ejemplo "b n1" = lado B, número 1); con él la app reconoce cada foto. Si en las pruebas una bomba sale con otro código, cámbialo aquí. El orden es el de la lista de mangueras y del video.'));
   for(const i of c.islas){ const ul=h('div',{class:'list'}); const draw=()=>{ ul.innerHTML=''; i.mangueras.forEach((m,k)=>{ const cod=h('input',{type:'text',value:m.codigo||'',placeholder:'b n1',style:'width:84px;text-transform:uppercase;font-family:var(--font-mono)',oninput:()=>{ m.codigo=cod.value; }}); ul.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},`${k+1}. ${m.id} · ${m.producto}`),h('span',{class:'small muted'},'Lado '+m.lado)),h('div',{class:'row',style:'gap:6px'},cod,h('button',{class:'btn sm',disabled:k===0,onclick:()=>{[i.mangueras[k-1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k-1]];draw();}},'↑'),h('button',{class:'btn sm',disabled:k===i.mangueras.length-1,onclick:()=>{[i.mangueras[k+1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k+1]];draw();}},'↓')))); }); }; draw(); isl.append(h('div',{},h('p',{class:'eyebrow',style:'margin:8px 0'},i.nombre),ul)); }
   isl.append(h('button',{class:'btn primary',onclick:async()=>{ try{ for(const i of c.islas){ const vistos={}; for(const m of i.mangueras){ const n=String(m.codigo||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(n&&vistos[n]) throw new Error(`El código ${n} está repetido en ${i.nombre} (${vistos[n]} y ${m.id}).`); if(n) vistos[n]=m.id; } }
@@ -2667,7 +2733,7 @@ async function renderWizardPago(cuentas, fijo){
     add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
       h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
       r.factura_ligada? h('p',{class:'small',style:'color:'+(r.factura_ligada.cuadra?'var(--ok)':'var(--warn)')},'Quedó ligado a la factura '+(r.factura_ligada.concepto_pago||'')+(r.factura_ligada.cuadra?'.':' · el importe no coincide con el total de la factura ('+fmtMonto(r.factura_ligada.total)+').')) : h('p',{class:'small muted'},'No se ligó a ninguna factura; cuando llegue la factura con ese concepto se ligará sola.'),
-      h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='pagos'; else adminTab='pagos'; render(); }},'Ver pagos')));
+      h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='comprobantes'; else adminTab='comprobantes'; render(); }},'Ver comprobantes')));
   }
 }
 
@@ -2864,8 +2930,12 @@ async function adminProveedores(){
 let oficinaTab='chat';
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
-  const items=[['chat','chat','Asistente'],['facturas','facturamas','Agregar factura'],['apago','pagosmas','Agregar pago'],['consulta','buscar','Consulta',[['cfacturas','factura','Facturas'],['pagos','pagos','Pagos'],['comprobantes','comprobantes','Comprobantes'],['estados','banco','Estados de cuenta'],['proveedores','proveedores','Proveedores']]]];
-  const titulos={chat:'Asistente', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Facturas', pagos:'Pagos', comprobantes:'Comprobantes', estados:'Estados de cuenta', proveedores:'Proveedores'};
+  const items=[['chat','chat','Asistente'],
+    ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
+    ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]]]; // los estados de cuenta los sube Central (regla del servidor)
+  const titulos={chat:'Asistente', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores'};
+  if(!titulos[oficinaTab]) oficinaTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }, 'oficina'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, h('h1',{},titulos[oficinaTab])));
