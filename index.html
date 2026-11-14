@@ -627,7 +627,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.2';
+const OM_VERSION='1.4.3';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1901,7 +1901,7 @@ async function renderResumen(body, c, d, venta, tol, irA){
   body.append(cmp, h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'¿Cómo se cobró?'),comp), h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Calidad de las fotos'),fotos), h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Cómo se calculó la calificación'),fact), h('div',{},h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Sugerencias para '+nombre),ia));
   const com=h('textarea',{id:'com',rows:'2',placeholder:'Explica la diferencia (obligatorio si pasa la tolerancia)'},d.comentario||''); com.addEventListener('input',()=>{ d.comentario=com.value; programarGuardado(); });
   if(q.dif!=null && Math.abs(q.dif)>tol) body.append(h('label',{class:'f'},h('span',{class:'l'},'Explicación de la diferencia'),com));
-  body.append(h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('clientes')},'Atrás'),h('button',{class:'btn primary big',onclick:()=>confirmarEnvio()},'Revisar y enviar corte')));
+  body.append(h('div',{class:'grid2'},h('button',{class:'btn big',onclick:()=>irA('clientes')},'Atrás'),h('button',{class:'btn primary big',onclick:e=>enviarDirecto(e.currentTarget)},'Enviar corte')));
   c.calidad={puntos:q.puntos,nivel:q.nivel,factores:q.factores,fotos:q.fotos};
   analisisIA(c,d,q,venta,t,tol,ia,nombre,hist);
 }
@@ -1921,10 +1921,8 @@ async function analisisIA(c,d,q,venta,t,tol,box,nombre,hist){
     const texto=(data&&data.texto||'').trim(); guarda(texto||fallback(), texto?'ia':'auto');
   }catch(e){ console.warn('calificar-corte', e); guarda(fallback(),'auto'); }
 }
-// ---- PDF para firma (3 hojas)
-async function imagenParaPDF(fotoId, maxW){
-  try{ let b=S.blobs&&S.blobs[fotoId]; if(!b){ const src=fotoSrc(fotoId); if(!src) return null; const r=await fetch(src); b=await r.blob(); } const bmp=await createImageBitmap(b); const sc=Math.min(1,maxW/bmp.width); const cv=document.createElement('canvas'); cv.width=Math.round(bmp.width*sc); cv.height=Math.round(bmp.height*sc); cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height); return {data:cv.toDataURL('image/jpeg',0.78), w:cv.width, h:cv.height}; }catch(e){ return null; }
-}
+// ---- PDF para firma del despachador: 2 hojas, sin fotos, cuadro de firmas en cada hoja (13-nov-2026).
+// Las fotos de los totalizadores van solo en el PDF del correo a dirección (reporte-turno / resumen-diario).
 async function generarPDF(c){
   const { jsPDF } = window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210, M=14; let y=0;
   const NOCHE=[28,42,57], AZUL=[31,79,176], ROJO=[250,77,77], VERDE=[23,165,84], GRIS=[94,110,134], LINEA=[217,225,236], SUAVE=[243,246,250];
@@ -1934,75 +1932,83 @@ async function generarPDF(c){
   const linea=(yy,col)=>{ doc.setDrawColor(...(col||LINEA)); doc.setLineWidth(0.3); doc.line(M,yy,W-M,yy); };
   const caja=(x,yy,w,hh,fill)=>{ doc.setFillColor(...fill); doc.setDrawColor(...fill); doc.roundedRect(x,yy,w,hh,2,2,'F'); };
   const nombreDesp=c.despachadorNombre||''; const folio=c.id;
-  const logoCab=()=>{ const ld=S.config&&S.config.logoData; if(ld){ try{ const r=S.config.logoRatio||2.5; const hh=15.2, ww=Math.min(60,hh*r); doc.addImage(ld,/^data:image\/png/i.test(ld)?'PNG':'JPEG',M,10,ww,hh); return; }catch(e){} } txt(M,16,ESTACION,{b:true,s:14,c:NOCHE}); txt(M,21.5,'Own Manager',{s:7.5,c:GRIS}); };
+  const logoCab=()=>{ const ld=S.config&&S.config.logoData; if(ld){ try{ const r=S.config.logoRatio||2.5; const hh=15.2, ww=Math.min(60,hh*r); doc.addImage(ld,/^data:image\/png/i.test(ld)?'PNG':'JPEG',M,10,ww,hh); return; }catch(e){} } txt(M,16,ESTACION,{b:true,s:15}); txt(M,22,'Own Manager',{s:8,c:GRIS}); };
   const filete=()=>{ [[0,245,212],[204,255,0],[255,255,0]].forEach((col,i)=>{ doc.setFillColor(...col); doc.rect(i*W/3,0,W/3+0.2,1.4,'F'); }); };
-  const cabecera=(titulo)=>{ filete(); logoCab(); txt(W-M,14,'CORTE MECANICO DE TURNO',{b:true,s:12,a:'right',c:AZUL}); txt(W-M,19.5,titulo,{s:9,a:'right',c:GRIS}); linea(25,AZUL); y=31; };
-  const pie=(n,total)=>{ linea(283); try{ doc.addImage(OM_MONO,'PNG',M,284.6,4.3,5); }catch(e){} txt(M+6,288,`Generado con Own Manager · ${ESTACION} · Folio ${folio} · Sello ${(c.hash||'').slice(0,16)}…`,{s:7.5,c:GRIS}); txt(W-M,288,`Página ${n} de ${total}`,{s:7.5,c:GRIS,a:'right'}); };
-  const tabla=(cols,rows,opts={})=>{ const x0=M; const ws=cols.map(k=>k.w); const rowH=opts.rowH||6.2; const tw=ws.reduce((a,b)=>a+b,0);
-    const header=()=>{ caja(x0,y,tw,rowH,SUAVE); let x=x0; cols.forEach((k,i)=>{ txt(k.a==='right'?x+ws[i]-2:x+2,y+4.3,k.t,{b:true,s:8,c:GRIS,a:k.a||'left'}); x+=ws[i]; }); y+=rowH; };
-    header();
-    rows.forEach((r,ri)=>{ if(y>270){ pie(opts.pagina,opts.total); doc.addPage(); cabecera(opts.titulo||''); header(); } let x=x0; cols.forEach((k,i)=>{ const v=r[i]; const bold=r.bold||(ri===rows.length-1&&opts.ultimaNegrita); txt(k.a==='right'?x+ws[i]-2:x+2,y+4.3,v,{s:9,b:!!bold,a:k.a||'left',c:r.color||NOCHE}); x+=ws[i]; }); linea(y+rowH); y+=rowH; });
-    y+=3; };
-  const TOTAL=3;
-  // ---------- Página 1
-  cabecera(`${ESTACION} · ${c.islaNombre} · ${c.turnoNombre}`);
-  txt(M,y+2,`${c.islaNombre} · ${c.turnoNombre}`,{b:true,s:16}); txt(M,y+8,`${fmtFecha(c.fecha)} · Despachador: ${nombreDesp}`,{s:10,c:GRIS}); y+=14;
-  const info=[['Fecha del turno',fmtFecha(c.fecha)],['Turno',c.turnoNombre],['Isla',c.islaNombre],['Despachador',nombreDesp],['Corte abierto',fmtHora(c.abiertoEn)],['Corte enviado',(c.enviadoEn?fmtHora(c.enviadoEn):'—')+(c.enviadoPor&&c.enviadoPor.id!==c.despachadorId?' por '+c.enviadoPor.nombre:'')],['Folio',folio],['Sello (SHA-256)',(c.hash||'').slice(0,32)+'…']];
-  info.forEach((p,i)=>{ const col=i%2, row=Math.floor(i/2); const x=M+col*91; txt(x,y+row*6.5,p[0],{s:8,c:GRIS}); txt(x+34,y+row*6.5,p[1],{s:9,b:true}); }); y+=4*6.5+4;
-  // KPIs
-  const litros=c.totales?.litros||0; const kpis=[['Calificación',q?`${q.puntos}/100`:'—',q?(q.puntos>=90?VERDE:q.puntos>=75?AZUL:q.puntos>=60?[199,129,26]:ROJO):GRIS,q?q.nivel:''],['Litros vendidos',fmtL(litros)+' L',AZUL,''],['Venta esperada',venta.importe!=null?fmtMXN(venta.importe):'—',NOCHE,''],['Declarado',fmtMXN(t.declarado),NOCHE,''],['Diferencia',dn.diferencia!=null?(dn.diferencia>0?'+':'')+fmtMXN(dn.diferencia):'—',dn.diferencia==null?GRIS:(Math.abs(dn.diferencia)<=(S.config.toleranciaPesos??50)?VERDE:(dn.diferencia<0?ROJO:[199,129,26])),dn.diferencia==null?'':(dn.diferencia<0?'Faltante':(dn.diferencia>0?'Sobrante':'Cuadra'))]];
-  const kw=(W-2*M-4*3)/5; kpis.forEach((k,i)=>{ const x=M+i*(kw+3); caja(x,y,kw,20,SUAVE); txt(x+3,y+5.5,k[0],{s:7.5,c:GRIS}); txt(x+3,y+13,k[1],{s:11.5,b:true,c:k[2]}); if(k[3]) txt(x+3,y+17.5,k[3],{s:7.5,c:k[2]}); }); y+=26;
-  txt(M,y,'Lecturas del totalizador',{b:true,s:11}); y+=3;
-  tabla([{t:'Manguera',w:30},{t:'Producto',w:26},{t:'Inicial',w:34,a:'right'},{t:'Final',w:34,a:'right'},{t:'Litros',w:30,a:'right'},{t:'Lectura',w:28}],
-    c.lecturas.map(l=>[l.manguera+(l.inicialCorregida?' *':''),l.producto,l.inicial!=null?fmtL(l.inicial):'—',l.final!=null?fmtL(l.final):'—',l.litros!=null?fmtL(l.litros):'—',l.litros===0&&l.motivoCero?l.motivoCero:(l.lecturaIA!=null&&l.final===l.lecturaIA?'IA':(l.lecturaIA!=null?'Manual (IA distinta)':'Manual'))]),{pagina:1,total:TOTAL,titulo:'Lecturas (continuación)'});
-  const corr=c.lecturas.filter(l=>l.inicialCorregida); if(corr.length){ txt(M,y,'* Inicial corregida: '+corr.map(l=>`${l.manguera} ${fmtL(l.inicialPrevia)} -> ${fmtL(l.inicial)} (${l.motivo||'sin motivo'})`).join('; '),{s:8,c:GRIS,mw:W-2*M}); y+=8; }
-  txt(M,y,'Venta por producto',{b:true,s:11}); y+=3;
-  const vp=Object.entries(venta.porProducto||{}); const filasV=vp.map(([p,v])=>[p,fmtL(v.litros)+' L',v.precio!=null?fmtMXN(v.precio):'—',v.precio!=null?fmtMXN(v.importe):'—']); filasV.push(Object.assign(['Total',fmtL(litros)+' L','',venta.importe!=null?fmtMXN(venta.importe):'—'],{bold:true}));
-  tabla([{t:'Producto',w:60},{t:'Litros',w:40,a:'right'},{t:'Precio / L',w:40,a:'right'},{t:'Importe esperado',w:42,a:'right'}],filasV,{pagina:1,total:TOTAL});
-  pie(1,TOTAL);
-  // ---------- Página 2
-  doc.addPage(); cabecera('Dinero del turno y calidad del corte');
-  txt(M,y,'1 · Tarjetas bancarias',{b:true,s:11}); y+=3;
-  const vouchers=(dn.tarjetas?.detalle||[]); const filasT=vouchers.length?vouchers.map(v=>[v.terminal,v.tipo,fmtMXN(v.importe)]):[['—','Sin cobros con tarjeta','']]; filasT.push(Object.assign(['Total tarjetas',`crédito ${fmtMXN(t.credito)} · débito ${fmtMXN(t.debito)}`,fmtMXN(t.tarjetas)],{bold:true}));
-  tabla([{t:'Terminal',w:60},{t:'Tipo',w:72},{t:'Importe',w:50,a:'right'}],filasT,{pagina:2,total:TOTAL});
-  txt(M,y,'2 · Arqueo de efectivo entregado',{b:true,s:11}); y+=3;
-  const filasE=[]; const _e=(o,k)=>Number(o?.[k])||0;
-  for(const b of BILLETES){ const dep=_e(dn.efectivo?.billetes,b), ex=_e(dn.efectivo?.extra?.billetes,b), n=dep+ex; if(n) filasE.push(['Billete $'+b,fmtInt(n)+(ex?` (${fmtInt(dep)}+${fmtInt(ex)})`:''),fmtMXN(n*b)]); }
-  for(const m of MONEDAS){ const dep=_e(dn.efectivo?.monedas,m), ex=_e(dn.efectivo?.extra?.monedas,m), n=dep+ex; if(n) filasE.push(['Moneda $'+m,fmtInt(n)+(ex?` (${fmtInt(dep)}+${fmtInt(ex)})`:''),fmtMXN(n*m)]); } if(!filasE.length) filasE.push(['—','0','$0.00']); filasE.push(Object.assign(['Total efectivo','',fmtMXN(t.efectivo)],{bold:true}));
-  tabla([{t:'Denominación',w:70},{t:'Piezas',w:40,a:'right'},{t:'Importe',w:72,a:'right'}],filasE,{pagina:2,total:TOTAL});
-  txt(M,y,'3 · Clientes marcados u otros',{b:true,s:11}); y+=3;
-  const filasC=(dn.clientes||[]).length?(dn.clientes||[]).map(x=>[x.nombre,x.otro?'Otro':'Cargo a cuenta',fmtMXN(x.importe)]):[['—','Ninguno en este turno','']]; filasC.push(Object.assign(['Total clientes','',fmtMXN(t.clientes)],{bold:true}));
-  tabla([{t:'Cliente',w:80},{t:'Tipo',w:52},{t:'Importe',w:50,a:'right'}],filasC,{pagina:2,total:TOTAL});
-  const _ac=c.aceites&&c.aceites.importe?c.aceites:null;
-  if(_ac){
-    const lin=_ac.lineas||[];
-    const filasAc=lin.length?lin.map(l=>[l.nombre,String(l.piezas),fmtMXN(l.importe)]):[['—','Sin venta de aceites','']];
-    filasAc.push(Object.assign(['Total aceites',String(_ac.piezas||0),fmtMXN(_ac.importe||0)],{bold:true}));
-    txt(M,y,'3b · Venta de aceites',{b:true,s:11}); y+=3;
-    tabla([{t:'Producto',w:110},{t:'Piezas',w:30,a:'right'},{t:'Importe',w:42,a:'right'}],filasAc,{pagina:2,total:TOTAL});
-  }
-  txt(M,y,'4 · Resumen',{b:true,s:11}); y+=3;
-  const tolp=S.config.toleranciaPesos??50;
-  tabla([{t:'Concepto',w:122},{t:'Importe',w:60,a:'right'}],[['Venta esperada según totalizador',venta.importe!=null?fmtMXN(venta.importe):'—'],['Tarjetas',fmtMXN(t.tarjetas)],['Efectivo',fmtMXN(t.efectivo)],...((dn.depositos||[]).length?[['   de eso, depositado en caja fuerte durante el turno ('+dn.depositos.map(x=>x.hora).join(', ')+')',fmtMXN(dn.depositos.reduce((s,x)=>s+x.total,0))]]:[]),['Clientes marcados',fmtMXN(t.clientes)],Object.assign(['Total declarado',fmtMXN(t.declarado)],{bold:true}),Object.assign([dn.diferencia==null?'Diferencia (sin precios)':(dn.diferencia<0?'FALTANTE':(dn.diferencia>0?'SOBRANTE':'CUADRA EXACTO')),dn.diferencia!=null?(dn.diferencia>0?'+':'')+fmtMXN(dn.diferencia):'—'],{bold:true,color:dn.diferencia==null?GRIS:(Math.abs(dn.diferencia)<=tolp?VERDE:(dn.diferencia<0?ROJO:[199,129,26]))})],{pagina:2,total:TOTAL});
-  if(dn.comentario){ txt(M,y,'Explicación del despachador: '+dn.comentario,{s:9,c:GRIS,mw:W-2*M}); y+=10; }
-  if(q){ txt(M,y,`Calidad del corte: ${q.puntos}/100 · ${q.nivel}`,{b:true,s:11}); y+=5;
-    for(const f of (q.factores||[])){ if(y>240) break; txt(M+2,y,(f.ok===true?'OK  ':(f.ok===false?'!!  ':'·   '))+f.txt+(f.pts<0?`  (${f.pts})`:''),{s:8.5,c:f.ok===false?ROJO:(f.ok===true?VERDE:GRIS),mw:W-2*M-4}); y+=4.6+(f.txt.length>95?4:0); }
-    if(q.analisis){ y+=2; txt(M,y,'Sugerencias para '+nombreDesp.split(' ')[0],{b:true,s:10}); y+=4.5; for(const ln of q.analisis.split('\n').filter(x=>x.trim())){ if(y>255) break; const lines=doc.splitTextToSize(ln.replace(/^[-•*]\s*/,'• '),W-2*M-2); txt(M+2,y,lines,{s:8.5}); y+=lines.length*4+1; } } }
-  // firmas
-  y=Math.max(y+6,258); const fw=(W-2*M-20)/3; [['Entrega: '+nombreDesp,'Despachador'],['Recibe','Oficina / Administración'],['Vo. Bo.','Gerencia']].forEach((f,i)=>{ const x=M+i*(fw+10); linea; doc.setDrawColor(...NOCHE); doc.line(x,y+12,x+fw,y+12); txt(x+fw/2,y+16.5,f[0],{s:8.5,b:true,a:'center'}); txt(x+fw/2,y+20.5,f[1],{s:7.5,c:GRIS,a:'center'}); });
-  pie(2,TOTAL);
-  // ---------- Página 3: evidencia
-  doc.addPage(); cabecera('Evidencia fotográfica de los totalizadores');
-  txt(M,y,'Fotos del display de cada manguera al cierre del turno',{b:true,s:11}); y+=6;
-  const conFoto=c.lecturas.filter(l=>l.fotoId); const cw=(W-2*M-6)/2, ch=42; let col=0;
-  for(const l of conFoto){ if(y+ch+10>280){ pie(3,TOTAL); doc.addPage(); cabecera('Evidencia fotográfica (continuación)'); y+=2; col=0; }
-    const x=M+col*(cw+6); const img=await imagenParaPDF(l.fotoId,900);
-    caja(x,y,cw,ch,SUAVE); if(img){ const r=Math.min(cw/img.w,ch/img.h); const iw=img.w*r, ih=img.h*r; doc.addImage(img.data,'JPEG',x+(cw-iw)/2,y+(ch-ih)/2,iw,ih); } else txt(x+cw/2,y+ch/2,'Foto no disponible',{s:8,c:GRIS,a:'center'});
-    txt(x,y+ch+4.5,`${l.manguera} · ${l.producto} · final ${l.final!=null?fmtL(l.final):'—'}${l.lecturaIA!=null?' · IA '+fmtL(l.lecturaIA):''}${l.fotoEn?' · '+fmtHora(l.fotoEn):''}`,{s:7.5,c:GRIS});
-    col=1-col; if(col===0) y+=ch+10; }
-  if(col===1) y+=ch+10;
-  txt(M,Math.max(y+4,262),`Este documento se generó con Own Manager (${ESTACION}). El sello SHA-256 permite comprobar que los datos no fueron modificados después del envío.`,{s:7.5,c:GRIS,mw:W-2*M});
-  pie(3,TOTAL);
+  const cabecera=(sub)=>{ filete(); logoCab(); txt(W-M,14,'CORTE DE TURNO',{b:true,s:12,a:'right',c:AZUL}); txt(W-M,19.5,sub,{s:9,a:'right',c:GRIS}); linea(25,AZUL); y=31; };
+  const pie=(n)=>{ linea(283); try{ doc.addImage(OM_MONO,'PNG',M,284.6,4.3,5); }catch(e){} txt(M+6,288,`Own Manager · ${ESTACION} · Folio ${folio} · Sello ${(c.hash||'').slice(0,16)}…`,{s:7.5,c:GRIS}); txt(W-M,288,`Hoja ${n} de 2`,{s:7.5,c:GRIS,a:'right'}); };
+  // Cuadro de firmas: igual en las dos hojas.
+  const firmas=()=>{ const top=249; const fw=(W-2*M-12)/3;
+    [['Entrega',nombreDesp||'Despachador'],['Recibe','Oficina / Administración'],['Vo. Bo.','Gerencia']].forEach((f,i)=>{ const x=M+i*(fw+6);
+      doc.setDrawColor(...NOCHE); doc.setLineWidth(0.4); doc.roundedRect(x,top,fw,27,1.5,1.5,'S');
+      txt(x+3,top+5,f[0],{s:8,b:true,c:GRIS}); doc.setDrawColor(...LINEA); doc.setLineWidth(0.3); doc.line(x+4,top+20,x+fw-4,top+20); txt(x+fw/2,top+24.5,f[1],{s:7.5,c:GRIS,a:'center',mw:fw-6}); }); };
+  // Tabla compacta sin salto de página: si hay más filas que `max`, se resumen en una fila "y N más".
+  const tabla=(cols,rows,opts={})=>{ const x0=M; const ws=cols.map(k=>k.w); const rowH=opts.rowH||5.5; const tw=ws.reduce((a,b)=>a+b,0);
+    caja(x0,y,tw,rowH,SUAVE); let x=x0; cols.forEach((k,i)=>{ txt(k.a==='right'?x+ws[i]-2:x+2,y+4.1,k.t,{b:true,s:7.8,c:GRIS,a:k.a||'left'}); x+=ws[i]; }); y+=rowH;
+    rows.forEach((r,ri)=>{ let x=x0; cols.forEach((k,i)=>{ const v=r[i]; const bold=!!r.bold; txt(k.a==='right'?x+ws[i]-2:x+2,y+4.1,v==null?'':v,{b:bold,s:8.6,a:k.a||'left',c:r.color||NOCHE,mw:ws[i]-3}); x+=ws[i]; }); doc.setDrawColor(...LINEA); doc.setLineWidth(0.2); doc.line(x0,y+rowH,x0+tw,y+rowH); y+=rowH; });
+    y+=4; };
+  const recorta=(rows,max,cols)=>{ if(rows.length<=max) return rows; const resto=rows.length-(max-1); const fila=new Array(cols).fill(''); fila[0]=`… y ${resto} más (ver detalle en Own Manager)`; return rows.slice(0,max-1).concat([Object.assign(fila,{color:GRIS})]); };
+  const LIMA=[23,165,84]; /* Verde Eco (manual Grupo Pizano): se imprime bien en blanco y negro; el lima #84FF00 casi no se ve en papel */ const titulo=(s)=>{ y+=1.5; txt(M,y,s,{b:true,s:10.5}); doc.setDrawColor(...LIMA); doc.setLineWidth(0.9); doc.line(M,y+1.6,M+doc.getTextWidth(s),y+1.6); y+=4; };
+  const litros=c.totales?.litros||0;
+  const sub=`${c.islaNombre} · ${c.turnoNombre} · ${fmtFecha(c.fecha)}`;
+  // ---------- Hoja 1: lecturas y venta
+  cabecera(sub);
+  txt(M,y+2,`${c.islaNombre} · ${c.turnoNombre}`,{b:true,s:15}); txt(M,y+8,`${fmtFecha(c.fecha)} · ${nombreDesp}`,{s:10,c:GRIS}); y+=14;
+  const quien=c.enviadoPor&&c.enviadoPor.id!==c.despachadorId&&c.enviadoPor.nombre?` · envió ${c.enviadoPor.nombre.split(' ')[0]}`:'';
+  const info=[['Abierto',fmtHora(c.abiertoEn)],['Enviado',(c.enviadoEn?fmtHora(c.enviadoEn):'—')+quien],['Litros',fmtL(litros)+' L'],['Venta esperada',venta.importe!=null?fmtMXN(venta.importe):'—']];
+  const kw=(W-2*M-3*3)/4; info.forEach((k,i)=>{ const x=M+i*(kw+3); caja(x,y,kw,14,SUAVE); txt(x+3,y+5,k[0],{s:7.5,c:GRIS}); txt(x+3,y+11,k[1],{s:10,b:true}); }); y+=20;
+  titulo('Lecturas del totalizador');
+  const estadoLect=l=>l.litros===0&&l.motivoCero?l.motivoCero:(l.lecturaIA!=null&&l.final===l.lecturaIA?'IA':(l.lecturaIA!=null?'Corregida':'Manual'));
+  tabla([{t:'Manguera',w:34},{t:'Producto',w:30},{t:'Inicial',w:36,a:'right'},{t:'Final',w:36,a:'right'},{t:'Litros',w:26,a:'right'},{t:'Lectura',w:20}],
+    recorta(c.lecturas.map(l=>[l.manguera+(l.inicialCorregida?' *':''),l.producto,l.inicial!=null?fmtL(l.inicial):'—',l.final!=null?fmtL(l.final):'—',l.litros!=null?fmtL(l.litros):'—',estadoLect(l)]),12,6));
+  const corr=c.lecturas.filter(l=>l.inicialCorregida); if(corr.length){ txt(M,y,'* Inicial corregida: '+corr.map(l=>`${l.manguera} ${fmtL(l.inicialPrevia)} → ${fmtL(l.inicial)}`).join('; '),{s:7.5,c:GRIS,mw:W-2*M}); y+=7; }
+  // c.aceites viene como {vendidas} (app) o como {piezas,importe,lineas:[{aceite_id,...}]} (servidor): se normaliza a líneas con nombre.
+  const _ac=(()=>{ const a=c.aceites||{}; if(a.vendidas) return calcAceites(c); if(Array.isArray(a.lineas)){ const cat=catAceites(); return {lineas:a.lineas.map(l=>({nombre:l.nombre||(cat.find(x=>x.uuid===l.aceite_id)||{}).nombre||'Aceite',piezas:Number(l.piezas)||0,precio:Number(l.precio)||0,importe:Number(l.importe)||0})),piezas:Number(a.piezas)||0,importe:Number(a.importe)||0}; } return {lineas:[],piezas:0,importe:0}; })();
+  titulo('Venta de combustible');
+  const vp=Object.entries(venta.porProducto||{}); const filasV=vp.map(([p,v])=>[p,fmtL(v.litros)+' L',v.precio!=null?fmtMXN(v.precio):'—',v.precio!=null?fmtMXN(v.importe):'—']);
+  const comb=venta.combustible!=null?venta.combustible:(venta.importe!=null?Math.round((venta.importe-(_ac.importe||0))*100)/100:null);
+  filasV.push(Object.assign(['Total combustible',fmtL(litros)+' L','',comb!=null?fmtMXN(comb):'—'],{bold:true}));
+  tabla([{t:'Producto',w:70},{t:'Litros',w:40,a:'right'},{t:'Precio / L',w:36,a:'right'},{t:'Importe',w:36,a:'right'}],filasV);
+  titulo('Aceites y aditivos vendidos');
+  const lin=_ac.lineas;
+  const filasAc=lin.length?recorta(lin.map(l=>[l.nombre,fmtInt(l.piezas),fmtMXN(l.precio||0),fmtMXN(l.importe)]),6,4):[Object.assign(['Sin venta de aceites en este turno','','',''],{color:GRIS})];
+  if(lin.length) filasAc.push(Object.assign(['Total aceites',fmtInt(_ac.piezas||0),'',fmtMXN(_ac.importe||0)],{bold:true}));
+  tabla([{t:'Producto',w:98},{t:'Piezas',w:26,a:'right'},{t:'Precio',w:28,a:'right'},{t:'Importe',w:30,a:'right'}],filasAc);
+  if(venta.importe!=null){ caja(M,y,W-2*M,9,SUAVE); txt(M+3,y+6.2,'Venta esperada del turno (combustible + aceites)',{b:true,s:9}); txt(W-M-3,y+6.2,fmtMXN(venta.importe),{b:true,s:11,a:'right',c:AZUL}); y+=13; }
+  firmas(); pie(1);
+  // ---------- Hoja 2: dinero entregado
+  doc.addPage(); cabecera(sub);
+  titulo('Tarjetas bancarias');
+  const vouchers=(dn.tarjetas?.detalle||[]); const porTerm={};
+  for(const v of vouchers){ const k=`${v.terminal}|${v.tipo}`; const g=porTerm[k]||(porTerm[k]={terminal:v.terminal,tipo:v.tipo,n:0,importe:0}); g.n++; g.importe+=Number(v.importe)||0; }
+  const filasT=Object.values(porTerm).map(g=>[g.terminal,g.tipo,fmtInt(g.n),fmtMXN(g.importe)]);
+  tabla([{t:'Terminal',w:70},{t:'Tipo',w:50},{t:'Vouchers',w:30,a:'right'},{t:'Importe',w:32,a:'right'}],
+    (filasT.length?recorta(filasT,6,4):[Object.assign(['Sin cobros con tarjeta','','',''],{color:GRIS})]).concat([Object.assign(['Total tarjetas','',fmtInt(vouchers.length),fmtMXN(t.tarjetas)],{bold:true})]));
+  titulo('Efectivo entregado');
+  const _e=(o,k)=>Number(o?.[k])||0; const bil=[], mon=[];
+  for(const b of BILLETES){ const n=_e(dn.efectivo?.billetes,b)+_e(dn.efectivo?.extra?.billetes,b); if(n) bil.push(['$'+fmtInt(b),fmtInt(n),fmtMXN(n*b)]); }
+  for(const m of MONEDAS){ const n=_e(dn.efectivo?.monedas,m)+_e(dn.efectivo?.extra?.monedas,m); if(n) mon.push(['$'+(m<1?m.toFixed(2):fmtInt(m)),fmtInt(n),fmtMXN(n*m)]); }
+  const nE=Math.max(bil.length,mon.length); const filasE=[];
+  for(let i=0;i<nE;i++) filasE.push([...(bil[i]||['','','']),...(mon[i]||['','',''])]);
+  if(!nE) filasE.push(Object.assign(['Sin efectivo','','','','',''],{color:GRIS}));
+  filasE.push(Object.assign(['Total efectivo','','','','',fmtMXN(t.efectivo)],{bold:true}));
+  tabla([{t:'Billete',w:28},{t:'Piezas',w:24,a:'right'},{t:'Importe',w:39,a:'right'},{t:'Moneda',w:28},{t:'Piezas',w:24,a:'right'},{t:'Importe',w:39,a:'right'}],filasE);
+  titulo('Clientes marcados u otros');
+  const cl=(dn.clientes||[]); const filasC=cl.length?recorta(cl.map(x=>[x.nombre,x.otro?'Otro':'Cargo a cuenta',fmtMXN(x.importe)]),4,3):[Object.assign(['Ninguno en este turno','',''],{color:GRIS})];
+  filasC.push(Object.assign(['Total clientes','',fmtMXN(t.clientes)],{bold:true}));
+  tabla([{t:'Cliente',w:100},{t:'Tipo',w:50},{t:'Importe',w:32,a:'right'}],filasC);
+  titulo('Resumen');
+  const dif=venta.importe!=null?Math.round((t.declarado-venta.importe)*100)/100:null; const tolp=S.config.toleranciaPesos??50;
+  const difTxt=dif==null?'—':(Math.abs(dif)<=tolp?(dif===0?'Cuadra exacto':`Cuadra (${(dif>0?'+':'')+fmtMXN(dif)})`):(dif<0?`Faltante ${fmtMXN(Math.abs(dif))}`:`Sobrante ${fmtMXN(dif)}`));
+  const difCol=dif==null?GRIS:(Math.abs(dif)<=tolp?VERDE:(dif<0?ROJO:[199,129,26]));
+  const depos=(dn.depositos||[]).reduce((s,x)=>s+(Number(x.importe)||0),0);
+  tabla([{t:'Concepto',w:122},{t:'Importe',w:60,a:'right'}],[
+    ['Venta esperada',venta.importe!=null?fmtMXN(venta.importe):'—'],
+    ['Tarjetas crédito',fmtMXN(t.credito)],['Tarjetas débito',fmtMXN(t.debito)],['Efectivo'+(depos?` (de eso, depositado ${fmtMXN(depos)})`:''),fmtMXN(t.efectivo)],['Clientes marcados',fmtMXN(t.clientes)],
+    Object.assign(['Total entregado',fmtMXN(t.declarado)],{bold:true}),
+    Object.assign(['Diferencia',difTxt],{bold:true,color:difCol})],{rowH:5.8});
+  if(dn.comentario){ const cab=Math.max(0,Math.min(3,Math.floor((240-y)/4))); const ls=doc.splitTextToSize('Explicación: '+dn.comentario,W-2*M).slice(0,cab); if(ls.length){ txt(M,y,ls,{s:8.5,c:GRIS}); y+=ls.length*4+2; } }
+  if(q&&y<=243){ txt(M,y,`Calificación del corte: ${q.puntos}/100 · ${q.nivel}`,{b:true,s:9,c:q.puntos>=90?VERDE:q.puntos>=75?AZUL:q.puntos>=60?[199,129,26]:ROJO}); y+=5; }
+  firmas(); pie(2);
   return doc.output('blob');
 }
 // Reduce el logo a máx 600 px de ancho y ≤300 KB (PNG si viene en PNG, si no JPEG).
@@ -2083,28 +2089,37 @@ async function generarPDFNoche(st){
 async function descargarPDF(c, btn){
   if(!window.jspdf){ toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return; }
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Generando PDF…'; }
-  try{ const blob=await generarPDF(c); const ap=(c.despachadorNombre||'').split(' ')[0]; const nombre=`Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}_${(c.islaNombre||'').replace(/\s+/g,'')}_${ap}.pdf`;
+  try{ const blob=await pdfDelCorte(c); const ap=(c.despachadorNombre||'').split(' ')[0]; const nombre=`Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}_${(c.islaNombre||'').replace(/\s+/g,'')}_${ap}.pdf`;
     const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); toast('PDF listo para imprimir y firmar.'); }
   catch(e){ toast('No se pudo generar el PDF: '+(e.message||e.code||e),5000); }
   if(btn){ btn.disabled=false; btn.textContent=orig; }
 }
-// 4) Enviar
-function confirmarEnvio(){
+// Imprime el PDF de firma sin abrir pestañas: se carga en un iframe oculto y se llama a print() (abre el diálogo de la impresora).
+// Si el navegador no lo permite, se abre el PDF en una pestaña para imprimirlo desde ahí.
+let _pdfCache={};
+async function pdfDelCorte(c){ if(_pdfCache.id===c.id&&_pdfCache.hash===(c.hash||'')&&_pdfCache.blob) return _pdfCache.blob; const blob=await generarPDF(c); _pdfCache={id:c.id,hash:c.hash||'',blob}; return blob; }
+async function imprimirPDF(c, btn, silencioso){
+  if(!window.jspdf||!window.jspdf.jsPDF){ if(!silencioso) toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return false; }
+  const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Preparando impresión…'; }
+  try{ const blob=await pdfDelCorte(c); const url=URL.createObjectURL(blob);
+    const prev=document.getElementById('omPrint'); if(prev) prev.remove();
+    const fr=h('iframe',{id:'omPrint',title:'Impresión del corte',style:'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none'});
+    await new Promise(res=>{ let done=false; const fin=()=>{ if(!done){ done=true; res(); } }; fr.onload=fin; fr.onerror=fin; fr.src=url; document.body.append(fr); setTimeout(fin,3500); });
+    try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ window.open(url,'_blank'); }
+    setTimeout(()=>URL.revokeObjectURL(url),5*60000);
+    return true; }
+  catch(e){ if(!silencioso) toast('No se pudo preparar la impresión: '+(e.message||e.code||e),5000); return false; }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
+}
+// 4) Enviar. 13-nov-2026: ya no hay ventana de "Revisa antes de enviar"; el Resumen ES la revisión.
+// Al tocar "Enviar corte" se sella de inmediato y se muestra "Enviando corte…" en el mismo botón.
+function enviarDirecto(btn){
   const c=S.corte; const d=c.dinero||{}; const venta=calcVenta(c); const t=calcDinero(d); const tol=S.config.toleranciaPesos??50;
   const dif=venta.completo?Math.round((t.declarado-venta.importe)*100)/100:null;
-  if(dif!=null && Math.abs(dif)>tol && !(d.comentario||'').trim()){ toast('Explica la diferencia antes de enviar.'); return; }
+  if(dif!=null && Math.abs(dif)>tol && !(d.comentario||'').trim()){ toast('Explica la diferencia antes de enviar.'); const com=document.getElementById('com'); if(com) com.focus(); return; }
   const tot={}; let litros=0; for(const l of c.lecturas){ tot[l.producto]=(tot[l.producto]||0)+l.litros; litros+=l.litros; }
-  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
-  const btn=h('button',{class:'btn ok big block',onclick:async()=>{ btn.disabled=true; btn.innerHTML=''; btn.append(omLoader({tam:'chico',texto:'Sellando corte…'})); await enviarCorte(tot,litros,sheet,venta,t,dif,btn); }},'Enviar corte');
-  sheet.append(h('div',{class:'in stack'}, h('h2',{},'Revisa antes de enviar'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${fmtFecha(c.fecha)} · ${c.despachadorNombre}`),
-    h('div',{class:'tscroll'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Manguera'),h('th',{class:'r'},'Inicial'),h('th',{class:'r'},'Final'),h('th',{class:'r'},'Litros'))),
-      h('tbody',{},...c.lecturas.map(l=>h('tr',{},h('td',{},`${l.manguera} ${l.producto}`),h('td',{class:'r'},fmtL(l.inicial)),h('td',{class:'r'},fmtL(l.final)),h('td',{class:'r'},h('b',{},fmtL(l.litros)))))))),
-    h('div',{class:'tot'},...Object.entries(tot).map(([p,v])=>h('div',{},h('span',{class:'small muted'},p),h('b',{},fmtL(v)))), h('div',{},h('span',{class:'small muted'},'Total litros'),h('b',{},fmtL(litros)))),
-    h('div',{}, h('div',{class:'money'},h('span',{},'Venta esperada'),h('b',{},venta.completo?fmtMXN(venta.importe):'—')), h('div',{class:'money'},h('span',{},'Tarjetas'),h('b',{},fmtMXN(t.tarjetas))), h('div',{class:'money'},h('span',{},'Efectivo'),h('b',{},fmtMXN(t.efectivo))), h('div',{class:'money'},h('span',{},'Clientes marcados'),h('b',{},fmtMXN(t.clientes))), h('div',{class:'money total'},h('span',{},'Declarado'),h('b',{},fmtMXN(t.declarado)))),
-    dif!=null? h('div',{class:'diff '+(Math.abs(dif)<=tol?'ok':(dif<0?'bad':'warn'))}, h('span',{class:'lbl'},dif<0?'Faltante':(dif>0?'Sobrante':'Cuadra exacto')), h('b',{},(dif>0?'+':'')+fmtMXN(dif))) : null,
-    h('p',{class:'hint'},'Al enviar, el corte queda sellado y no se puede editar. Cualquier corrección la hace la administración.'),
-    btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Volver a revisar')));
-  document.body.append(sheet);
+  if(btn){ const fila=btn.parentElement; if(fila) fila.querySelectorAll('button').forEach(b=>b.disabled=true); btn.innerHTML=''; btn.append(omLoader({tam:'chico',texto:'Enviando corte…'})); }
+  return enviarCorte(tot,litros,null,venta,t,dif,btn);
 }
 async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
   const c=S.corte; const d=c.dinero||{};
@@ -2115,20 +2130,22 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
     c.dinero=Object.assign({},dinero,{seccion:'resumen'}); c.paso='enviado';
     await rpc('guardar_avance',{p_token:S.token, p_corte:c.id, p_lecturas:lecturasParaServidor(c), p_dinero:dineroParaServidor(c), p_aceites:aceitesParaServidor(c), p_paso:'resumen'});
     r=await rpc('enviar_corte',{p_token:S.token, p_corte:c.id});
-  }catch(e){ toast('No se pudo enviar: '+(e.message||e.code),6000); sheet.remove(); render(); return; }
+  }catch(e){ toast('No se pudo enviar: '+(e.message||e.code),6000); if(sheet) sheet.remove(); render(); return; }
   if(btn){ btn.innerHTML=''; btn.append(h('span',{style:'font-size:20px;line-height:1'},'✓'),' Corte sellado'); await new Promise(r=>setTimeout(r,450)); }
   const hash=r.hash||''; const enviadoEn=new Date().toISOString();
   Object.assign(c,{ estado:'enviado', enviadoEn, horaEnvio:fmtHora(enviadoEn), hash, totales:r.totales||{porProducto:tot,litros}, venta:r.venta||null, dinero, paso:'enviado' });
-  sheet.remove(); S.corte=null; S.frames=[];
+  if(sheet) sheet.remove(); S.corte=null; S.frames=[];
   app.innerHTML='';
   const noche=esCorteNoche(c);
   app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},noche?'Listo, gracias':'Corte enviado'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)}`),
     h('div',{class:'tot'},...Object.entries(tot).map(([p,v])=>h('div',{},h('span',{class:'small muted'},p),h('b',{},fmtL(v))))),
     dif!=null? h('div',{class:'diff '+(Math.abs(dif)<=(S.config.toleranciaPesos??50)?'ok':(dif<0?'bad':'warn'))}, h('span',{class:'lbl'},dif<0?'Faltante':(dif>0?'Sobrante':'Cuadra exacto')), h('b',{},(dif>0?'+':'')+fmtMXN(dif))) : null,
     h('p',{class:'seal'},'Sello: '+hash.slice(0,24)+'…'),
-    noche? null : h('button',{class:'btn ok big block',onclick:e=>descargarPDF(c,e.currentTarget)},'Descargar PDF para firma'),
+    noche? null : (esTelefono()? h('button',{class:'btn ok big block',onclick:e=>descargarPDF(c,e.currentTarget)},'Descargar PDF para firma') : h('button',{class:'btn ok big block',onclick:e=>imprimirPDF(c,e.currentTarget)},'Imprimir')),
     noche? siguienteNoche(c) : h('button',{class:'btn primary big block',onclick:()=>go('home')},'Listo')));
   setWho();
+  // En la computadora el PDF de firma se manda solo a imprimir (2 hojas, sin fotos). En el teléfono no: ahí se descarga si hace falta.
+  if(!noche && !esTelefono()) setTimeout(()=>imprimirPDF(c,null,true),900);
 }
 // TODO (paso posterior): avisos automáticos al dueño y reporte del turno cuando las 3 islas envían.
 // Se harán con una función del servidor o una tarea programada, no desde la app.
@@ -3328,7 +3345,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF }; // solo para la prueba de humo
 boot();
 })();
 </script>
