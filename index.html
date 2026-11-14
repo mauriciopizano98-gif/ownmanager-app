@@ -627,7 +627,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.3';
+const OM_VERSION='1.4.5';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -981,14 +981,20 @@ async function nocheAuto(){
   const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
   // 1) Medianoche pendiente (aunque sean las 3: se pide primero y queda con su hora real)
   if(!st.t1Listo){
-    const x=st.e1.find(y=>y.isla===i1.id);
-    if(x && x.estado==='abierto' && !x.mio){ cargando.remove(); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},'Medianoche abierta por '+x.quien), h('p',{class:'muted'},'Solo esa persona puede continuarla.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
-    guardarNoche({tramo:1, turno:st.t1.id, activa:i1.id});
+    // 14-nov-2026: la medianoche sigue al velador, no a la Isla 1. Si él ya tiene abierta otra isla en 22–24 (p. ej. por
+    // mantenimiento despachó en la Isla 3), la noche continúa con ESA isla y a las 6 también se cierra; solo si no hay nada abierto toma la Isla 1.
+    const ajena=st.e1.find(y=>y.estado==='abierto' && !y.mio);
+    if(ajena){ const ia=S.config.islas.find(i=>i.id===ajena.isla)||i1; cargando.remove(); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},ia.nombre+' abierta por '+ajena.quien), h('p',{class:'muted'},'Solo esa persona puede continuarla.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
+    const abiertaMia=st.e1.find(y=>y.estado==='abierto' && y.mio);
+    const pend=S.config.islas.filter(i=>!hechoNoche(st.e1.find(y=>y.isla===i.id)));
+    const im = abiertaMia ? (S.config.islas.find(i=>i.id===abiertaMia.isla)||i1) : (pend.find(i=>i.id===i1.id) || pend[0] || i1);
+    const x=st.e1.find(y=>y.isla===im.id);
+    guardarNoche({tramo:1, turno:st.t1.id, activa:im.id});
     if(x && x.estado==='abierto' && x.mio && conFotos(x)){ // ya grabó: el teléfono termina aquí; la computadora sigue con el dinero
       if(esTelefono()){ cargando.remove(); wrap.append(pantallaFin({titulo:'Fotos listas', texto:'El dinero de la medianoche se captura en la computadora.', boton:'Listo', onclick:salir})); return; }
-      cargando.querySelector('.txt').textContent='Abriendo '+i1.nombre+'…'; if(await intentarSinVentas(x.id)){ render(); return; } await cargarCorte(x.id); return; }
-    cargando.querySelector('.txt').textContent='Medianoche · '+i1.nombre+'…';
-    await empezarTramo(st,1,i1); return;
+      cargando.querySelector('.txt').textContent='Abriendo '+im.nombre+'…'; if(await intentarSinVentas(x.id)){ render(); return; } await cargarCorte(x.id); return; }
+    cargando.querySelector('.txt').textContent='Medianoche · '+im.nombre+'…';
+    await empezarTramo(st,1,im); return;
   }
   // 2) Medianoche enviada y todavía no son las 00:30
   if(!st.t2Listo && !cierrePermitido()){
@@ -1029,7 +1035,7 @@ async function intentarSinVentas(corteId){
 async function empezarTramo(st, tramo, isla){
   const turno = tramo===1? st.t1.id : st.t2.id; const fecha = tramo===1? st.d1 : st.d2;
   const estados = tramo===1? st.e1 : st.e2;
-  guardarNoche({ tramo, turno, fecha:st.d1, islaId: islaNocturna().id, activa: islaNocturna().id });
+  guardarNoche({ tramo, turno, fecha:st.d1, islaId: islaNocturna().id, activa: isla.id });
   try{
     if(tramo===1){
       for(const i of S.config.islas){ if(i.id===isla.id) continue; const x=estados.find(y=>y.isla===i.id); if(x&&(x.estado==='enviado'||x.estado==='omitida'||x.estado==='abierto')) continue;
@@ -1038,7 +1044,15 @@ async function empezarTramo(st, tramo, isla){
     const x=estados.find(y=>y.isla===isla.id && y.estado==='abierto');
     const id = x? x.id : await rpc('abrir_corte',{p_token:S.token, p_isla:isla.uuid, p_fecha:fecha, p_turno:turno});
     await cargarCorte(id);
-  }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),6000); }
+  }catch(e){ fallaNoche(e); }
+}
+// Si algo falla en la noche automática, nunca se queda la animación girando: mensaje grande, "Salir" y "Reintentar".
+function fallaNoche(e){
+  const msg=(e&&(e.hint||e.message||e.code))||'Sin conexión';
+  const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
+  const wrap=document.querySelector('.stack.noche')||app; wrap.innerHTML='';
+  wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},'No se pudo abrir'), h('p',{class:'muted'},String(msg)),
+    h('button',{class:'btn primary big block',onclick:()=>{ if(wrap!==app) wrap.remove(); else app.innerHTML=''; nocheAuto().catch(fallaNoche); }},'Reintentar'), h('button',{class:'btn big block',onclick:salir},'Salir')));
 }
 // Pantalla de final: animación de marca una sola vez que termina en palomita y se queda quieta.
 function pantallaFin(o){
@@ -1078,7 +1092,9 @@ function siguienteNoche(c){
   const box=h('div',{class:'stack'}, h('button',{class:'btn primary big block',disabled:true},'Un momento…'));
   const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
   (async()=>{ const st=await estadoNoche(); box.innerHTML='';
-    if(c.turno===st.t1.id){ box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias')); return; } // medianoche: nada se imprime
+    if(c.turno===st.t1.id){ // medianoche: nada se imprime; si ya es hora del cierre (00:30+) y falta, sigue de una vez con la noche
+      if(cierrePermitido() && !st.t2Listo){ box.append(h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; app.innerHTML=''; nocheAuto().catch(fallaNoche); }},'Seguir con el cierre de la noche')); return; }
+      box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias')); return; }
     for(const i of ordenNoche()){ const x=st.e2.find(y=>y.isla===i.id); if(hechoNoche(x)) continue; if(await intentarSinVentas(x.id)) continue;
       box.append(h('p',{class:'muted'},`${i.nombre} marcó litros esta noche: captura su dinero.`), h('button',{class:'btn primary big block',onclick:()=>cargarCorte(x.id)},`Ahora el dinero de ${i.nombre}`)); return; }
     box.append(await botonPDFNoche(st), h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias'));
@@ -1101,7 +1117,7 @@ async function renderHome(){
   let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(e){ toast('No se pudieron cargar tus cortes: '+(e.message||e.code),5000); if(/sesion_invalida/.test(e.message)) { logout(); return; } }
   const abiertos=mios.filter(x=>x.estado==='abierto');
   // Velador en horario de noche: la app decide sola (medianoche: Isla 1; desde las 00:30: las tres islas). No hay nada que elegir.
-  if(hayModoNoche() && esHorarioNoche() && esVelador() && !S.nocheManual){ wrap.remove(); await nocheAuto(); return; }
+  if(hayModoNoche() && esHorarioNoche() && esVelador() && !S.nocheManual){ wrap.remove(); await nocheAuto().catch(fallaNoche); return; }
   if(abiertos.length){
     const c=h('div',{class:'card'}, h('h3',{},'Tienes un corte sin terminar'));
     for(const x of abiertos){ const isla=S.config.islas.find(i=>i.uuid===x.isla_id);
@@ -3120,17 +3136,19 @@ async function adminProveedores(){
 let oficinaTab='chat';
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
+  // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
   const items=[['chat','chat','Asistente'],
+    ['cortes','cortes','Cortes',[['hoy','hoy','Hoy']]],
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]]]; // los estados de cuenta los sube Central (regla del servidor)
-  const titulos={chat:'Asistente', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores'};
+  const titulos={chat:'Asistente', hoy:'Hoy', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores'};
   if(!titulos[oficinaTab]) oficinaTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }, 'oficina'), main); app.append(shell);
-  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, h('h1',{},titulos[oficinaTab])));
+  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, oficinaTab==='hoy'? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores})[oficinaTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, hoy:adminHoy, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores})[oficinaTab](); } finally{ app=prev; }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
