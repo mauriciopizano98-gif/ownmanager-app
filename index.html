@@ -627,7 +627,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.6';
+const OM_VERSION='1.4.7';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2246,12 +2246,12 @@ function logoModulo(mod, extra){ const kk=mod+'|'+(extra||''); if(LOGO_MOD[kk]) 
   return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else adminTab='chat'; render(); }},
     h('img',{class:'wm',src:'marca/om-logo-transparente.png',alt:'Own Manager'}), h('span',{class:'dv'}), mi, h('span',{class:'mn'},nom)); }
 // Menú lateral por grupos. Abrir o cerrar un grupo solo toca el menú (no se vuelve a pintar la pantalla),
-// y cada grupo se queda abierto hasta que el usuario lo cierra (se recuerda en el dispositivo).
+// y cada grupo se queda abierto hasta que el usuario lo cierra. Al recargar la página todos arrancan cerrados:
+// solo se ven las opciones principales (no se recuerda nada en el dispositivo).
 const NAV={abiertos:null, scroll:0};
+try{ localStorage.removeItem('om-nav-abiertos'); }catch(e){}
 function navAbiertos(items, actual){ if(NAV.abiertos) return NAV.abiertos;
-  let g=null; try{ const v=JSON.parse(localStorage.getItem('om-nav-abiertos')||'null'); if(Array.isArray(v)) g=v; }catch(e){}
-  if(!g){ g=[]; for(const it of items){ if(it!=='sep' && it[3] && it[3].some(x=>x[0]===actual)) g.push(it[0]); } }
-  return NAV.abiertos=new Set(g); }
+  return NAV.abiertos=new Set(); }
 function navLateral(items, actual, onpick, mod){
   const nav=h('nav',{class:'sidenav'}); if(mod) nav.append(logoModulo(mod));
   const abiertos=navAbiertos(items, actual);
@@ -2264,7 +2264,7 @@ function navLateral(items, actual, onpick, mod){
       const sub=h('div',{class:'sub'+(abiertos.has(k)?'':' cerr')}); for(const [sk,sic,sl] of subs) sub.append(btn(sk,sic,sl));
       const cab=btn('__grupo:'+k, ic, l, car, ()=>{ const ab=!abiertos.has(k); if(ab) abiertos.add(k); else abiertos.delete(k);
         sub.classList.toggle('cerr', !ab); car.textContent=ab?'–':'+'; cab.setAttribute('aria-expanded', ab?'true':'false');
-        try{ localStorage.setItem('om-nav-abiertos', JSON.stringify([...abiertos])); }catch(e){} marcar(); });
+        marcar(); });
       cab.setAttribute('aria-expanded', abiertos.has(k)?'true':'false');
       nav.append(cab, sub); }
     else nav.append(btn(k,ic,l)); }
