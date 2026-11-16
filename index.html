@@ -627,7 +627,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.8';
+const OM_VERSION='1.4.9';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -907,15 +907,17 @@ function conOjo(inp){ const w=h('div',{class:'passwrap'}); const b=h('button',{t
   const pinta=()=>{ const ver=inp.type==='text'; b.innerHTML=ver?'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6A2.5 2.5 0 0 0 13.4 13.4M6.6 6.7C4.3 8.2 2.8 10.2 2 12c1.8 4 5.6 7 10 7 1.7 0 3.3-.4 4.7-1.2M9.5 5.3C10.3 5.1 11.1 5 12 5c4.4 0 8.2 3 10 7-.5 1.1-1.2 2.2-2.1 3.1"/></svg>':'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c1.8-4 5.6-7 10-7s8.2 3 10 7c-1.8 4-5.6 7-10 7S3.8 16 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'; b.title=ver?'Ocultar contraseña':'Mostrar contraseña'; };
   b.addEventListener('click',()=>{ inp.type=inp.type==='password'?'text':'password'; pinta(); inp.focus(); }); pinta(); w.append(inp,b); return w; }
 // Nombre de acceso corto: "KioscoGP" entra como kioscogp@<dominio interno>. Quien escribe un correo completo entra igual que antes.
-function cuentaDeAcceso(txt){ const u=String(txt||'').trim().toLowerCase().replace(/\s+/g,''); if(!u || u.includes('@')) return u;
-  return u+'@'+((window.OM_CONFIG&&window.OM_CONFIG.DOMINIO_USUARIOS)||'mauriciopizano.com'); }
+// El dominio interno es ownmanager.com.mx; el anterior se prueba de respaldo por si alguna cuenta corta se creó con él.
+const OM_DOMINIOS=[(window.OM_CONFIG&&window.OM_CONFIG.DOMINIO_USUARIOS)||'ownmanager.com.mx','mauriciopizano.com'];
+function cuentasDeAcceso(txt){ const u=String(txt||'').trim().toLowerCase().replace(/\s+/g,''); if(!u || u.includes('@')) return [u];
+  return [...new Set(OM_DOMINIOS)].map(d=>u+'@'+d); }
 function renderCuenta(){
   const email=h('input',{type:'text',name:'username',autocomplete:'username',placeholder:'usuario',id:'login-email',inputmode:'email',autocapitalize:'off',autocorrect:'off',spellcheck:'false'});
   const pass=h('input',{type:'password',name:'password',autocomplete:'current-password',placeholder:'contraseña',id:'login-pass'});
   const msg=h('p',{class:'hint',style:'min-height:18px'});
   const btn=h('button',{class:'btn primary big block',type:'submit'},'Entrar');
   const entrar=async(ev)=>{ if(ev) ev.preventDefault(); btn.disabled=true; btn.textContent='Entrando…'; msg.textContent='';
-    const {error}=await sb.auth.signInWithPassword({email:cuentaDeAcceso(email.value), password:pass.value});
+    let error=null; for(const cta of cuentasDeAcceso(email.value)){ ({error}=await sb.auth.signInWithPassword({email:cta, password:pass.value})); if(!error || !/invalid/i.test(error.message)) break; }
     if(error){ msg.textContent = /invalid/i.test(error.message)?'Usuario o contraseña incorrectos.':error.message; btn.disabled=false; btn.textContent='Entrar'; return; }
     await entrarConCuenta(); };
   // Formulario de verdad: así Chrome / el teléfono ofrecen guardar y autocompletar la contraseña.
