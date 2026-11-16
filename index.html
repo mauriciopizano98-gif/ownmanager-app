@@ -627,7 +627,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.5';
+const OM_VERSION='1.4.6';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -975,8 +975,10 @@ async function nocheAuto(){
   const wrap=h('div',{class:'stack noche'}); app.append(wrap);
   const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Un momento…'})); wrap.append(cargando);
   const st=await estadoNoche(); const i1=islaNocturna();
-  let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(_){}
-  const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; const m=mios.find(z=>z.id===x.id); return !!(m && (m.evidencia_en || (m.paso&&m.paso!=='evidencia'))); };
+  // 16-nov-2026: "con fotos" se comprueba con las fotos reales del corte (mi_corte), no con el paso: un corte recién abierto nace con
+  // paso 'lecturas' y contaba como grabado, así que cada PIN abría la siguiente isla sin video (noche del 15 al 16 en Energéticos).
+  const fotosDe=await fotosDeAbiertos([...st.e1,...st.e2]);
+  const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; return !!fotosDe[x.id]; };
   guardarNoche({ fecha:st.d1, islaId:i1.id });
   const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
   // 1) Medianoche pendiente (aunque sean las 3: se pide primero y queda con su hora real)
@@ -993,6 +995,8 @@ async function nocheAuto(){
     if(x && x.estado==='abierto' && x.mio && conFotos(x)){ // ya grabó: el teléfono termina aquí; la computadora sigue con el dinero
       if(esTelefono()){ cargando.remove(); wrap.append(pantallaFin({titulo:'Fotos listas', texto:'El dinero de la medianoche se captura en la computadora.', boton:'Listo', onclick:salir})); return; }
       cargando.querySelector('.txt').textContent='Abriendo '+im.nombre+'…'; if(await intentarSinVentas(x.id)){ render(); return; } await cargarCorte(x.id); return; }
+    if(!esTelefono()){ // la computadora no graba: que lo diga, en vez de abrir el corte y la pantalla de video
+      cargando.remove(); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},'Falta grabar la '+im.nombre), h('p',{class:'muted'},'La medianoche se graba desde el teléfono; después regresa aquí para el dinero.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
     cargando.querySelector('.txt').textContent='Medianoche · '+im.nombre+'…';
     await empezarTramo(st,1,im); return;
   }
@@ -1007,6 +1011,8 @@ async function nocheAuto(){
     const ajena=orden.find(i=>{ const x=st.e2.find(y=>y.isla===i.id); return x&&x.estado==='abierto'&&!x.mio; });
     if(ajena){ cargando.remove(); const x=st.e2.find(y=>y.isla===ajena.id); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},ajena.nombre+' abierta por '+x.quien), h('p',{class:'muted'},'Solo esa persona puede continuarla.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
     const sinFotos=orden.find(i=>!conFotos(st.e2.find(y=>y.isla===i.id)));
+    if(sinFotos && !esTelefono()){ // la computadora no graba: que lo diga, en vez de abrir la pantalla de video
+      cargando.remove(); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},'Falta grabar la '+sinFotos.nombre), h('p',{class:'muted'},'Graba las islas desde el teléfono y luego regresa aquí para el dinero.'), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); return; }
     if(sinFotos){ cargando.querySelector('.txt').textContent='Cierre · '+sinFotos.nombre+'…'; await empezarTramo(st,2,sinFotos); return; }
     // Todas con fotos. El teléfono termina aquí (en bombas el tiempo es mínimo); el dinero se captura en la computadora.
     if(esTelefono()){ cargando.remove(); wrap.append(pantallaFin({titulo:'Fotos listas', texto:'Las tres islas tienen fotos. El dinero se captura en la computadora.', boton:'Listo', onclick:salir})); return; }
@@ -1020,6 +1026,12 @@ async function nocheAuto(){
   // 4) Noche cerrada
   cargando.remove();
   wrap.append(pantallaFin({titulo:'Noche cerrada', texto:'', boton:'Listo, gracias', onclick:salir, extra: await botonPDFNoche(st)}));
+}
+// Para cada corte abierto del velador dice si ya tiene al menos una foto/cuadro de video guardado (mi_corte → lecturas.foto_id).
+async function fotosDeAbiertos(estados){
+  const out={}; const abiertos=(estados||[]).filter(x=>x&&x.estado==='abierto'&&x.mio&&x.id);
+  await Promise.all(abiertos.map(async x=>{ try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); out[x.id]=!!(j&&(j.lecturas||[]).some(l=>l.foto_id)); }catch(_){ out[x.id]=false; } }));
+  return out;
 }
 // Intenta sellar una isla de la noche como "sin ventas": si faltan lecturas de la IA las pide aquí (la computadora también puede),
 // y el servidor comprueba que todas las mangueras tengan foto, lectura legible de la IA e inicial = final. Devuelve true si quedó sellada.
@@ -1079,8 +1091,8 @@ function siguienteFotosNoche(c){
     }
     box.append(h('p',{class:'small',style:'color:var(--ok)'},`✓ La IA leyó las ${ms.length} bombas de ${c.islaNombre}.`));
     if(tramo===1){ box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo')); return; }
-    let mios=[]; try{ mios=(await rpc('mis_cortes',{p_token:S.token}))||[]; }catch(_){}
-    const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; if(x.id===c.id) return true; const m=mios.find(z=>z.id===x.id); return !!(m && (m.evidencia_en || (m.paso&&m.paso!=='evidencia'))); };
+    const fotosDe=await fotosDeAbiertos(st.e2);
+    const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; if(x.id===c.id) return true; return !!fotosDe[x.id]; };
     const sig=ordenNoche().find(i=>!conFotos(st.e2.find(y=>y.isla===i.id)));
     if(sig) box.append(h('button',{class:'btn primary big block',onclick:()=>{ abrirArchivo(vidGlobal); empezarTramo(st,2,sig); }},`Ahora graba la ${sig.nombre}`));
     else box.append(h('p',{class:'muted'},'Las tres islas tienen fotos. El dinero se captura en la computadora.'), h('button',{class:'btn primary big block',onclick:salir},'Listo'));
