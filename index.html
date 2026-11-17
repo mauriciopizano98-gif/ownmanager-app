@@ -640,7 +640,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.5.0';
+const OM_VERSION='1.5.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2228,6 +2228,7 @@ async function renderAdmin(){
 // Siete fotos en orden fijo. Se piden todas pero ninguna bloquea el envío: lo que falte se marca en el reporte.
 // El encargado no teclea nada: la IA lee el comprobante, los sellos, las placas y el ticket de la consola.
 const PASOS_DESCARGA=[['unidad','Unidad'],['comprobante','Comprobante de carga'],['sello_domo','Sello del domo'],['sello_valvulas','Sello de válvulas'],['nivel_lleno','Nivel lleno'],['tonel_vacio','Tonel vacío'],['ticket_consola','Ticket de la consola']];
+const PASOS_REVISAR=['unidad','comprobante','sello_domo','sello_valvulas','ticket_consola']; // nivel lleno y tonel vacío no tienen nada que leer
 const ENC={ d:null, paso:0, vista:'lista', previas:{}, saltados:{}, detalle:null };
 const DESC={ detalle:null };
 let encTab='chat';
@@ -2294,8 +2295,18 @@ function encCaptura(){ const d=ENC.d; const fotos=d.fotos||{}; const [k,nombre]=
 async function encSubir(k, file, box, alTerminar){ const d=ENC.d; box.innerHTML=''; box.append(omLoader({texto:'Guardando foto…'}));
   try{ const blob=await comprimirImagen(file); const ruta=`${d.estacion_id}/${nowMX().fecha.slice(0,7)}/descargas/${d.id}/${k}-${Date.now()}.jpg`;
     const {error}=await sb.storage.from('fotos').upload(ruta, blob, {contentType:'image/jpeg', upsert:false}); if(error) throw errSrv(error);
-    d.fotos=await rpc('foto_descarga',{p_descarga:d.id, p_paso:k, p_ruta:ruta}); try{ ENC.previas[k]=URL.createObjectURL(blob); }catch(e){} delete ENC.saltados[k]; alTerminar(); }
-  catch(e){ aviso('No se guardó la foto: '+(e.message||e.code)+'. Intenta otra vez.','err'); render(); } }
+    d.fotos=await rpc('foto_descarga',{p_descarga:d.id, p_paso:k, p_ruta:ruta}); try{ ENC.previas[k]=URL.createObjectURL(blob); }catch(e){} delete ENC.saltados[k]; }
+  catch(e){ aviso('No se guardó la foto: '+(e.message||e.code)+'. Intenta otra vez.','err'); render(); return; }
+  // Lectura breve antes de seguir (1.5.1): si la IA no la lee bien, se ofrece repetirla. Nunca bloquea: sin señal, con error o si tarda, se sigue.
+  if(PASOS_REVISAR.includes(k)){ box.innerHTML=''; box.append(omLoader({texto:'Revisando la foto…'}));
+    const r=await Promise.race([leerDescarga(d.id,{accion:'revisar', paso:k}), new Promise(res=>setTimeout(()=>res(null),12000))]);
+    if(r && r.ok && r.legible===false && box.isConnected){ encIlegible(k, box, alTerminar); return; } }
+  alTerminar(); }
+function encIlegible(k, box, alTerminar){ const nombre=(PASOS_DESCARGA.find(p=>p[0]===k)||[])[1]||''; box.innerHTML='';
+  const inp=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,id:'enc-foto'});
+  inp.addEventListener('change', async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return; await encSubir(k,f,box,alTerminar); });
+  box.append(h('p',{class:'eyebrow',style:'margin:0'},nombre), h('h2',{style:'margin:0'},'No se leyó bien'), ENC.previas[k]? h('img',{class:'enc-prev',src:ENC.previas[k],alt:nombre}):null,
+    h('button',{class:'btn primary big block',id:'enc-repetir',onclick:()=>inp.click()},'Repetir foto'), h('button',{class:'btn ghost block',id:'enc-seguir',onclick:alTerminar},'Seguir así'), inp); }
 async function firmarDescarga(fotos, previas){ const falt=PASOS_DESCARGA.filter(([k])=>fotos[k]&&!previas[k]); if(!falt.length) return;
   try{ const {data}=await sb.storage.from('fotos').createSignedUrls(falt.map(([k])=>fotos[k].ruta), 60*60*6); (data||[]).forEach((x,i)=>{ if(x&&x.signedUrl) previas[falt[i][0]]=x.signedUrl; }); }catch(e){ console.warn('fotos', e); } }
 async function encRevision(){ const d=ENC.d; const fotos=d.fotos||{}; await firmarDescarga(fotos, ENC.previas);
