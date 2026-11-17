@@ -207,6 +207,15 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .kiosco-avisos .av{display:flex;flex-direction:column;gap:3px;padding-top:12px;border-top:1px solid var(--line)}
 .kiosco-avisos .av .tx{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.4}
 @media (min-width:1200px){ .kiosco-avisos{position:absolute;top:0;right:100%;margin:0 24px 0 0;width:min(260px,calc((100vw - 720px)/2 - 40px));max-height:max(320px,100%);overflow-y:auto} }
+@media (min-width:1100px){ .grid2.lu-g5{grid-template-columns:repeat(5,minmax(0,1fr))} }
+.lu-archivo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:38px}
+.lu-archivo .n{font-size:13.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 180px}
+.lu-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+.lu-fotos .t{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.lu-fotos .t .v{padding:0;border:0;background:none;cursor:zoom-in}
+.lu-fotos .t img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface2);display:block}
+.lu-fotos .mas{aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1.5px dashed var(--line2);border-radius:var(--r-sm);background:transparent;color:var(--muted);font:500 13px var(--font-body);cursor:pointer}
+.lu-fotos .mas:hover{border-color:var(--mod-ink);color:var(--fg)}
 .lv-cuenta{display:flex;flex-direction:column;gap:0;padding:6px 16px}
 .lv-cuenta .r{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
 .lv-cuenta .r:first-child{border-top:0}
@@ -654,7 +663,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.7.0';
+const OM_VERSION='1.8.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2434,7 +2443,6 @@ async function adminDescargas(){
 // horas y tipo de unidad para el cotizador. Nada se borra: los catálogos se pausan y los viajes se cancelan con motivo.
 const LOG={ vista:'lista', viaje:null, mes:null, cat:null, edita:null };
 let logTab='lviajes';
-const TIPOS_UNIDAD={full:['Full',31500], sencillo:['Sencillo',null], patona:['Patona',22500], corto:['Corto',20000], otro:['Otro',null]};
 const PRODUCTOS_LOG=['Magna','Premium','Diésel'];
 function esLogistica(){ return S.rol==='logistica'; }
 const logNum = v => { const x=Number(String(v==null?'':v).replace(/[$,\s]/g,'')); return isFinite(x)?x:0; };
@@ -2450,7 +2458,8 @@ const logPesos = n => (n<0?'−':'')+fmtMXN(Math.abs(n));
 async function logCargar(){ const [cfg, unidades, operadores, clientes] = await Promise.all([
     sel(sb.from('log_config').select('*').limit(1)), sel(sb.from('log_unidades').select('*').order('nombre')),
     sel(sb.from('log_operadores').select('*').order('nombre')), sel(sb.from('log_clientes').select('*').order('nombre')) ]);
-  return LOG.cat={ cfg:(cfg&&cfg[0])||{nombre:'Logística', mantenimiento_pct:0, origen_habitual:null}, unidades, operadores, clientes }; }
+  let lineas=[]; try{ lineas=await sel(sb.from('log_lineas').select('*').order('nombre')); }catch(e){}
+  return LOG.cat={ cfg:(cfg&&cfg[0])||{nombre:'Logística', mantenimiento_pct:0, origen_habitual:null}, unidades, operadores, clientes, lineas }; }
 // Lee el XML de la carta porte (CFDI). Lo cobrado es el subtotal menos el descuento, sin IVA.
 function leerCartaPorteXml(txt){ const doc=new DOMParser().parseFromString(txt,'application/xml'); const c=doc.documentElement;
   if(!c || c.localName!=='Comprobante') throw new Error('Ese archivo no es el XML de un CFDI.');
@@ -2527,7 +2536,8 @@ async function logForma(){
       if(!cancelado) cartaBox.append(h('button',{class:'btn',id:'lv-anexar',onclick:()=>inCarta.click()},'Anexar carta porte (XML o PDF)')); }
     else { const delXml=carta.origen==='xml' && Number(carta.subtotal)>0;
       cartaBox.append(h('div',{class:'row between',style:'align-items:center;gap:10px;flex-wrap:wrap'}, h('div',{class:'l'}, h('b',{},carta.nombre||'Carta porte'), h('span',{class:'small muted',style:'display:block'},[carta.receptor, carta.fecha?fmtFecha(carta.fecha):null, carta.uuid?'folio fiscal …'+String(carta.uuid).slice(-8):null].filter(Boolean).join(' · ')||'Archivo anexado')),
-        h('div',{class:'row',style:'gap:8px'}, h('button',{class:'btn sm ghost',id:'lv-ver-carta',onclick:async()=>{ try{ const {data,error}=await sb.storage.from('logistica').createSignedUrl(carta.ruta,3600); if(error) throw errSrv(error); window.open(data.signedUrl,'_blank'); }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),5000); } }},'Ver'),
+        h('div',{class:'row',style:'gap:8px'}, h('button',{class:'btn sm ghost',id:'lv-ver-carta',onclick:async()=>{ if(carta.drive_id){ logVer(carta); return; } // las anexadas con la 1.7.0 siguen en el almacén de la app
+          try{ const {data,error}=await sb.storage.from('logistica').createSignedUrl(carta.ruta,3600); if(error) throw errSrv(error); window.open(data.signedUrl,'_blank'); }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),5000); } }},'Ver'),
           cancelado?null:h('button',{class:'btn sm ghost',onclick:()=>inCarta.click()},'Cambiar'))));
       fCobrado.readOnly=delXml||cancelado;
       cartaBox.append(campo(delXml?'Cobrado (flete sin IVA, leído de la carta porte)':'Cobrado (flete sin IVA)', fCobrado)); }
@@ -2536,10 +2546,9 @@ async function logForma(){
     const esXml=/\.xml$/i.test(f.name)||/xml/.test(f.type||''); let d=null;
     try{ if(esXml) d=leerCartaPorteXml(await f.text()); }catch(e){ toast(e.message||'No se pudo leer el XML.',6000); return; }
     if(d && !d.con_carta_porte){ toast('Ese CFDI no trae el complemento Carta Porte. Revisa que sea el archivo correcto.',7000); return; }
-    cartaBox.innerHTML=''; cartaBox.append(omLoader({texto:'Guardando la carta porte…'}));
-    try{ const ruta=`${S.usuario.empresa_id}/${nowMX().fecha.slice(0,7)}/cartas/${Date.now()}-${f.name.replace(/[^\w.\-]+/g,'_').slice(-60)}`;
-      const {error}=await sb.storage.from('logistica').upload(ruta, f, {contentType:f.type||(esXml?'text/xml':'application/pdf'), upsert:false}); if(error) throw errSrv(error);
-      carta= d? {ruta, nombre:f.name, origen:'xml', uuid:d.uuid, tipo:d.tipo, fecha:d.fecha, subtotal:d.subtotal, total:d.total, receptor:d.receptor, receptor_rfc:d.receptor_rfc} : {ruta, nombre:f.name, origen:'archivo'};
+    cartaBox.innerHTML=''; cartaBox.append(omLoader({texto:'Guardando la carta porte en Drive…'}));
+    try{ const a=await logSubir(f, 'carta_porte', nowMX().fecha.slice(0,7)); // queda en el Drive de la fletera: 07 Cartas porte/aaaa/mm
+      carta= d? {drive_id:a.drive_id, nombre:a.nombre, origen:'xml', uuid:d.uuid, tipo:d.tipo, fecha:d.fecha, subtotal:d.subtotal, total:d.total, receptor:d.receptor, receptor_rfc:d.receptor_rfc} : {drive_id:a.drive_id, nombre:a.nombre, origen:'archivo'};
       if(d){ fCobrado.value=d.subtotal>0? String(d.subtotal):''; if(d.km && !tocado.has('km') && !fKm.value) fKm.value=String(d.km); } }
     catch(e){ toast('No se guardó la carta porte: '+(e.message||e.code),6000); }
     pintaCarta(); pintaCuenta(); });
@@ -2584,20 +2593,128 @@ async function logForma(){
     cont.append(h('div',{class:'stack',style:'margin-top:18px;gap:8px'}, motivo, h('button',{class:'btn block ghost danger',id:'lv-cancelar',onclick:async()=>{ if(motivo.value.trim().length<4){ toast('Escribe el motivo.'); motivo.focus(); return; }
       try{ await rpc('log_cancelar_viaje',{p_viaje:v.id,p_motivo:motivo.value.trim()}); toast('Viaje cancelado.'); volver(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); } }},'Cancelar viaje'))); }
 }
-// Catálogos de Logística: unidades, operadores y clientes. Se agregan, se corrigen y se pausan; no se borran.
+// Archivos de Logística: van al Drive de la fletera por la función del servidor "archivo-logistica" (el robot los guarda; la app no usa ligas de Drive).
+// Las fotos se aligeran antes de mandarse. Nada se reemplaza ni se borra: cada subida es un archivo nuevo, con quién y cuándo.
+const FN_LOG='archivo-logistica';
+async function logSubir(file, clase, referencia, etiqueta){
+  let f=file; if(/^image\//.test(file.type||'')){ const c=await comprimirImagen(file).catch(()=>null); if(c) f=c; }
+  const mime=String(f.type||file.type||'').toLowerCase() || (/\.xml$/i.test(file.name)?'text/xml':/\.pdf$/i.test(file.name)?'application/pdf':'');
+  if(f.size>8*1024*1024) throw new Error('El archivo pesa más de 8 MB. Súbelo más ligero.');
+  const j=await fnOficina({ accion:'subir', clase, referencia:referencia||'', etiqueta:etiqueta||'', nombre:file.name, mime, base64:await archivoABase64(f) }, FN_LOG);
+  if(!j.ok) throw new Error(j.error||'No se pudo subir el archivo.');
+  return { drive_id:j.drive_id, nombre:j.nombre };
+}
+const logVer = a => verArchivo(a.drive_id, {fn:FN_LOG, nombre:a.nombre});
+// Unidades: expediente completo. Tipos y lo que lleva cada uno (decisión de Mauricio, 16-nov-2026):
+//   Full → 2 tanques · Sencillo → 1 tanque · Compartido ("patona") → 1 tanque con 2 compartimientos · Corto → tracto y tanque son un conjunto (solo capacidad).
+const TIPOS_UNIDAD={full:'Full', sencillo:'Sencillo', compartido:'Compartido (patona)', corto:'Corto'};
+const logTanqueVacio = () => ({matricula:'', numero_economico:'', capacidad:'', color:'', anio:'', tarjeta:null});
+const logAnioOk = x => /^\d{4}$/.test(String(x==null?'':x).trim()) && Number(x)>=1950 && Number(x)<=Number(nowMX().fecha.slice(0,4))+1; // año de fabricación
+function logTanques(tipo, antes){ const a=(antes&&antes[0])||{}; const comun={matricula:a.matricula||'', color:a.color||'', anio:a.anio||'', tarjeta:a.tarjeta||null};
+  if(tipo==='corto') return [{capacidad:''}];
+  if(tipo==='compartido') return [Object.assign({},comun,{compartimientos:[{numero_economico:'',capacidad:''},{numero_economico:'',capacidad:''}]})];
+  const uno=Object.assign(logTanqueVacio(),comun,{numero_economico:a.numero_economico||'', capacidad:a.capacidad||''});
+  return tipo==='full'? [uno, (antes&&antes[1]&&antes[1].matricula!==undefined&&!antes[1].compartimientos)? antes[1] : logTanqueVacio()] : [uno]; }
+// Lo que falta para poder guardar (todo es obligatorio). El servidor revisa lo mismo.
+function logFaltaUnidad(d){ const f=[]; const v=x=>String(x==null?'':x).trim(); const cap=x=>logNum(x)>0;
+  if(!d.linea_id) f.push('la línea de transporte'); if(!v(d.nombre)) f.push('el número económico'); if(!v(d.placas)) f.push('la matrícula'); if(!v(d.color)) f.push('el color'); if(!v(d.marca)) f.push('la marca'); if(!v(d.modelo)) f.push('el modelo'); if(!logAnioOk(d.anio)) f.push('el año');
+  d.tanques.forEach((t,i)=>{ const et=d.tanques.length===2? ' del tanque '+(i+1):' del tanque';
+    if(d.tipo==='corto'){ if(!cap(t.capacidad)) f.push('la capacidad'); return; }
+    if(!v(t.matricula)) f.push('la matrícula'+et); if(!v(t.color)) f.push('el color'+et); if(!logAnioOk(t.anio)) f.push('el año'+et); if(!t.tarjeta) f.push('la tarjeta de circulación'+et);
+    if(d.tipo==='compartido') t.compartimientos.forEach((c,j)=>{ if(!v(c.numero_economico)) f.push('el número económico del compartimiento '+(j+1)); if(!cap(c.capacidad)) f.push('la capacidad del compartimiento '+(j+1)); });
+    else { if(!v(t.numero_economico)) f.push('el número económico'+et); if(!cap(t.capacidad)) f.push('la capacidad'+et); } });
+  if(!d.tarjeta) f.push('la tarjeta de circulación del tractocamión'); if(!d.fotos.length) f.push('las fotos de la unidad');
+  return f; }
+const logUnidadIncompleta = u => !u.linea_id || !u.anio || !u.tarjeta || !(u.fotos||[]).length || !(u.tanques||[]).length || (u.tipo!=='corto' && (u.tanques||[]).some(t=>!t.anio));
+async function logUnidades(){
+  if(LOG.edita && LOG.edita.tipo==='unidades') return logUnidadForma();
+  app.append(h('button',{class:'btn primary',id:'lu-nueva',style:'margin-top:10px',onclick:()=>{ LOG.edita={tipo:'unidades', id:null}; render(); }},'Nueva unidad'));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando…']));
+  let cat; try{ cat=await logCargar(); }catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; const list=h('div',{class:'list',id:'lc-lista',style:'margin-top:14px'});
+  if(!cat.unidades.length) list.append(h('div',{class:'card empty'},h('b',{},'Todavía no hay unidades')));
+  for(const u of cat.unidades){ const linea=(cat.lineas.find(l=>l.id===u.linea_id)||{}).nombre;
+    const sub=[TIPOS_UNIDAD[u.tipo]||u.tipo, u.capacidad_litros? fmtInt(u.capacidad_litros)+' L':null, u.placas, [u.marca,u.modelo,u.anio].filter(Boolean).join(' ')||null, u.color, linea, u.activa?null:'en pausa'].filter(Boolean).join(' · ');
+    list.append(h('div',{class:'item',onclick:()=>{ LOG.edita={tipo:'unidades', id:u.id}; render(); }}, h('div',{class:'l'}, h('b',{},u.nombre), h('span',{class:'small muted'},sub)),
+      h('div',{class:'row',style:'gap:8px;align-items:center;flex:none'}, logUnidadIncompleta(u)? h('span',{class:'chip warn'},'faltan datos'):null,
+        h('button',{class:'btn sm ghost',onclick:async ev=>{ ev.stopPropagation(); try{ await rpc('log_pausar_unidad',{p_id:u.id,p_activa:!u.activa}); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }}, u.activa?'Pausar':'Reactivar')))); }
+  cont.append(list);
+}
+async function logUnidadForma(){
+  const volver=()=>{ LOG.edita=null; render(); };
+  app.append(h('button',{class:'btn sm ghost',id:'lu-volver',style:'margin-top:10px',onclick:volver}, ico('volver',16),' Unidades'));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando…']));
+  let cat; try{ cat=await logCargar(); }catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; const ed=LOG.edita.id? cat.unidades.find(u=>u.id===LOG.edita.id):null; const lineas=cat.lineas.filter(l=>l.activa||(ed&&l.id===ed.linea_id));
+  if(!lineas.length){ cont.append(h('div',{class:'card empty'}, h('b',{},'Falta la línea de transporte'), 'El dueño la da de alta en Central ▸ Logística ▸ Ajustes.')); return; }
+  const tipo0=ed&&TIPOS_UNIDAD[ed.tipo]? ed.tipo:'full';
+  const d= ed? { linea_id:ed.linea_id||(lineas.length===1?lineas[0].id:''), nombre:ed.nombre||'', placas:ed.placas||'', color:ed.color||'', marca:ed.marca||'', modelo:ed.modelo||'', anio:ed.anio==null?'':String(ed.anio), tipo:tipo0, tarjeta:clone(ed.tarjeta)||null, fotos:clone(ed.fotos)||[],
+        tanques:(ed.tanques&&ed.tanques.length===(tipo0==='full'?2:1))? clone(ed.tanques) : logTanques(tipo0) }
+    : { linea_id:lineas.length===1?lineas[0].id:'', nombre:'', placas:'', color:'', marca:'', modelo:'', anio:'', tipo:'full', tarjeta:null, fotos:[], tanques:logTanques('full') };
+  const campo=(l,el)=>h('label',{class:'f'},h('span',{class:'l'},l),el);
+  const falta=h('p',{class:'small',id:'lu-falta',style:'margin:0'}); const btn=h('button',{class:'btn primary big block',id:'lu-guardar'}, ed?'Guardar cambios':'Guardar unidad');
+  const revisa=()=>{ const f=logFaltaUnidad(d); falta.textContent=f.length? 'Falta '+f.join(', ')+'.' : 'Expediente completo.'; falta.style.color=f.length?'var(--warn)':'var(--ok)'; };
+  const ent=(obj,k,id,ph,o)=>{ const e=h('input',Object.assign({type:'text',id,value:obj[k]==null?'':String(obj[k]),placeholder:ph||'',autocomplete:'off'}, o||{})); e.addEventListener('input',()=>{ obj[k]=e.value; revisa(); }); return e; };
+  // Un archivo (tarjeta de circulación): subir, ver, cambiar. Pide primero el número económico, que es la carpeta en Drive.
+  const archivo=(id, get, set, clase, etiqueta)=>{ const box=h('div',{class:'lu-archivo',id}); const inp=h('input',{type:'file',accept:'application/pdf,image/*',hidden:true});
+    const pinta=()=>{ box.innerHTML=''; const a=get();
+      if(a) box.append(h('span',{class:'n',title:a.nombre},a.nombre), h('button',{class:'btn sm ghost',onclick:()=>logVer(a)},'Ver'), h('button',{class:'btn sm ghost',onclick:()=>inp.click()},'Cambiar'));
+      else box.append(h('button',{class:'btn sm',onclick:()=>{ if(!d.nombre.trim()){ toast('Escribe primero el número económico.'); const n=cont.querySelector('#lu-nombre'); if(n) n.focus(); return; } inp.click(); }},'Subir PDF o foto'));
+      box.append(inp); };
+    inp.addEventListener('change', async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return; box.innerHTML=''; box.append(h('span',{class:'spin'}), h('span',{class:'small muted'},' Guardando en Drive…'));
+      try{ set(await logSubir(f, clase, d.nombre.trim().toUpperCase(), etiqueta)); }catch(e){ toast('No se guardó: '+(e.message||e.code),7000); }
+      pinta(); revisa(); });
+    pinta(); return box; };
+  // --- datos de la unidad
+  const fLinea=h('select',{id:'lu-linea'}, lineas.length>1? h('option',{value:''},'Elige la línea'):null, ...lineas.map(l=>h('option',{value:l.id,selected:l.id===d.linea_id},l.nombre))); fLinea.addEventListener('change',()=>{ d.linea_id=fLinea.value; revisa(); });
+  const fTipo=h('select',{id:'lu-tipo'},...Object.entries(TIPOS_UNIDAD).map(([k,l])=>h('option',{value:k,selected:k===d.tipo},l)));
+  const tanquesBox=h('div',{id:'lu-tanques',class:'stack',style:'gap:12px'});
+  const pintaTanques=()=>{ tanquesBox.innerHTML='';
+    d.tanques.forEach((t,i)=>{ const n=d.tanques.length===2? ' '+(i+1):''; const p='lu-t'+(i+1)+'-';
+      if(d.tipo==='corto'){ tanquesBox.append(h('div',{class:'card stack'}, h('p',{class:'eyebrow',style:'margin:0'},'Tanque'), h('p',{class:'small muted',style:'margin:0'},'En el corto, tracto y tanque son un solo conjunto con la misma placa.'),
+          h('div',{class:'grid2'}, campo('Capacidad (litros)', ent(t,'capacidad',p+'capacidad','Litros',{inputmode:'numeric'}))))); return; }
+      const anio=()=>campo('Año', ent(t,'anio',p+'anio','Por ejemplo 2020',{inputmode:'numeric',maxlength:'4'}));
+      const datos=[campo('Matrícula', ent(t,'matricula',p+'matricula','Placa del tanque')), campo('Color', ent(t,'color',p+'color',''))]; let filas;
+      if(d.tipo==='compartido') filas=[h('div',{class:'grid2'},...datos, anio()), ...t.compartimientos.map((c,j)=>h('div',{class:'grid2'}, campo('Compartimiento '+(j+1)+' · número económico', ent(c,'numero_economico',p+'c'+(j+1)+'-numero','')), campo('Compartimiento '+(j+1)+' · capacidad (litros)', ent(c,'capacidad',p+'c'+(j+1)+'-capacidad','Litros',{inputmode:'numeric'}))))];
+      else { datos.splice(1,0, campo('Número económico', ent(t,'numero_economico',p+'numero','')), campo('Capacidad (litros)', ent(t,'capacidad',p+'capacidad','Litros',{inputmode:'numeric'}))); datos.push(anio()); filas=[h('div',{class:'grid2 lu-g5'},...datos)]; }
+      tanquesBox.append(h('div',{class:'card stack'}, h('p',{class:'eyebrow',style:'margin:0'}, d.tipo==='compartido'?'Tanque compartido':'Tanque'+n), ...filas,
+        h('div',{class:'f'}, h('span',{class:'l'},'Tarjeta de circulación del tanque'+n), archivo(p+'tarjeta', ()=>t.tarjeta, a=>{ t.tarjeta=a; }, 'tanque_tarjeta', 'tanque '+(i+1))))); }); };
+  fTipo.addEventListener('change',()=>{ d.tanques=logTanques(fTipo.value, d.tanques); d.tipo=fTipo.value; pintaTanques(); revisa(); });
+  // --- fotos de la unidad
+  const fotosBox=h('div',{class:'lu-fotos',id:'lu-fotos'}); const inFotos=h('input',{type:'file',accept:'image/*',multiple:true,hidden:true,id:'lu-fotos-in'});
+  const mini=f=>{ const img=h('img',{alt:'Foto de la unidad'}); if(f._url) img.src=f._url; else traerArchivo(f.drive_id,false,FN_LOG).then(a=>{ f._url=URL.createObjectURL(a.blob); img.src=f._url; }).catch(()=>{ img.alt='No se pudo cargar'; });
+    return h('div',{class:'t'}, h('button',{class:'v',title:'Ver',onclick:()=>logVer(f)}, img), h('button',{class:'btn sm ghost',onclick:()=>{ d.fotos=d.fotos.filter(x=>x!==f); pintaFotos(); revisa(); }},'Quitar')); };
+  const pintaFotos=()=>{ fotosBox.innerHTML=''; for(const f of d.fotos) fotosBox.append(mini(f));
+    fotosBox.append(h('button',{class:'mas',id:'lu-fotos-mas',onclick:()=>{ if(!d.nombre.trim()){ toast('Escribe primero el número económico.'); const n=cont.querySelector('#lu-nombre'); if(n) n.focus(); return; } inFotos.click(); }}, ico('camara',22), h('span',{},d.fotos.length?'Agregar fotos':'Subir fotos')), inFotos); };
+  inFotos.addEventListener('change', async()=>{ const fs=[...(inFotos.files||[])].slice(0,12); inFotos.value=''; if(!fs.length) return; const aviso1=h('p',{class:'small muted',style:'margin:0;grid-column:1/-1'},'Guardando en Drive…'); fotosBox.append(aviso1);
+    for(const f of fs){ try{ const a=await logSubir(f,'unidad_foto',d.nombre.trim().toUpperCase()); a._url=URL.createObjectURL(f); d.fotos.push(a); }catch(e){ toast('No se guardó una foto: '+(e.message||e.code),7000); } }
+    pintaFotos(); revisa(); });
+  // --- guardar
+  btn.addEventListener('click', async()=>{ const f=logFaltaUnidad(d); if(f.length){ toast('Falta '+f[0]+(f.length>1?` y ${f.length-1} dato${f.length>2?'s':''} más`:'')+'.',5000); falta.scrollIntoView&&falta.scrollIntoView({block:'center'}); return; }
+    btn.disabled=true; const limpio=a=>a? {drive_id:a.drive_id, nombre:a.nombre}:null;
+    const p={ linea_id:d.linea_id, nombre:d.nombre.trim(), placas:d.placas.trim(), color:d.color.trim(), marca:d.marca.trim(), modelo:d.modelo.trim(), anio:String(d.anio).trim(), tipo:d.tipo, tarjeta:limpio(d.tarjeta), fotos:d.fotos.map(limpio),
+      tanques:d.tanques.map(t=> d.tipo==='corto'? {capacidad:logNum(t.capacidad)} : d.tipo==='compartido'? {matricula:t.matricula.trim().toUpperCase(), color:t.color.trim(), anio:String(t.anio).trim(), tarjeta:limpio(t.tarjeta), compartimientos:t.compartimientos.map(c=>({numero_economico:c.numero_economico.trim().toUpperCase(), capacidad:logNum(c.capacidad)}))}
+        : {matricula:t.matricula.trim().toUpperCase(), numero_economico:t.numero_economico.trim().toUpperCase(), capacidad:logNum(t.capacidad), color:t.color.trim(), anio:String(t.anio).trim(), tarjeta:limpio(t.tarjeta)}) };
+    try{ await rpc('log_guardar_unidad',{p_id:ed?ed.id:null, p_d:p}); toast(ed?'Cambios guardados.':'Unidad guardada.'); volver(); }catch(e){ toast('No se pudo guardar: '+(e.message||e.code),7000); btn.disabled=false; } });
+  cont.append(h('h2',{style:'margin:6px 0 0'}, ed?`Unidad ${ed.nombre}`:'Nueva unidad'),
+    h('div',{class:'card stack',id:'lu-datos',style:'margin-top:12px'}, h('p',{class:'eyebrow',style:'margin:0'},'La unidad'),
+      h('div',{class:'grid2'}, campo('Línea de transporte',fLinea), campo('Número económico', ent(d,'nombre','lu-nombre','Por ejemplo LP01')), campo('Matrícula', ent(d,'placas','lu-placas','Placa del vehículo')), campo('Color', ent(d,'color','lu-color',''))),
+      h('div',{class:'grid2'}, campo('Marca', ent(d,'marca','lu-marca','')), campo('Modelo', ent(d,'modelo','lu-modelo','')), campo('Año', ent(d,'anio','lu-anio','Por ejemplo 2020',{inputmode:'numeric',maxlength:'4'})), campo('Tipo',fTipo)),
+      h('div',{class:'f'}, h('span',{class:'l'},'Tarjeta de circulación del tractocamión'), archivo('lu-tarjeta', ()=>d.tarjeta, a=>{ d.tarjeta=a; }, 'unidad_tarjeta'))),
+    h('div',{style:'margin-top:12px'}, tanquesBox),
+    h('div',{class:'card stack',style:'margin-top:12px'}, h('p',{class:'eyebrow',style:'margin:0'},'Fotos de la unidad'), fotosBox),
+    h('div',{class:'stack',style:'margin-top:14px;gap:10px'}, falta, btn));
+  pintaTanques(); pintaFotos(); revisa();
+}
+// Catálogos sencillos de Logística: operadores y clientes. Se agregan, se corrigen y se pausan; no se borran.
 async function logCatalogo(tipo){
   const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando…']));
   let cat; try{ cat=await logCargar(); }catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
-  cont.innerHTML=''; const rows=cat[tipo]; const ed=LOG.edita&&LOG.edita.tipo===tipo? rows.find(r=>r.id===LOG.edita.id):null; const kAct=tipo==='unidades'?'activa':'activo';
+  cont.innerHTML=''; const rows=cat[tipo]; const ed=LOG.edita&&LOG.edita.tipo===tipo? rows.find(r=>r.id===LOG.edita.id):null; const kAct='activo';
   const campo=(l,el)=>h('label',{class:'f'},h('span',{class:'l'},l),el); const txt=(id,val,ph)=>h('input',{type:'text',id,value:val||'',placeholder:ph||'',autocomplete:'off'});
-  const fNombre=txt('lc-nombre', ed&&ed.nombre, tipo==='unidades'?'Número o nombre de la unidad':tipo==='operadores'?'Nombre del operador':'Nombre del cliente');
+  const fNombre=txt('lc-nombre', ed&&ed.nombre, tipo==='operadores'?'Nombre del operador':'Nombre del cliente');
   let campos=[campo('Nombre',fNombre)], guardar;
-  if(tipo==='unidades'){ const fTipo=h('select',{id:'lc-tipo'},...Object.entries(TIPOS_UNIDAD).map(([k,[l]])=>h('option',{value:k,selected:ed?ed.tipo===k:k==='full'},l)));
-    const fCap=txt('lc-capacidad', ed&&ed.capacidad_litros? String(Number(ed.capacidad_litros)) : (ed?'':String(TIPOS_UNIDAD.full[1])), 'Litros'); fCap.setAttribute('inputmode','numeric'); const fPlacas=txt('lc-placas', ed&&ed.placas, 'Opcional');
-    fTipo.addEventListener('change',()=>{ const c=TIPOS_UNIDAD[fTipo.value][1]; fCap.value=c?String(c):''; });
-    campos.push(campo('Tipo',fTipo), campo('Capacidad (litros)',fCap), campo('Placas',fPlacas));
-    guardar=act=>rpc('log_guardar_unidad',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_tipo:fTipo.value, p_capacidad:logNum(fCap.value)||null, p_placas:fPlacas.value, p_activa:act}); }
-  else if(tipo==='operadores'){ guardar=act=>rpc('log_guardar_operador',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_activo:act}); }
+  if(tipo==='operadores'){ guardar=act=>rpc('log_guardar_operador',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_activo:act}); }
   else { const fRfc=txt('lc-rfc', ed&&ed.rfc, 'Opcional'), fDest=txt('lc-destino', ed&&ed.destino, 'Ciudad o estación a donde se le lleva');
     campos.push(campo('RFC',fRfc), campo('Destino habitual',fDest));
     guardar=act=>rpc('log_guardar_cliente',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_rfc:fRfc.value, p_destino:fDest.value, p_activo:act}); }
@@ -2607,11 +2724,10 @@ async function logCatalogo(tipo){
   const pie=h('div',{class:'row',style:'gap:8px'}, btn); if(ed) pie.append(h('button',{class:'btn ghost',onclick:()=>{ LOG.edita=null; render(); }},'Cancelar'));
   cont.append(h('div',{class:'card stack',id:'lc-forma',style:'margin-top:10px'}, h('div',{class:'grid2'},...campos), pie));
   const list=h('div',{class:'list',id:'lc-lista',style:'margin-top:14px'});
-  if(!rows.length) list.append(h('div',{class:'card empty'},h('b',{}, tipo==='unidades'?'Todavía no hay unidades':tipo==='operadores'?'Todavía no hay operadores':'Todavía no hay clientes')));
+  if(!rows.length) list.append(h('div',{class:'card empty'},h('b',{}, tipo==='operadores'?'Todavía no hay operadores':'Todavía no hay clientes')));
   for(const r of rows){ const act=r[kAct]!==false;
-    const sub= tipo==='unidades'? [(TIPOS_UNIDAD[r.tipo]||[r.tipo])[0], r.capacidad_litros? fmtInt(r.capacidad_litros)+' L':null, r.placas].filter(Boolean).join(' · ') : tipo==='clientes'? [r.destino, r.rfc].filter(Boolean).join(' · ') : '';
-    const pausar=async ev=>{ ev.stopPropagation(); try{ if(tipo==='unidades') await rpc('log_guardar_unidad',{p_id:r.id,p_nombre:r.nombre,p_tipo:r.tipo,p_capacidad:r.capacidad_litros,p_placas:r.placas,p_activa:!act});
-        else if(tipo==='operadores') await rpc('log_guardar_operador',{p_id:r.id,p_nombre:r.nombre,p_activo:!act}); else await rpc('log_guardar_cliente',{p_id:r.id,p_nombre:r.nombre,p_rfc:r.rfc,p_destino:r.destino,p_activo:!act});
+    const sub= tipo==='clientes'? [r.destino, r.rfc].filter(Boolean).join(' · ') : '';
+    const pausar=async ev=>{ ev.stopPropagation(); try{ if(tipo==='operadores') await rpc('log_guardar_operador',{p_id:r.id,p_nombre:r.nombre,p_activo:!act}); else await rpc('log_guardar_cliente',{p_id:r.id,p_nombre:r.nombre,p_rfc:r.rfc,p_destino:r.destino,p_activo:!act});
         render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } };
     list.append(h('div',{class:'item',onclick:()=>{ LOG.edita={tipo,id:r.id}; render(); }}, h('div',{class:'l'}, h('b',{},r.nombre), (sub||!act)? h('span',{class:'small muted'},[sub, act?null:'en pausa'].filter(Boolean).join(' · ')):null),
       h('button',{class:'btn sm ghost',onclick:pausar}, act?'Pausar':'Reactivar'))); }
@@ -2627,8 +2743,15 @@ async function logAjustes(){
     try{ await rpc('log_guardar_config',{p_nombre:fNombre.value, p_mantenimiento_pct:p, p_origen:fOrigen.value}); toast('Guardado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
   app.append(h('div',{class:'card stack',style:'margin-top:10px'}, h('div',{class:'grid2'}, campo('Nombre de la fletera',fNombre), campo('Mantenimiento (% de lo cobrado)',fPct), campo('De dónde salen normalmente',fOrigen)),
     h('p',{class:'small muted',style:'margin:0'},'El porcentaje se aplica a los viajes que se den de alta de aquí en adelante; los ya capturados conservan el suyo.'), h('div',{},btn)));
+  // Líneas de transporte: una empresa puede tener varias; cada unidad pertenece a una.
+  const fLinea=h('input',{type:'text',id:'la-linea',placeholder:'Nombre de la línea',autocomplete:'off'}); const bLinea=h('button',{class:'btn',id:'la-linea-agregar'},'Agregar línea');
+  bLinea.addEventListener('click', async()=>{ if(fLinea.value.trim().length<2){ toast('Escribe el nombre de la línea.'); fLinea.focus(); return; } bLinea.disabled=true;
+    try{ await rpc('log_guardar_linea',{p_id:null, p_nombre:fLinea.value, p_activa:true}); toast('Línea agregada.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); bLinea.disabled=false; } });
+  const ll=h('div',{class:'list',id:'la-lineas'}); for(const l of cat.lineas) ll.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},l.nombre), l.activa?null:h('span',{class:'small muted'},'en pausa')),
+    h('button',{class:'btn sm ghost',onclick:async()=>{ try{ await rpc('log_guardar_linea',{p_id:l.id, p_nombre:l.nombre, p_activa:!l.activa}); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }}, l.activa?'Pausar':'Reactivar')));
+  app.append(h('p',{class:'eyebrow',style:'margin:22px 0 8px'},'Líneas de transporte'), ll, h('div',{class:'card stack',style:'margin-top:10px'}, h('div',{class:'row',style:'gap:10px;align-items:center;flex-wrap:wrap'}, h('div',{style:'flex:1;min-width:200px'},fLinea), bLinea)));
 }
-const LOG_PANTALLAS={ lviajes:logViajes, lunidades:()=>logCatalogo('unidades'), loperadores:()=>logCatalogo('operadores'), lclientes:()=>logCatalogo('clientes'), lajustes:logAjustes };
+const LOG_PANTALLAS={ lviajes:logViajes, lunidades:logUnidades, loperadores:()=>logCatalogo('operadores'), lclientes:()=>logCatalogo('clientes'), lajustes:logAjustes };
 const LOG_TITULOS={ lviajes:'Viajes', lunidades:'Unidades', loperadores:'Operadores', lclientes:'Clientes', lajustes:'Ajustes de Logística' };
 const logAlElegir = k => { if(k==='lviajes'){ LOG.vista='lista'; LOG.viaje=null; } LOG.edita=null; };
 async function renderLogistica(){
@@ -2804,6 +2927,7 @@ async function kioscoAvisos(cont){ if(esApk()) return;
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  camara:'<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/>',
   viaje:'<path d="M2.5 6.5h11v9h-11z"/><path d="M13.5 9.5h4l3 3.2v2.8h-7"/><circle cx="6.5" cy="17" r="1.7"/><circle cx="16.8" cy="17" r="1.7"/>',
   unidad:'<path d="M3 8.5h12v7H3z"/><path d="M15 11h3.2l2.3 2.5v2H15"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/><path d="M6 8.5v-2h6v2"/>',
   catalogo:'<path d="M5 4.5h11a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3v-12Z"/><path d="M5 16.5a3 3 0 0 1 3-3h11"/><path d="M9 8.5h6"/>',
@@ -3352,10 +3476,10 @@ function negociosOficina(cuentas){ const m={}; for(const c of cuentas) m[c.negoc
 const driveLink = id => `https://drive.google.com/file/d/${id}/view`;
 // ---- Archivos por la app: el servidor verifica permisos y el robot entrega el archivo (no hace falta cuenta de Google).
 const ARCHIVOS_CACHE=new Map(); // drive_id → blob URL (mientras dure la sesión de la pestaña)
-async function traerArchivo(driveId, descargar){
+async function traerArchivo(driveId, descargar, fn){
   const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('Sesión vencida: vuelve a entrar.');
-  const r=await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/abrir-archivo`, { method:'POST',
-    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify({ drive_id:driveId, descargar:!!descargar }) });
+  const r=await fetch(`${OM_CONFIG.SUPABASE_URL}/functions/v1/${fn||'abrir-archivo'}`, { method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify({ accion:'abrir', drive_id:driveId, descargar:!!descargar }) });
   if(!r.ok){ let j=null; try{ j=await r.json(); }catch(e){} throw new Error((j&&j.error)||('No se pudo abrir el archivo ('+r.status+').')); }
   const blob=await r.blob(); let nombre='archivo'; try{ nombre=decodeURIComponent(r.headers.get('X-Nombre')||'')||nombre; }catch(e){}
   return { blob, nombre, mime:r.headers.get('Content-Type')||blob.type };
@@ -3368,7 +3492,7 @@ function verArchivo(driveId, o){
   (async()=>{
     try{
       let url=ARCHIVOS_CACHE.get(driveId), nombre=o.nombre||'archivo';
-      if(!url){ const a=await traerArchivo(driveId,o.descargar); url=URL.createObjectURL(a.blob); nombre=a.nombre||nombre; ARCHIVOS_CACHE.set(driveId,url); ARCHIVOS_CACHE.set(driveId+':nombre',nombre); }
+      if(!url){ const a=await traerArchivo(driveId,o.descargar,o.fn); url=URL.createObjectURL(a.blob); nombre=a.nombre||nombre; ARCHIVOS_CACHE.set(driveId,url); ARCHIVOS_CACHE.set(driveId+':nombre',nombre); }
       else nombre=ARCHIVOS_CACHE.get(driveId+':nombre')||nombre;
       if(o.descargar){ const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); toast('Descargando '+nombre); }
       else if(win){ win.location.href=url; }
