@@ -26,7 +26,7 @@
 :root{
   /* Marca */
   --lima:#84FF00; --negro:#0B0F14; --carbon:#1B222B; --claro:#E5E7EB; --blanco:#FFFFFF;
-  --mod-oficina:#84FF00; --mod-kiosko:#00C9F6; --mod-central:#AC3DF5; --mod-logistica:#FF871C;
+  --mod-oficina:#84FF00; --mod-kiosko:#00C9F6; --mod-central:#AC3DF5; --mod-logistica:#FF871C; --mod-estacion:#FF4D4F;
   --mod:var(--lima); --mod-ink:#3D8B00;              /* --mod = acento del módulo; --mod-ink = versión legible como texto */
   --brand:var(--lima); --brand-fg:var(--negro);      /* botón de acción principal, igual en claro y oscuro */
   /* Chrome (cabecera y menú lateral): siempre oscuro */
@@ -56,9 +56,11 @@
   --rojo:#F87171; --azul:#38BDF8; --cyan:#00C9F6; --verde:#4ADE80; --noche:#F3F4F6; --noche-fg:#0B0F14; --neon-fg:#0B0F14;
   --shadow:0 1px 2px rgba(0,0,0,.35),0 6px 20px rgba(0,0,0,.28); --shadow-lg:0 16px 40px rgba(0,0,0,.5); color-scheme:dark }
 /* Acento del módulo activo (lo fija render() como atributo de presentación) */
-body[data-om-mod="oficina"]{--mod:var(--mod-oficina)} body[data-om-mod="kiosko"]{--mod:var(--mod-kiosko)} body[data-om-mod="central"]{--mod:var(--mod-central)} body[data-om-mod="logistica"]{--mod:var(--mod-logistica)}
+body[data-om-mod="oficina"]{--mod:var(--mod-oficina)} body[data-om-mod="kiosko"]{--mod:var(--mod-kiosko)} body[data-om-mod="central"]{--mod:var(--mod-central)} body[data-om-mod="logistica"]{--mod:var(--mod-logistica)} body[data-om-mod="estacion"]{--mod:var(--mod-estacion)}
 :root:not([data-theme="dark"]) body[data-om-mod="oficina"]{--mod-ink:#3D8B00} :root:not([data-theme="dark"]) body[data-om-mod="kiosko"]{--mod-ink:#0083A3}
 :root:not([data-theme="dark"]) body[data-om-mod="central"]{--mod-ink:#7A1FC2} :root:not([data-theme="dark"]) body[data-om-mod="logistica"]{--mod-ink:#C25A00}
+/* Estación: el rojo es acento de identidad (navegación, bordes, iconos). Los errores siguen usando --err con su icono y su texto. */
+:root:not([data-theme="dark"]) body[data-om-mod="estacion"]{--mod-ink:#C8262B}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) body[data-om-mod]{--mod-ink:var(--mod)} }
 :root[data-theme="dark"] body[data-om-mod]{--mod-ink:var(--mod)}
 
@@ -199,6 +201,12 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 
 /* Login */
 .login{min-height:70vh;display:flex;flex-direction:column;justify-content:center;gap:18px}
+.login{position:relative}
+.kiosco-avisos{margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+.kiosco-avisos .eyebrow{margin:0}
+.kiosco-avisos .av{display:flex;flex-direction:column;gap:3px;padding-top:12px;border-top:1px solid var(--line)}
+.kiosco-avisos .av .tx{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.4}
+@media (min-width:1200px){ .kiosco-avisos{position:absolute;top:0;right:100%;margin:0 24px 0 0;width:min(260px,calc((100vw - 720px)/2 - 40px));max-height:calc(100vh - 190px);overflow-y:auto} }
 .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .modo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 6px}
 .modo button{border:1px solid var(--line2);border-radius:var(--r);background:var(--surface);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;color:var(--fg);font-family:var(--font-body);transition:border-color .15s,background .15s}
@@ -640,7 +648,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.5.2';
+const OM_VERSION='1.6.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -783,7 +791,7 @@ function lecturasParaServidor(c){ return c.lecturas.map(l=>({ manguera_id:l.mang
 function aceitesParaServidor(c){ const v=(c.aceites&&c.aceites.vendidas)||{}; return catAceites().filter(a=>Number(v[a.id])>0).map(a=>({aceite_id:a.uuid, piezas:Number(v[a.id])})); }
 function dineroParaServidor(c){ const d=clone(c.dinero||{}); d._aceites=(c.aceites&&c.aceites.vendidas)||{}; d._calidad=c.calidad||null; return d; }
 function avatarEmpresa(){ const c=S.config; if(!c) return null;
-  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco',encargado:'Encargado'})[S.rol]||'';
+  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco',encargado:'Estación'})[S.rol]||'';
   const nombre=(S.rol==='dueno'||S.rol==='central')? (S.usuario&&S.usuario.nombre)||c.nombre : c.nombre;
   const av = c.logoData ? h('span',{class:'empresa',title:nombre}, h('img',{src:c.logoData,alt:nombre})) : h('span',{class:'empresa ini',title:nombre}, iniciales(nombre));
   return h('span',{class:'row',style:'gap:10px'}, av, h('span',{class:'emp-nm'}, h('b',{},nombre), h('small',{},rol))); }
@@ -888,7 +896,7 @@ function toqueLogoKiosco(){ const ahora=Date.now(); toquesLogo=toquesLogo.filter
   if(confirm('¿Cerrar la cuenta de la estación en este dispositivo?\n\nPara volver a entrar se necesitan el correo y la contraseña del kiosco.')) cerrarCuenta(); }
 // ---- render
 function render(){
-  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina'||S.screen==='encargado')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:(S.rol==='oficina'||S.rol==='encargado')?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
+  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina'||S.screen==='encargado')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='encargado'?'estacion':S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
   ({login:renderLogin, home:renderHome, corte:renderCorte, noche:nocheAuto, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina, encargado:renderEncargado})[S.screen]();
@@ -914,6 +922,7 @@ function renderLogin(){
   else box.append(h('div',{class:'people'+(soloVel?' noche':'')}, ...lista.map(d=>h('button',{class:'person',onclick:()=>{ S.verTodos=false; pinScreen(d); }}, h('span',{class:'avatar'},iniciales(d.nombre)), h('span',{},d.nombre)))));
   if(soloVel) box.append(h('button',{class:'btn ghost block',onclick:()=>{ S.verTodos=true; render(); }},'Ver a todos los despachadores'));
   app.append(box);
+  kioscoAvisos(box); // avisos de Central, Oficina y Estación; solo en la computadora
 }
 // Botón de ver/ocultar contraseña (icono de ojo) para un campo password
 function conOjo(inp){ const w=h('div',{class:'passwrap'}); const b=h('button',{type:'button',class:'ojo',title:'Mostrar contraseña','aria-label':'Mostrar contraseña'});
@@ -2206,21 +2215,23 @@ async function renderAdmin(){
   const items=[['chat','chat','Asistente'],
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy'],['cortes','cortes','Lista de cortes'],['anulados','anulados','Anulados']]],
     ['descargas','descarga','Descargas'],
+    navTareas(),
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]]];
-  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
   const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','satcert','satconsulta','satnuevas','sathist'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; render(); }, 'central'), main); app.append(shell);
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, descargas:adminDescargas, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -2259,15 +2270,15 @@ const fmtDif = n => (Number(n)>0?'+':'')+fmtInt(Number(n));
 const fmtPct = n => n==null?'—':(Number(n)>0?'+':'')+Number(n).toFixed(2)+' %';
 async function renderEncargado(){
   if(!esEncargado()){ go(S.rol==='oficina'?'oficina':esTablero()?'admin':'login'); return; }
-  const items=[['chat','chat','Asistente'],['descargas','descarga','Descargas']];
-  const titulos={chat:'Asistente', descargas:'Descargas'};
+  const items=[['chat','chat','Asistente'],['descargas','descarga','Descargas'],navTareas()];
+  const titulos={chat:'Asistente', descargas:'Descargas', tareas:'Mis tareas', avisos:'Avisos al kiosko'};
   if(!titulos[encTab]) encTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   // Tocar Descargas siempre lleva a la lista; una descarga a medias queda ahí como "por terminar".
-  shell.append(navLateral(items, encTab, k=>{ encTab=k; if(k==='descargas'){ ENC.vista='lista'; ENC.detalle=null; } render(); }, 'oficina'), main); app.append(shell);
-  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, encTab==='descargas'? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[encTab])));
+  shell.append(navLateral(items, encTab, k=>{ encTab=k; if(k==='descargas'){ ENC.vista='lista'; ENC.detalle=null; } if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'estacion'), main); app.append(shell);
+  main.append(h('div',{}, window.innerWidth<=760? logoModulo('estacion','movil'):null, encTab!=='chat'? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[encTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, descargas:encDescargas})[encTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, descargas:encDescargas, tareas:pantallaTareas, avisos:pantallaAvisos})[encTab](); } finally{ app=prev; }
 }
 function descargaResumen(d){
   const al=d.alertas||[]; const alertas=al.filter(a=>a.nivel==='alerta'), avisos=al.filter(a=>a.nivel!=='alerta');
@@ -2333,8 +2344,8 @@ async function encSubir(k, file, box, alTerminar){ const d=ENC.d; box.innerHTML=
 function encIlegible(k, box, alTerminar){ const nombre=(PASOS_DESCARGA.find(p=>p[0]===k)||[])[1]||''; box.innerHTML='';
   const inp=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,id:'enc-foto'});
   inp.addEventListener('change', async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return; await encSubir(k,f,box,alTerminar); });
-  box.append(h('p',{class:'eyebrow',style:'margin:0'},nombre), h('h2',{style:'margin:0'},'No se leyó bien'), ENC.previas[k]? h('img',{class:'enc-prev',src:ENC.previas[k],alt:nombre}):null,
-    h('button',{class:'btn primary big block',id:'enc-repetir',onclick:()=>inp.click()},'Repetir foto'), h('button',{class:'btn ghost block',id:'enc-seguir',onclick:alTerminar},'Seguir así'), inp); }
+  box.append(h('p',{class:'eyebrow',style:'margin:0'},nombre), h('h2',{style:'margin:0'},'No se leyó bien')); if(ENC.previas[k]) box.append(h('img',{class:'enc-prev',src:ENC.previas[k],alt:nombre}));
+  box.append(h('button',{class:'btn primary big block',id:'enc-repetir',onclick:()=>inp.click()},'Repetir foto'), h('button',{class:'btn ghost block',id:'enc-seguir',onclick:alTerminar},'Seguir así'), inp); }
 async function firmarDescarga(fotos, previas){ const falt=PASOS_DESCARGA.filter(([k])=>fotos[k]&&!previas[k]); if(!falt.length) return;
   try{ const {data}=await sb.storage.from('fotos').createSignedUrls(falt.map(([k])=>fotos[k].ruta), 60*60*6); (data||[]).forEach((x,i)=>{ if(x&&x.signedUrl) previas[falt[i][0]]=x.signedUrl; }); }catch(e){ console.warn('fotos', e); } }
 async function encRevision(){ const d=ENC.d; const fotos=d.fotos||{}; await firmarDescarga(fotos, ENC.previas);
@@ -2403,8 +2414,168 @@ async function adminDescargas(){
   cont.innerHTML=''; cont.append(listaDescargas(rows, d=>{ DESC.detalle=d; render(); }));
 }
 
+// ---- TAREAS PARA TODAS LAS RAMAS (16-nov-2026)
+// Las tareas solo bajan: dueño → Contabilidad, Oficina y Estación · Central → Oficina y Estación · Oficina → la Estación de su gasolinera.
+// Las cierra quien las recibe (con foto si la tarea la pide; sin ella se cierra igual y queda marcado) y quedan "por revisar"
+// hasta el visto bueno de quien las mandó (el dueño revisa cualquiera; Central, las que no son suyas). Únicas o repetitivas. Sin correos.
+const TAR={ vista:'lista', t:null };
+const RAMA={encargado:'Estación', oficina:'Oficina', central:'Contabilidad', logistica:'Logística'};
+const DIAS_SEM=['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
+const rutinaTxt = r => r.frecuencia==='diaria'?'Cada día':r.frecuencia==='semanal'?`Cada ${DIAS_SEM[(r.dia||1)-1]}`:`El día ${r.dia} de cada mes`;
+const paraQuien = () => S.rol==='dueno'?['encargado','oficina','central']:S.rol==='central'?['encargado','oficina']:S.rol==='oficina'?['encargado']:[];
+const esParaMi = t => t.para_rol===S.rol && (t.para_rol==='central' || t.estacion_id===S.config.estacionId);
+const puedoRevisar = t => t.creada_por===S.usuario.id || S.rol==='dueno' || (S.rol==='central' && t.para_rol!=='central');
+function tareaVence(t){ if(!t.vence) return null; const hoy=nowMX().fecha; return t.vence<hoy?{txt:'Venció el '+fmtFecha(t.vence),vencida:true}:t.vence===hoy?{txt:'Vence hoy',vencida:false}:{txt:'Vence el '+fmtFecha(t.vence),vencida:false}; }
+function tareaChip(t){
+  if(t.estado==='aprobada') return h('span',{class:'chip ok'},'aprobada');
+  if(t.estado==='cancelada') return h('span',{class:'chip'},'cancelada');
+  if(t.estado==='hecha') return h('span',{class:'chip '+(t.sin_foto?'warn':'')}, t.sin_foto?'por revisar · sin foto':'por revisar');
+  if(t.estado==='regresada') return h('span',{class:'chip err'},'regresada');
+  const v=tareaVence(t); return v&&v.vencida? h('span',{class:'chip err'},'vencida') : h('span',{class:'chip warn'},'pendiente');
+}
+function listaTareas(rows, onclick, vacio, conRama){ const list=h('div',{class:'list'});
+  if(!rows.length && vacio) list.append(h('div',{class:'card empty'},h('b',{},vacio)));
+  for(const t of rows){ const v=tareaVence(t); const sub=[conRama? RAMA[t.para_rol]||t.para_rol : null, t.estado==='hecha'||t.estado==='aprobada'? `${t.hecha_por_nombre||'—'} · ${fmtFecha(fechaMX(t.hecha_en))} ${fmtHora(t.hecha_en)}` : (v?v.txt:null), t.rutina_id?'rutina':null, t.estado==='regresada'&&t.motivo_regreso? 'Regresada: '+t.motivo_regreso : null].filter(Boolean).join(' · ');
+    list.append(h('div',{class:'item',onclick:()=>onclick(t)}, h('div',{class:'l'}, h('b',{},t.titulo), sub? h('span',{class:'small muted'},sub):null), tareaChip(t))); }
+  return list; }
+// Tareas a la vista de quien entra: las de la gasolinera elegida y, para Central, también las de Contabilidad (no tienen gasolinera).
+async function cargarTareas(tabla){ tabla=tabla||'tareas';
+  if(tabla==='tareas'){ try{ await sb.rpc('generar_tareas_hoy',{p_estacion:null}); }catch(e){} } // las rutinas de hoy, por si la tarea programada no ha corrido
+  const q=()=>{ let x=sb.from(tabla).select('*'); if(tabla==='tareas') x=x.neq('estado','cancelada'); return x; };
+  let rows=await sel(q().eq('estacion_id',S.config.estacionId).order('creada_en',{ascending:false}).limit(120));
+  if(esCentral()) rows=rows.concat(await sel(q().eq('para_rol','central').order('creada_en',{ascending:false}).limit(60)));
+  const vistos=new Set(); return rows.filter(r=>!vistos.has(r.id)&&vistos.add(r.id)); }
+const ordenPend=(a,b)=>(a.vence||'9999')<(b.vence||'9999')?-1:(a.vence||'9999')>(b.vence||'9999')?1:0;
+// Grupo "Tareas" del menú (igual en Central, Oficina y Estación): Avisos al kiosko · Elaborar tarea (quien puede mandar) · Mis tareas (a quien le mandan).
+function navTareas(){ return ['gtareas','tarea','Tareas',[['avisos','aviso','Avisos al kiosko'], ...(paraQuien().length?[['elaborar','tareamas','Elaborar tarea']]:[]), ...(S.rol!=='dueno'?[['tareas','tarea','Mis tareas']]:[])]]; }
+const tarAbierta = t => t.estado==='pendiente'||t.estado==='regresada';
+const tarSec = (titulo,n) => h('p',{class:'eyebrow',style:'margin:20px 0 8px'},titulo+(n!=null?' · '+n:''));
+// Mis tareas: las que me mandaron a mí. Se cierran aquí (con foto si la tarea la pide).
+async function pantallaTareas(){
+  if(TAR.vista==='hacer' && TAR.t) return tareaHacer();
+  if(TAR.vista==='fin') return app.append(pantallaFin({titulo:'Listo, gracias', boton:'Terminar', onclick:()=>{ TAR.vista='lista'; TAR.t=null; render(); }}));
+  TAR.vista='lista';
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando tareas…']));
+  let rows=[]; try{ rows=await cargarTareas(); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; const mias=rows.filter(t=>esParaMi(t));
+  const pend=mias.filter(tarAbierta).sort(ordenPend), hechas=mias.filter(t=>t.estado==='hecha'||t.estado==='aprobada').sort((a,b)=>a.hecha_en<b.hecha_en?1:-1).slice(0,10);
+  cont.append(h('div',{id:'tar-mias',style:'margin-top:10px'}, listaTareas(pend, t=>{ TAR.t=t; TAR.vista='hacer'; render(); }, 'No tienes tareas pendientes')));
+  if(hechas.length) cont.append(tarSec('Hechas'), listaTareas(hechas, t=>tareaSheet(t, ()=>render())));
+}
+// Elaborar tarea: el formulario y, debajo, lo que mandé o superviso (por revisar, pendientes, rutinas y aprobadas).
+async function pantallaElaborar(){
+  if(!paraQuien().length){ app.append(h('div',{class:'card empty'},h('b',{},'Desde aquí no se asignan tareas'))); return; }
+  app.append(formaTarea(()=>render()));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando tareas…']));
+  let rows=[], rutinas=[]; try{ rows=await cargarTareas(); rutinas=await cargarTareas('tareas_rutinas'); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; const abrir=t=>tareaSheet(t, ()=>render());
+  const otras=rows.filter(t=>!esParaMi(t)); const revisar=otras.filter(t=>t.estado==='hecha'&&puedoRevisar(t)).sort((a,b)=>a.hecha_en<b.hecha_en?-1:1);
+  const curso=otras.filter(t=>tarAbierta(t)||(t.estado==='hecha'&&!puedoRevisar(t))).sort(ordenPend), aprob=otras.filter(t=>t.estado==='aprobada').sort((a,b)=>a.revisada_en<b.revisada_en?1:-1).slice(0,10);
+  cont.append(tarSec('Por revisar',revisar.length), h('div',{id:'tar-revisar'}, listaTareas(revisar, abrir, 'Nada por revisar', true)));
+  cont.append(tarSec('Pendientes',curso.length), h('div',{id:'tar-pend'}, listaTareas(curso, abrir, 'Sin tareas pendientes', true)));
+  if(rutinas.length){ const lr=h('div',{class:'list'}); for(const r of rutinas){ lr.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},r.titulo), h('span',{class:'small muted'},`${RAMA[r.para_rol]||r.para_rol} · ${rutinaTxt(r)}${r.pide_foto?' · pide foto':''}${r.activa?'':' · en pausa'}`)),
+      puedoRevisar(r)? h('button',{class:'btn sm ghost',onclick:async ev=>{ ev.stopPropagation(); try{ await rpc('activar_rutina',{p_rutina:r.id,p_activa:!r.activa}); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }}, r.activa?'Pausar':'Reanudar'):null)); }
+    cont.append(tarSec('Rutinas',rutinas.length), lr); }
+  if(aprob.length) cont.append(tarSec('Aprobadas recientes'), listaTareas(aprob, abrir, null, true));
+}
+function tareaHacer(){ const t=TAR.t; const v=tareaVence(t);
+  const box=h('div',{class:'card stack enc-paso',style:'text-align:center'});
+  const cerrar=async(ruta)=>{ try{ await rpc('cerrar_tarea',{p_tarea:t.id, p_ruta:ruta||null}); TAR.vista='fin'; render(); }catch(e){ aviso('No se pudo cerrar la tarea: '+(e.message||e.code),'err'); render(); } };
+  const inp=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,id:'tar-foto'});
+  inp.addEventListener('change', async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return; box.innerHTML=''; box.append(omLoader({texto:'Guardando foto…'}));
+    try{ const blob=await fotoConMarca(f, t.titulo.slice(0,48)); const ruta=`${t.estacion_id||t.empresa_id}/${nowMX().fecha.slice(0,7)}/tareas/${t.id}/${Date.now()}.jpg`;
+      const {error}=await sb.storage.from('fotos').upload(ruta, blob, {contentType:'image/jpeg', upsert:false}); if(error) throw errSrv(error); await cerrar(ruta); }
+    catch(e){ aviso('No se guardó la foto: '+(e.message||e.code)+'. Intenta otra vez.','err'); render(); } });
+  box.append(h('p',{class:'eyebrow',style:'margin:0'},[v?v.txt:null, t.creada_por_nombre?'la pidió '+t.creada_por_nombre:null].filter(Boolean).join(' · ')||'Tarea'), h('h2',{style:'margin:0'},t.titulo));
+  if(t.detalle) box.append(h('p',{class:'muted',style:'margin:0'},t.detalle));
+  if(t.estado==='regresada' && t.motivo_regreso) box.append(h('p',{class:'small',style:'margin:0;color:var(--err)'},'Regresada: '+t.motivo_regreso));
+  if(t.pide_foto) box.append(h('button',{class:'btn primary big block',id:'tar-tomar',onclick:()=>inp.click()},'Tomar foto'), h('button',{class:'btn ghost block',id:'tar-sinfoto',onclick:()=>cerrar(null)},'No se pudo tomar foto'), inp);
+  else box.append(h('button',{class:'btn primary big block',id:'tar-hecha',onclick:()=>cerrar(null)},'Hecha'));
+  app.append(h('button',{class:'btn sm ghost',id:'tar-volver',onclick:()=>{ TAR.vista='lista'; TAR.t=null; render(); }}, ico('volver',16),' Tareas'), box);
+}
+// Hoja con el detalle de una tarea. Quien la mandó (o Central) aprueba, regresa o cancela desde aquí.
+async function tareaSheet(t, alTerminar){
+  const reviso=!esParaMi(t) && puedoRevisar(t); const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }}); const box=h('div',{class:'in stack'}); sheet.append(box); document.body.append(sheet);
+  const v=tareaVence(t); const dato=(k,val)=>h('div',{}, h('div',{class:'small muted'},k), h('b',{},val));
+  box.append(h('div',{class:'row',style:'justify-content:space-between;align-items:center;gap:10px'}, h('h3',{style:'margin:0'},t.titulo), tareaChip(t)));
+  if(t.detalle) box.append(h('p',{class:'muted',style:'margin:0'},t.detalle));
+  box.append(h('div',{class:'grid2'}, dato('Para', RAMA[t.para_rol]||t.para_rol), dato('La pidió', t.creada_por_nombre||'—'), dato('Fecha límite', v?v.txt:'Sin fecha'), dato('Foto', t.pide_foto?'Sí la pide':'No la pide'), t.hecha_en? dato('La cerró', `${t.hecha_por_nombre||'—'} · ${fmtFecha(fechaMX(t.hecha_en))} ${fmtHora(t.hecha_en)}`):null, t.revisada_en? dato(t.estado==='regresada'?'La regresó':'La revisó', `${t.revisada_por_nombre||'—'} · ${fmtFecha(fechaMX(t.revisada_en))} ${fmtHora(t.revisada_en)}`):null));
+  if(t.motivo_regreso && t.estado!=='aprobada') box.append(h('p',{class:'small',style:'margin:0;color:var(--err)'},'Motivo del regreso: '+t.motivo_regreso));
+  if(t.estado==='hecha' && t.sin_foto) box.append(h('p',{class:'small',style:'margin:0;color:var(--warn)'},'Pedía foto y se cerró sin ella.'));
+  if(t.foto && t.foto.ruta){ try{ const {data}=await sb.storage.from('fotos').createSignedUrls([t.foto.ruta], 3600); const u=data&&data[0]&&data[0].signedUrl; if(u) box.append(h('img',{src:u,alt:'Foto de la tarea',style:'width:100%;max-height:46vh;object-fit:contain;border-radius:var(--r-sm);background:var(--surface2);cursor:zoom-in',onclick:()=>window.open(u,'_blank')})); }catch(e){} }
+  const hacer=async(fn,args,msg)=>{ try{ await rpc(fn,args); sheet.remove(); toast(msg); alTerminar&&alTerminar(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); } };
+  if(reviso && t.estado==='hecha'){ const motivo=h('input',{type:'text',placeholder:'Motivo, si la regresas',id:'tar-motivo'});
+    box.append(h('button',{class:'btn primary big block',id:'tar-aprobar',onclick:()=>hacer('revisar_tarea',{p_tarea:t.id,p_aprobar:true,p_motivo:null},'Tarea aprobada.')},'Aprobar'), motivo,
+      h('button',{class:'btn block danger',id:'tar-regresar',onclick:()=>{ if(motivo.value.trim().length<4){ toast('Escribe el motivo para regresarla.'); motivo.focus(); return; } hacer('revisar_tarea',{p_tarea:t.id,p_aprobar:false,p_motivo:motivo.value.trim()},'Tarea regresada.'); }},'Regresar')); }
+  if(reviso && (t.estado==='pendiente'||t.estado==='regresada')){ const motivo=h('input',{type:'text',placeholder:'Motivo para cancelarla',id:'tar-cancelar-motivo'});
+    box.append(motivo, h('button',{class:'btn block ghost danger',id:'tar-cancelar',onclick:()=>{ if(motivo.value.trim().length<4){ toast('Escribe el motivo.'); motivo.focus(); return; } hacer('cancelar_tarea',{p_tarea:t.id,p_motivo:motivo.value.trim()},'Tarea cancelada.'); }},'Cancelar tarea')); }
+  box.append(h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Cerrar'));
+}
+function formaTarea(alTerminar){
+  const destinos=paraQuien();
+  const titulo=h('input',{type:'text',placeholder:'Qué hay que hacer',id:'nt-titulo',maxlength:'90'}); const detalle=h('textarea',{rows:'2',placeholder:'Detalle (opcional)',id:'nt-detalle'});
+  const para=h('select',{id:'nt-para'},...destinos.map(r=>h('option',{value:r},RAMA[r])));
+  const todas=h('input',{type:'checkbox',id:'nt-todas'}); const varias=esCentral() && (S.estaciones||[]).length>1;
+  const foto=h('input',{type:'checkbox',id:'nt-foto'}); foto.checked=true;
+  const rep=h('select',{id:'nt-rep'}, h('option',{value:''},'Una sola vez'), h('option',{value:'diaria'},'Cada día'), h('option',{value:'semanal'},'Cada semana'), h('option',{value:'mensual'},'Cada mes'));
+  const vence=h('input',{type:'date',id:'nt-vence',min:nowMX().fecha}); const diaS=h('select',{id:'nt-dia-sem'},...DIAS_SEM.map((d,i)=>h('option',{value:String(i+1)},d[0].toUpperCase()+d.slice(1))));
+  const diaM=h('select',{id:'nt-dia-mes'},...Array.from({length:28},(_,i)=>h('option',{value:String(i+1)},'Día '+(i+1))));
+  const donde=h('div',{}); const cuando=h('div',{});
+  const pinta=()=>{ donde.innerHTML=''; if(para.value!=='central'){ donde.append(h('p',{class:'small muted',style:'margin:0'}, ESTACION)); if(varias) donde.append(h('label',{class:'row',style:'gap:10px;align-items:center;cursor:pointer;margin-top:6px'},todas,h('span',{},'En todas las gasolineras'))); }
+    cuando.innerHTML=''; cuando.append(rep.value===''? h('label',{class:'f'},h('span',{class:'l'},'Fecha límite (opcional)'),vence) : rep.value==='semanal'? h('label',{class:'f'},h('span',{class:'l'},'Qué día'),diaS) : rep.value==='mensual'? h('label',{class:'f'},h('span',{class:'l'},'Qué día del mes'),diaM) : h('span',{})); };
+  rep.addEventListener('change',pinta); para.addEventListener('change',pinta); pinta();
+  const btn=h('button',{class:'btn primary big block',id:'nt-asignar'},'Asignar');
+  btn.addEventListener('click', async()=>{ const tt=titulo.value.trim(); if(tt.length<3){ toast('Escribe qué hay que hacer.'); titulo.focus(); return; } btn.disabled=true;
+    const ests= para.value==='central'? [null] : (varias && todas.checked? S.estaciones.map(e=>e.id) : [S.config.estacionId]);
+    try{ for(const e of ests){
+        if(rep.value==='') await rpc('crear_tarea',{p_para:para.value, p_estacion:e, p_titulo:tt, p_detalle:detalle.value.trim()||null, p_pide_foto:foto.checked, p_vence:vence.value||null});
+        else await rpc('crear_rutina',{p_para:para.value, p_estacion:e, p_titulo:tt, p_detalle:detalle.value.trim()||null, p_pide_foto:foto.checked, p_frecuencia:rep.value, p_dia:rep.value==='semanal'?Number(diaS.value):rep.value==='mensual'?Number(diaM.value):null}); }
+      toast((rep.value===''?'Tarea asignada':'Rutina creada')+(ests.length>1?` en ${ests.length} gasolineras.`:'.')); alTerminar&&alTerminar(); }
+    catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
+  const caja=h('div',{class:'card stack',id:'nt-forma',style:'margin-top:10px'}); if(destinos.length>1) caja.append(h('label',{class:'f'},h('span',{class:'l'},'Para'),para));
+  caja.append(donde, titulo, detalle, h('label',{class:'row',style:'gap:10px;align-items:center;cursor:pointer'},foto,h('span',{},'Pide foto al cerrarla')), h('label',{class:'f'},h('span',{class:'l'},'Se repite'),rep), cuando, btn);
+  return caja;
+}
+// ---- AVISOS AL KIOSCO (16-nov-2026): notas de una sola vía para los despachadores; solo se ven en la computadora del kiosco (no en la APK).
+// Los publican Central (en una gasolinera o en todas), la Oficina y la Estación de esa gasolinera. Opcional: hasta qué día se muestra.
+// El aviso se queda en la pantalla de nombres hasta que lo retiran o se cumple la fecha; nadie confirma nada.
+const QUIEN_AVISA={dueno:'Central', central:'Central', oficina:'Oficina', encargado:'Estación'};
+const avisoVigente = a => !a.retirado_en && (!a.vigente_hasta || a.vigente_hasta>=nowMX().fecha);
+async function pantallaAvisos(){
+  const texto=h('textarea',{rows:'3',placeholder:'Aviso para los despachadores',id:'av-texto',maxlength:'400'}); const hasta=h('input',{type:'date',id:'av-hasta',min:nowMX().fecha});
+  const todas=h('input',{type:'checkbox',id:'av-todas'}); const varias=esCentral() && (S.estaciones||[]).length>1;
+  const btn=h('button',{class:'btn primary',id:'av-publicar'},'Publicar');
+  btn.addEventListener('click', async()=>{ const tx=texto.value.trim(); if(tx.length<3){ toast('Escribe el aviso.'); texto.focus(); return; } btn.disabled=true;
+    const ests=varias && todas.checked? S.estaciones.map(e=>e.id) : [S.config.estacionId];
+    try{ for(const e of ests) await rpc('crear_aviso_kiosco',{p_estacion:e, p_texto:tx, p_hasta:hasta.value||null}); toast(ests.length>1?`Aviso publicado en ${ests.length} gasolineras.`:'Aviso publicado.'); render(); }
+    catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
+  app.append(h('div',{class:'card stack'}, texto, h('div',{class:'grid2',style:'align-items:end'}, h('label',{class:'f'},h('span',{class:'l'},'Mostrar hasta (opcional)'),hasta), varias? h('label',{class:'row',style:'gap:10px;align-items:center;cursor:pointer;padding-bottom:10px'},todas,h('span',{},'En todas las gasolineras')):h('span',{})), btn));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando avisos…']));
+  let avisos=[]; try{ avisos=(await sel(sb.from('avisos_kiosco').select('*').eq('estacion_id',S.config.estacionId).order('creado_en',{ascending:false}).limit(40))).filter(avisoVigente); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; cont.append(h('p',{class:'eyebrow',style:'margin:20px 0 8px'},'En el kiosko ahora · '+avisos.length)); const list=h('div',{class:'list',id:'av-lista'});
+  if(!avisos.length) list.append(h('div',{class:'card empty'},h('b',{},'No hay avisos publicados')));
+  for(const a of avisos){ const puedo=a.creado_por===S.usuario.id || S.rol==='dueno' || S.rol==='central' || S.rol==='oficina';
+    list.append(h('div',{class:'item',style:'cursor:default;align-items:flex-start'}, h('div',{class:'l'}, h('b',{style:'white-space:pre-wrap'},a.texto),
+      h('span',{class:'small muted'},[`${QUIEN_AVISA[a.creado_rol]||''} · ${a.creado_por_nombre||''}`, fmtFecha(fechaMX(a.creado_en)), a.vigente_hasta?'hasta el '+fmtFecha(a.vigente_hasta):'hasta que se retire'].filter(Boolean).join(' · '))),
+      puedo? h('button',{class:'btn sm ghost',onclick:async()=>{ try{ await rpc('retirar_aviso_kiosco',{p_aviso:a.id}); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }},'Retirar'):null)); }
+  cont.append(list);
+}
+// En el kiosco: cuadro de avisos en la pantalla de nombres, solo en la computadora. Va en la columna libre de la izquierda
+// (si la pantalla es angosta, debajo de los nombres). No se confirma ni se cierra: se quita cuando lo retiran o vence. Si algo falla, no estorba al corte.
+async function kioscoAvisos(cont){ if(esApk()) return;
+  try{ const {data,error}=await sb.from('avisos_kiosco').select('*').eq('estacion_id',S.config.estacionId).order('creado_en',{ascending:false}).limit(20); if(error||!Array.isArray(data)) return;
+    const av=data.filter(avisoVigente); if(!av.length || !cont.isConnected) return;
+    cont.append(h('aside',{class:'kiosco-avisos'}, h('p',{class:'eyebrow'},'Avisos'), ...av.map(a=>h('div',{class:'av'}, h('div',{class:'tx'},a.texto), h('span',{class:'small muted'},`${QUIEN_AVISA[a.creado_rol]||''} · ${fmtFecha(fechaMX(a.creado_en))}`))))); }
+  catch(e){ console.warn('avisos', e); } }
+
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  tareamas:'<path d="M4 6h12M4 11h9M4 16h6"/><path d="M17.5 13.5v6M14.5 16.5h6"/>',
+  aviso:'<path d="M4 10v4h3l6 4V6l-6 4H4Z"/><path d="M16.5 9.5a4 4 0 0 1 0 5M19 7a7.5 7.5 0 0 1 0 10"/>',
+  tarea:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.3 1.3L7.3 4.8M3.5 12l1.3 1.3 2.5-2.5M3.5 18l1.3 1.3 2.5-2.5"/>',
   descarga:'<path d="M2.5 8.5h10v7h-10z"/><path d="M12.5 11h4.2l3.3 3v1.5h-7.5"/><circle cx="6.5" cy="17" r="1.6"/><circle cx="16.5" cy="17" r="1.6"/><path d="M7.5 3v3M5.8 4.6 7.5 6.2l1.7-1.6"/>',
   sat:'<path d="M12 3 3 8v8l9 5 9-5V8l-9-5Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/><path d="M7.5 10.5 16.5 5.5"/>',
   precio:'<path d="M20 13 11 22 2 13V4h9l9 9Z"/><circle cx="7" cy="9" r="1.5"/>',
@@ -2438,10 +2609,12 @@ const ICONS={
 };
 function ico(nombre, tam){ const sp=h('span',{class:'ic'}); sp.innerHTML=`<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nombre]||''}</svg>`; return sp; }
 
-const MODULOS={central:['Central','<path d="M12 3.2 21 8l-9 4.8L3 8l9-4.8Z" fill="currentColor" stroke="none"/><path d="M3.6 12.3 12 16.8l8.4-4.5"/><path d="M3.6 16.4 12 20.9l8.4-4.5"/>'], oficina:['Oficina',null], kiosko:['Kiosko',null], logistica:['Logística',null]};
+const MODULOS={central:['Central','<path d="M12 3.2 21 8l-9 4.8L3 8l9-4.8Z" fill="currentColor" stroke="none"/><path d="M3.6 12.3 12 16.8l8.4-4.5"/><path d="M3.6 16.4 12 20.9l8.4-4.5"/>'], oficina:['Oficina',null], kiosko:['Kiosko',null], logistica:['Logística',null],
+  // Pictograma de Estación: trazo vectorizado del maestro HD del kit (marca/om-estacion-trazo.txt), no redibujado.
+  estacion:['Estación','<path fill-rule="evenodd" fill="currentColor" stroke="none" d="M17.15 11.93 17.15 14.06 17.45 14.12 19.22 14.08 19.24 11.95ZM6.65 10.12 6.63 10.50 6.93 10.93 6.96 11.34 7.08 11.41 7.23 11.15 7.21 10.68 7.10 10.42 6.78 10.14ZM19.41 10.05 19.35 10.20 19.50 10.85 19.60 11.84 19.61 14.08 21.78 14.10 21.84 12.16 21.80 11.97 19.74 11.92 19.69 11.84 19.71 10.08 19.65 10.01ZM16.14 8.10 16.06 8.35 16.08 13.35 16.14 13.92 16.47 14.03 16.64 14.18 16.76 14.18 16.81 14.10 16.87 9.94 16.96 9.80 18.34 9.75 22.04 9.77 22.12 9.97 22.12 14.06 22.23 14.18 22.98 14.14 23.00 8.65 22.45 7.97 22.29 7.90 16.62 7.88 16.42 7.92ZM23.50 14.89 23.43 14.68 23.31 14.57 23.16 14.53 16.74 14.53 16.59 14.48 16.47 14.33 16.33 14.25 15.69 14.27 15.63 14.21 15.65 5.25 15.71 5.19 20.55 4.31 20.64 4.27 20.60 4.20 17.11 3.47 16.55 3.43 14.44 3.86 10.78 4.72 1.36 6.70 1.19 6.80 3.49 7.34 3.55 7.39 3.55 9.64 3.64 9.71 3.83 9.51 4.12 9.36 4.93 9.32 4.97 7.19 5.06 7.11 13.11 5.66 13.92 5.56 13.97 5.82 13.92 9.71 13.97 10.61 13.99 14.18 13.92 14.27 13.22 14.27 13.15 14.18 13.13 14.01 12.94 13.78 12.63 13.58 12.63 11.92 12.70 11.71 12.61 11.26 12.59 9.94 12.50 9.77 12.27 9.64 10.42 9.62 10.18 9.71 9.99 9.90 9.94 10.03 9.92 11.30 9.69 11.41 9.15 11.84 9.02 12.10 8.95 12.59 8.95 13.19 9.11 13.47 9.24 13.54 9.41 13.54 9.82 13.26 9.90 13.32 9.88 13.60 9.52 13.88 9.39 14.25 7.04 14.29 6.95 14.03 6.61 13.67 6.35 13.60 6.33 12.40 6.39 11.86 6.48 11.92 6.52 12.05 6.52 12.98 6.55 13.22 6.67 13.43 6.89 13.58 7.19 13.50 7.38 13.24 7.39 13.00 7.32 12.74 7.19 12.66 7.15 13.04 7.04 13.19 6.89 13.17 6.80 13.02 6.80 12.07 6.70 11.50 6.63 11.37 6.40 11.32 6.33 11.24 6.31 9.84 6.07 9.67 4.27 9.62 3.98 9.75 3.81 10.03 3.77 11.26 3.10 11.80 2.97 12.03 2.89 12.46 2.87 13.09 2.97 13.39 3.13 13.56 3.28 13.60 3.79 13.50 3.81 13.58 3.66 13.82 3.30 14.06 3.30 14.20 3.23 14.27 1.14 14.27 0.52 14.83 0.59 15.09 1.38 15.15 23.39 15.13 23.50 15.02ZM9.62 14.14 9.71 14.03 9.88 13.97 12.66 13.95 12.79 14.06 12.81 14.21 12.74 14.27 9.67 14.25ZM3.62 14.21 3.73 13.99 3.94 13.95 6.50 13.97 6.63 14.20 6.53 14.29 3.68 14.27ZM9.80 11.86 9.84 11.99 9.79 12.94 9.62 13.22 9.45 13.24 9.30 13.13 9.24 12.98 9.34 12.44 9.47 12.10 9.67 11.88ZM3.71 11.84 3.75 11.97 3.69 12.12 3.68 13.00 3.56 13.17 3.34 13.21 3.23 13.04 3.27 12.53 3.51 11.99 3.62 11.86ZM4.39 10.20 5.82 10.14 5.88 10.20 5.86 11.21 4.44 11.22 4.39 11.17ZM12.10 10.18 12.10 11.17 12.03 11.24 10.91 11.24 10.48 11.19 10.50 10.16 12.03 10.12ZM21.74 2.33 21.61 2.01 21.37 1.83 17.32 0.57 16.96 0.50 16.31 0.52 9.62 2.31 0.91 4.54 0.71 4.65 0.52 4.93 0.50 6.24 0.63 6.42 8.42 4.74 16.44 2.91 17.05 2.91 20.68 3.75 21.56 3.90 21.73 3.71Z"/>','0 0 24 15.65',[24,15.65]]};
 const LOGO_MOD={};
 function logoModulo(mod, extra){ const kk=mod+'|'+(extra||''); if(LOGO_MOD[kk]) return LOGO_MOD[kk];
-  const [nom,svg]=MODULOS[mod]||[mod,null]; const mi=ico('cortes',19); mi.className='mi'; if(svg) mi.querySelector('svg').innerHTML=svg;
+  const [nom,svg,vb,tam]=MODULOS[mod]||[mod,null]; const mi=ico('cortes',19); mi.className='mi'; { const sv=mi.querySelector('svg'); if(svg) sv.innerHTML=svg; if(vb) sv.setAttribute('viewBox',vb); if(tam){ sv.setAttribute('width',tam[0]); sv.setAttribute('height',tam[1]); } }
   return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else if(S.rol==='encargado') encTab='chat'; else adminTab='chat'; render(); }},
     h('img',{class:'wm',src:'marca/om-logo-transparente.png',alt:'Own Manager'}), h('span',{class:'dv'}), mi, h('span',{class:'mn'},nom)); }
 // Menú lateral por grupos. Abrir o cerrar un grupo solo toca el menú (no se vuelve a pintar la pantalla),
@@ -2468,7 +2641,10 @@ function navLateral(items, actual, onpick, mod){
       nav.append(cab, sub); }
     else nav.append(btn(k,ic,l)); }
   nav.addEventListener('scroll', ()=>{ NAV.scroll=nav.scrollTop; marcar(); }, {passive:true});
-  requestAnimationFrame(()=>{ if(NAV.scroll) nav.scrollTop=NAV.scroll; marcar(); }); setTimeout(marcar, 400);
+  requestAnimationFrame(()=>{ if(NAV.scroll) nav.scrollTop=NAV.scroll;
+    // En el teléfono el menú es una tira horizontal: la opción elegida queda a la vista.
+    const on=nav.querySelector('button.on'); if(on && nav.scrollWidth>nav.clientWidth+4) nav.scrollLeft+=on.getBoundingClientRect().left-nav.getBoundingClientRect().left-(nav.clientWidth-on.offsetWidth)/2;
+    marcar(); }); setTimeout(marcar, 400);
   return nav;
 }
 async function cortesTablero(filtro){
@@ -3354,16 +3530,17 @@ async function renderOficina(){
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
   const items=[['chat','chat','Asistente'],
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy']]],
+    navTareas(),
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]]]; // los estados de cuenta los sube Central (regla del servidor)
-  const titulos={chat:'Asistente', hoy:'Hoy', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores'};
+  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores'};
   if(!titulos[oficinaTab]) oficinaTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; render(); }, 'oficina'), main); app.append(shell);
-  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, oficinaTab==='hoy'? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
+  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'oficina'), main); app.append(shell);
+  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, (oficinaTab==='hoy'||oficinaTab==='tareas'||oficinaTab==='elaborar'||oficinaTab==='avisos')? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, hoy:adminHoy, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores})[oficinaTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores})[oficinaTab](); } finally{ app=prev; }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
