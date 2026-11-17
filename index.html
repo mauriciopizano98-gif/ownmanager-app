@@ -407,6 +407,19 @@ tbody tr:hover td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}
 .foto{width:100%;border-radius:var(--r-sm);border:1px solid var(--line);display:block;background:var(--surface2)}
 .fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .fotos figure{margin:0}
+.item>.chip{white-space:nowrap;flex:none}
+.enc-puntos{display:flex;gap:10px;justify-content:center;margin-bottom:8px}
+.enc-puntos .p{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--line2);background:transparent;padding:0;cursor:pointer}
+.enc-puntos .p.ok{background:var(--ok);border-color:var(--ok)}
+.enc-puntos .p.no{background:var(--warn);border-color:var(--warn)}
+.enc-puntos .p.on{outline:2px solid var(--fg);outline-offset:2px}
+.enc-prev{width:100%;max-height:260px;object-fit:contain;border-radius:var(--r-sm);background:var(--surface2)}
+.enc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
+.enc-grid .t{display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.enc-grid .t img,.enc-grid .t .ph,.enc-falta{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+.enc-grid .t.falta .ph,.enc-falta{border-style:dashed}
+.enc-grid .t.falta .ph{color:var(--warn)}
+.enc-grid .t .n{font-size:12.5px}
 .fotos figcaption{font-size:12.5px;margin-top:4px}
 .seal{font-family:var(--font-mono);font-size:12px;word-break:break-all;color:var(--muted)}
 /* Dinero */
@@ -627,7 +640,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.4.9';
+const OM_VERSION='1.5.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -770,7 +783,7 @@ function lecturasParaServidor(c){ return c.lecturas.map(l=>({ manguera_id:l.mang
 function aceitesParaServidor(c){ const v=(c.aceites&&c.aceites.vendidas)||{}; return catAceites().filter(a=>Number(v[a.id])>0).map(a=>({aceite_id:a.uuid, piezas:Number(v[a.id])})); }
 function dineroParaServidor(c){ const d=clone(c.dinero||{}); d._aceites=(c.aceites&&c.aceites.vendidas)||{}; d._calidad=c.calidad||null; return d; }
 function avatarEmpresa(){ const c=S.config; if(!c) return null;
-  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco'})[S.rol]||'';
+  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco',encargado:'Encargado'})[S.rol]||'';
   const nombre=(S.rol==='dueno'||S.rol==='central')? (S.usuario&&S.usuario.nombre)||c.nombre : c.nombre;
   const av = c.logoData ? h('span',{class:'empresa',title:nombre}, h('img',{src:c.logoData,alt:nombre})) : h('span',{class:'empresa ini',title:nombre}, iniciales(nombre));
   return h('span',{class:'row',style:'gap:10px'}, av, h('span',{class:'emp-nm'}, h('b',{},nombre), h('small',{},rol))); }
@@ -838,7 +851,7 @@ async function entrarConCuenta(){
   }catch(e){ renderNoDb('No se pudo cargar la estación: '+(e.message||e.code)); return; }
   // sesión de despachador pendiente (recarga de página)
   const t=tokenGuardado(); if(t && S.rol==='kiosco'){ try{ const me=JSON.parse(sessionStorage.getItem('om_me')||'null'); await rpc('mis_cortes',{p_token:t}); S.token=t; S.me=me; }catch(e){ guardarToken(null); } }
-  if(S.rol==='oficina'){ S.screen='oficina'; } else if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
+  if(S.rol==='oficina'){ S.screen='oficina'; } else if(S.rol==='encargado'){ S.screen='encargado'; } else if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
   render();
 }
 async function cargarConfig(){
@@ -853,7 +866,7 @@ async function cargarConfig(){
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
     sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta,velador').eq('estacion_id',estId).order('nombre')) ]);
   S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id, codigo:m.codigo_pantalla||null};
-  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[],
+  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[], cierraProductoDescarga:est.cierra_producto_descarga!==false, direccion:est.direccion||'',
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
   for(const i of S.config.islas) for(const m of i.mangueras) m.producto=m.producto;
@@ -863,7 +876,7 @@ async function cargarConfig(){
 }
 // Cabecera: logo de la estación (si tiene) o su nombre; sin cuenta, la marca Own Manager.
 function setBrand(){ const b=$('#brand'); if(!b) return; b.innerHTML='';
-  if(S.usuario && S.config){ b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:'OwnManager',style:'cursor:pointer',onclick:()=>{ if(S.rol==='oficina'){ oficinaTab='chat'; go('oficina'); } else if(esTablero()){ adminTab='chat'; go('admin'); } else toqueLogoKiosco(); }})); }
+  if(S.usuario && S.config){ b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:'OwnManager',style:'cursor:pointer',onclick:()=>{ if(S.rol==='oficina'){ oficinaTab='chat'; go('oficina'); } else if(S.rol==='encargado'){ encTab='chat'; go('encargado'); } else if(esTablero()){ adminTab='chat'; go('admin'); } else toqueLogoKiosco(); }})); }
   else b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:''}), h('span',{class:'nm'},'OwnManager', h('small',{},'Corte por turno'))); }
 function medirLogo(){ const c=S.config; if(!c||!c.logoData) return; const im=new Image(); im.onload=()=>{ if(S.config===c) c.logoRatio=im.naturalHeight?im.naturalWidth/im.naturalHeight:null; }; im.src=c.logoData; }
 function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empty'}, h('b',{},'No se pudo entrar'), msg||'', h('button',{class:'btn block',style:'margin-top:10px',onclick:cerrarCuenta},'Cerrar cuenta'))); }
@@ -875,10 +888,10 @@ function toqueLogoKiosco(){ const ahora=Date.now(); toquesLogo=toquesLogo.filter
   if(confirm('¿Cerrar la cuenta de la estación en este dispositivo?\n\nPara volver a entrar se necesitan el correo y la contraseña del kiosco.')) cerrarCuenta(); }
 // ---- render
 function render(){
-  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
+  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina'||S.screen==='encargado')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:(S.rol==='oficina'||S.rol==='encargado')?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
-  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:nocheAuto, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina})[S.screen]();
+  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:nocheAuto, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina, encargado:renderEncargado})[S.screen]();
 }
 
 // ---- LOGIN
@@ -2192,26 +2205,168 @@ async function renderAdmin(){
   const dueno=S.rol==='dueno';
   const items=[['chat','chat','Asistente'],
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy'],['cortes','cortes','Lista de cortes'],['anulados','anulados','Anulados']]],
+    ['descargas','descarga','Descargas'],
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]]];
-  const titulos={chat:'Asistente', hoy:'Hoy', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
   const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','satcert','satconsulta','satnuevas','sathist'].includes(adminTab);
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; render(); }, 'central'), main); app.append(shell);
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await ({hoy:adminHoy, descargas:adminDescargas, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
   finally{ app=prev; }
+}
+
+// ---- ENCARGADO DE ESTACIÓN: descargas de producto (16-nov-2026)
+// Siete fotos en orden fijo. Se piden todas pero ninguna bloquea el envío: lo que falte se marca en el reporte.
+// El encargado no teclea nada: la IA lee el comprobante, los sellos, las placas y el ticket de la consola.
+const PASOS_DESCARGA=[['unidad','Unidad'],['comprobante','Comprobante de carga'],['sello_domo','Sello del domo'],['sello_valvulas','Sello de válvulas'],['nivel_lleno','Nivel lleno'],['tonel_vacio','Tonel vacío'],['ticket_consola','Ticket de la consola']];
+const ENC={ d:null, paso:0, vista:'lista', previas:{}, saltados:{}, detalle:null };
+const DESC={ detalle:null };
+let encTab='chat';
+function esEncargado(){ return S.rol==='encargado'; }
+const fechaMX = iso => new Date(iso).toLocaleDateString('en-CA',{timeZone:TZ});
+const fmtDif = n => (Number(n)>0?'+':'')+fmtInt(Number(n));
+const fmtPct = n => n==null?'—':(Number(n)>0?'+':'')+Number(n).toFixed(2)+' %';
+async function renderEncargado(){
+  if(!esEncargado()){ go(S.rol==='oficina'?'oficina':esTablero()?'admin':'login'); return; }
+  const items=[['chat','chat','Asistente'],['descargas','descarga','Descargas']];
+  const titulos={chat:'Asistente', descargas:'Descargas'};
+  if(!titulos[encTab]) encTab='chat';
+  const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
+  shell.append(navLateral(items, encTab, k=>{ encTab=k; if(k==='descargas' && (ENC.vista==='fin'||ENC.vista==='detalle')) ENC.vista='lista'; render(); }, 'oficina'), main); app.append(shell);
+  main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, encTab==='descargas'? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[encTab])));
+  const prev=app; app=main;
+  try{ await ({chat:oficinaChat, descargas:encDescargas})[encTab](); } finally{ app=prev; }
+}
+function descargaResumen(d){
+  const al=d.alertas||[]; const alertas=al.filter(a=>a.nivel==='alerta'), avisos=al.filter(a=>a.nivel!=='alerta');
+  if(d.estado==='abierta') return h('span',{class:'chip warn'},'sin enviar');
+  if(d.estado==='anulada') return h('span',{class:'chip err'},'anulada');
+  if(!d.leida_en) return h('span',{class:'chip'},'por leer');
+  if(alertas.length===1 && alertas[0].tipo==='merma' && d.diferencia!=null) return h('span',{class:'chip warn'}, fmtDif(d.diferencia)+' L'); // sin tolerancia definida, la merma va en ámbar; el rojo es para lo que no coincide o falta
+  if(alertas.length) return h('span',{class:'chip err'}, alertas.length+(alertas.length>1?' alertas':' alerta'));
+  if(avisos.length) return h('span',{class:'chip warn'}, avisos.length+(avisos.length>1?' avisos':' aviso'));
+  return h('span',{class:'chip ok'},'sin diferencias');
+}
+function listaDescargas(rows, onclick){ const list=h('div',{class:'list',style:'margin-top:12px'});
+  if(!rows.length) list.append(h('div',{class:'card empty'},h('b',{},'Todavía no hay descargas')));
+  for(const d of rows){ const f=d.enviada_en||d.abierta_en; const n=PASOS_DESCARGA.filter(([k])=>(d.fotos||{})[k]).length;
+    const sub=[d.litros_comprobante!=null?fmtInt(Number(d.litros_comprobante))+' L en comprobante':null, d.litros_recibidos!=null?fmtInt(Number(d.litros_recibidos))+' L recibidos':null, n<PASOS_DESCARGA.length?`${n} de ${PASOS_DESCARGA.length} fotos`:null].filter(Boolean).join(' · ');
+    list.append(h('div',{class:'item',onclick:()=>onclick(d)}, h('div',{class:'l'}, h('b',{},`${fmtFecha(fechaMX(f))} · ${fmtHora(f)}${d.producto?' · '+d.producto:''}`), sub? h('span',{class:'small muted'},sub):null), descargaResumen(d))); }
+  return list; }
+async function leerDescarga(id, extra){ try{ return await fnOficina(Object.assign({descarga_id:id}, extra||{}),'leer-descarga'); }catch(e){ console.warn('leer-descarga', e); return {ok:false, error:e.message}; } }
+async function encDescargas(){
+  if(ENC.vista==='captura' && ENC.d) return encCaptura();
+  if(ENC.vista==='revision' && ENC.d) return encRevision();
+  if(ENC.vista==='fin') return encFin();
+  if(ENC.vista==='detalle' && ENC.detalle) return descargaDetalle(ENC.detalle, ()=>{ ENC.vista='lista'; ENC.detalle=null; render(); });
+  ENC.vista='lista';
+  app.append(h('button',{class:'btn primary big block',id:'enc-nueva',onclick:encNueva},'Nueva descarga'));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando descargas…']));
+  let rows=[]; try{ rows=await sel(sb.from('descargas').select('*').eq('estacion_id',S.config.estacionId).neq('estado','anulada').order('abierta_en',{ascending:false}).limit(30)); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; cont.append(listaDescargas(rows, d=>{ if(d.estado==='abierta' && d.usuario_id===S.usuario.id) encRetomar(d); else { ENC.detalle=d; ENC.vista='detalle'; render(); } }));
+  // Enviadas que la IA todavía no leyó (p. ej. se cortó la señal al enviar): se mandan a leer al entrar.
+  for(const d of rows) if(d.estado==='enviada' && !d.leida_en && d.usuario_id===S.usuario.id) leerDescarga(d.id);
+}
+async function encNueva(){ try{ const id=await rpc('abrir_descarga'); const d=await sel(sb.from('descargas').select('*').eq('id',id).single()); encRetomar(d); }catch(e){ aviso('No se pudo abrir la descarga: '+(e.message||e.code),'err'); } }
+function encRetomar(d){ ENC.d=d; ENC.previas={}; ENC.saltados={}; const i=PASOS_DESCARGA.findIndex(([k])=>!(d.fotos||{})[k]); ENC.paso=i<0?0:i; ENC.vista=i<0?'revision':'captura'; render(); }
+function encCaptura(){ const d=ENC.d; const fotos=d.fotos||{}; const [k,nombre]=PASOS_DESCARGA[ENC.paso]; const tiene=!!fotos[k];
+  const sig=()=>{ if(ENC.paso<PASOS_DESCARGA.length-1) ENC.paso++; else ENC.vista='revision'; render(); };
+  const inp=h('input',{type:'file',accept:'image/*',capture:'environment',hidden:true,id:'enc-foto'});
+  const box=h('div',{class:'card stack enc-paso',style:'text-align:center'});
+  box.append(h('div',{class:'enc-puntos'},...PASOS_DESCARGA.map(([pk,pn],i)=>h('button',{class:'p'+(i===ENC.paso?' on':'')+(fotos[pk]?' ok':(ENC.saltados[pk]?' no':'')),title:pn,'aria-label':pn,onclick:()=>{ ENC.paso=i; render(); }}))));
+  box.append(h('p',{class:'eyebrow',style:'margin:0'},`Foto ${ENC.paso+1} de ${PASOS_DESCARGA.length}`), h('h2',{style:'margin:0'},nombre));
+  if(tiene && ENC.previas[k]) box.append(h('img',{class:'enc-prev',src:ENC.previas[k],alt:nombre}));
+  inp.addEventListener('change', async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return; await encSubir(k,f,box,sig); });
+  box.append(h('button',{class:'btn primary big block',id:'enc-tomar',onclick:()=>inp.click()}, tiene?'Repetir foto':'Tomar foto'),
+    h('button',{class:'btn ghost block',id:'enc-saltar',onclick:()=>{ if(!tiene) ENC.saltados[k]=true; sig(); }}, tiene?'Siguiente':'No se pudo'), inp);
+  app.append(box, h('button',{class:'btn ghost block',style:'margin-top:10px',id:'enc-todas',onclick:()=>{ ENC.vista='revision'; render(); }},'Ver todas'));
+}
+async function encSubir(k, file, box, alTerminar){ const d=ENC.d; box.innerHTML=''; box.append(omLoader({texto:'Guardando foto…'}));
+  try{ const blob=await comprimirImagen(file); const ruta=`${d.estacion_id}/${nowMX().fecha.slice(0,7)}/descargas/${d.id}/${k}-${Date.now()}.jpg`;
+    const {error}=await sb.storage.from('fotos').upload(ruta, blob, {contentType:'image/jpeg', upsert:false}); if(error) throw errSrv(error);
+    d.fotos=await rpc('foto_descarga',{p_descarga:d.id, p_paso:k, p_ruta:ruta}); try{ ENC.previas[k]=URL.createObjectURL(blob); }catch(e){} delete ENC.saltados[k]; alTerminar(); }
+  catch(e){ aviso('No se guardó la foto: '+(e.message||e.code)+'. Intenta otra vez.','err'); render(); } }
+async function firmarDescarga(fotos, previas){ const falt=PASOS_DESCARGA.filter(([k])=>fotos[k]&&!previas[k]); if(!falt.length) return;
+  try{ const {data}=await sb.storage.from('fotos').createSignedUrls(falt.map(([k])=>fotos[k].ruta), 60*60*6); (data||[]).forEach((x,i)=>{ if(x&&x.signedUrl) previas[falt[i][0]]=x.signedUrl; }); }catch(e){ console.warn('fotos', e); } }
+async function encRevision(){ const d=ENC.d; const fotos=d.fotos||{}; await firmarDescarga(fotos, ENC.previas);
+  const grid=h('div',{class:'enc-grid'});
+  PASOS_DESCARGA.forEach(([k,nombre],i)=>grid.append(h('button',{class:'t'+(fotos[k]?'':' falta'),onclick:()=>{ ENC.paso=i; ENC.vista='captura'; render(); }}, fotos[k]&&ENC.previas[k]? h('img',{src:ENC.previas[k],alt:nombre}) : h('span',{class:'ph'},fotos[k]?'Guardada':'Falta'), h('span',{class:'n'},nombre))));
+  const n=PASOS_DESCARGA.filter(([k])=>fotos[k]).length;
+  const btn=h('button',{class:'btn primary big block',id:'enc-enviar'},'Enviar descarga');
+  btn.addEventListener('click', async()=>{ btn.disabled=true; btn.textContent='Enviando…';
+    try{ await rpc('enviar_descarga',{p_descarga:d.id}); ENC.vista='fin'; leerDescarga(d.id); render(); }
+    catch(e){ aviso('No se pudo enviar: '+(e.message||e.code),'err'); btn.disabled=false; btn.textContent='Enviar descarga'; } });
+  app.append(h('div',{class:'card stack'}, h('p',{class:'eyebrow',style:'margin:0'},`${n} de ${PASOS_DESCARGA.length} fotos`), grid, btn));
+}
+function encFin(){ app.append(pantallaFin({titulo:'Listo, gracias', boton:'Terminar', onclick:()=>{ ENC.vista='lista'; ENC.d=null; render(); }})); }
+// Detalle de una descarga: lo ve el encargado (sencillo) y Central (con lo leído, PDF, releer y anular).
+async function descargaDetalle(d, volver){
+  const central=esCentral(); const fotos=d.fotos||{}; const L=(d.comparacion||{}).litros||{}; const c=(d.lectura||{}).comprobante||{}; const f=d.enviada_en||d.abierta_en;
+  app.append(h('button',{class:'btn sm ghost',id:'desc-volver',onclick:volver}, ico('volver',16),' Descargas'));
+  const dato=(k,v)=>h('div',{}, h('div',{class:'small muted'},k), h('b',{},v));
+  const cab=h('div',{class:'card stack'}, h('div',{class:'row',style:'justify-content:space-between;align-items:center;gap:10px'}, h('b',{},`${fmtFechaLarga(fechaMX(f))} · ${fmtHora(f)}${d.producto?' · '+d.producto:''}`), descargaResumen(d)));
+  if(d.estado==='anulada') cab.append(h('p',{class:'small',style:'margin:0'},'Motivo de la anulación: '+(d.motivo_anulacion||'—')));
+  if(L.natural!=null || L.incremento!=null) cab.append(h('div',{class:'grid2'}, dato('Comprobante', L.natural!=null?fmtInt(Number(L.natural))+' L':'—'), dato('Recibido en tanque', L.incremento!=null?fmtInt(Number(L.incremento))+' L':'—'), dato('Diferencia', L.diferencia!=null?`${fmtDif(L.diferencia)} L (${fmtPct(L.pct)})`:'—')));
+  const al=d.alertas||[];
+  if(al.length) cab.append(h('div',{class:'stack',style:'gap:6px'}, ...al.map(a=>h('div',{class:'row',style:'gap:8px;align-items:flex-start'}, h('span',{class:'chip '+(a.nivel==='alerta'&&a.tipo!=='merma'?'err':'warn')},a.tipo==='merma'?'merma':a.nivel==='alerta'?'alerta':'aviso'), h('span',{class:'small'},a.texto)))));
+  else if(d.leida_en) cab.append(h('p',{class:'small muted',style:'margin:0'},'Sellos, unidad y litros coinciden con el comprobante.'));
+  app.append(cab);
+  if(central && d.leida_en){ const s=((d.comparacion||{}).sellos||{}); const u=((d.comparacion||{}).unidad||{}); const tk=(d.lectura||{}).ticket||{};
+    app.append(h('div',{class:'card stack'}, h('h3',{style:'margin:0'},'Leído por la IA'), h('div',{class:'grid2'},
+      dato('Carga', [c.fecha_carga, c.hora_inicio&&c.hora_fin?`${c.hora_inicio} a ${c.hora_fin}`:null].filter(Boolean).join(' · ')||'—'), dato('Terminal', c.tad||'—'),
+      dato('Sellos del comprobante', (s.comprobante||[]).join(' · ')||'—'), dato('Sellos en las fotos', [s.sello_domo&&s.sello_domo.numero, s.sello_valvulas&&s.sello_valvulas.numero].filter(Boolean).join(' · ')||'—'),
+      dato('Unidad (comprobante)', [u.clave_comprobante,u.comprobante].filter(Boolean).join(' · ')||'—'), dato('Unidad (foto)', [u.clave_foto,u.foto].filter(Boolean).join(' · ')||'—'),
+      dato('A 20 °C / TC consola', `${L.a20!=null?fmtInt(Number(L.a20)):'—'} / ${L.incremento_tc!=null?fmtInt(Number(L.incremento_tc)):'—'} L`), dato('Entrega en consola', tk.inicio&&tk.fin?`${tk.inicio.hora||'—'} a ${tk.fin.hora||'—'}`:'—')))); }
+  const previas={}; await firmarDescarga(fotos, previas);
+  const grid=h('div',{class:'fotos'});
+  for(const [k,nombre] of PASOS_DESCARGA){ const ft=fotos[k];
+    grid.append(h('figure',{}, ft&&previas[k]? h('img',{src:previas[k],alt:nombre,loading:'lazy',style:'width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);cursor:zoom-in',onclick:()=>window.open(previas[k],'_blank')}) : h('div',{class:'enc-falta'},ft?'Foto guardada':'Sin foto'), h('figcaption',{}, h('b',{},nombre), ft? h('span',{class:'small muted'},' · '+fmtHora(ft.en)):null))); }
+  app.append(h('div',{class:'card stack'}, h('h3',{style:'margin:0'},'Fotos'), grid));
+  if(!central) return;
+  const acc=h('div',{class:'row',style:'gap:8px;flex-wrap:wrap;margin-top:12px'});
+  const recargar=async()=>{ try{ const n=await sel(sb.from('descargas').select('*').eq('id',d.id).single()); if(n) DESC.detalle=n; }catch(e){} render(); };
+  if(d.estado==='enviada'){
+    acc.append(h('button',{class:'btn',id:'desc-pdf',onclick:async ev=>{ const b=ev.currentTarget; b.disabled=true; const t0=b.textContent; b.textContent='Generando…';
+      try{ const j=await fnOficina({descarga_id:d.id, accion:'pdf'},'leer-descarga'); if(!j.ok) throw new Error(j.error||'No se pudo');
+        const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'descarga.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+      catch(e){ aviso('No se pudo generar el PDF: '+(e.message||e),'err'); } b.disabled=false; b.textContent=t0; }},'PDF'));
+    acc.append(h('button',{class:'btn ghost',id:'desc-releer',onclick:async ev=>{ const b=ev.currentTarget; b.disabled=true; b.textContent='Leyendo las fotos…'; const j=await leerDescarga(d.id,{releer:true}); if(!j.ok) aviso('No se pudo leer: '+(j.error||''),'err'); await recargar(); }},'Volver a leer las fotos'));
+  }
+  if(S.rol==='dueno' && d.estado!=='anulada') acc.append(h('button',{class:'btn ghost danger',id:'desc-anular',onclick:()=>anularDescargaUI(d, recargar)},'Anular esta descarga'));
+  app.append(acc);
+}
+function anularDescargaUI(d, alTerminar){
+  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
+  const motivo=h('input',{type:'text',placeholder:'Motivo (obligatorio)',id:'anular-desc-motivo'});
+  const btn=h('button',{class:'btn big block',style:'background:var(--err);color:var(--neon-fg);border-color:var(--err)',disabled:true},'Anular');
+  motivo.addEventListener('input',()=>{ btn.disabled=motivo.value.trim().length<4; });
+  btn.addEventListener('click', async()=>{ btn.disabled=true; try{ await rpc('anular_descarga',{p_descarga:d.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast('Descarga anulada.'); alTerminar(); }catch(e){ toast('No se pudo anular: '+(e.message||e.code),6000); btn.disabled=false; } });
+  sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Anular esta descarga?'), h('p',{class:'small muted',style:'margin:0'},'Las fotos y lo leído se conservan, marcados como anulados. Queda en la bitácora con tu usuario, la hora y el motivo.'), motivo, btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Cancelar')));
+  document.body.append(sheet); motivo.focus();
+}
+// Central ▸ Descargas: lista de la estación elegida y detalle.
+async function adminDescargas(){
+  if(DESC.detalle && DESC.detalle.estacion_id!==S.config.estacionId) DESC.detalle=null;
+  if(DESC.detalle) return descargaDetalle(DESC.detalle, ()=>{ DESC.detalle=null; render(); });
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando descargas…']));
+  let rows=[]; try{ rows=await sel(sb.from('descargas').select('*').eq('estacion_id',S.config.estacionId).order('abierta_en',{ascending:false}).limit(60)); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; cont.append(listaDescargas(rows, d=>{ DESC.detalle=d; render(); }));
 }
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  descarga:'<path d="M2.5 8.5h10v7h-10z"/><path d="M12.5 11h4.2l3.3 3v1.5h-7.5"/><circle cx="6.5" cy="17" r="1.6"/><circle cx="16.5" cy="17" r="1.6"/><path d="M7.5 3v3M5.8 4.6 7.5 6.2l1.7-1.6"/>',
   sat:'<path d="M12 3 3 8v8l9 5 9-5V8l-9-5Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/><path d="M7.5 10.5 16.5 5.5"/>',
   precio:'<path d="M20 13 11 22 2 13V4h9l9 9Z"/><circle cx="7" cy="9" r="1.5"/>',
   clientes:'<path d="M4 21V7l6-3v17"/><path d="M10 21V11l6-3v13"/><path d="M16 21v-8l4-2v10"/><path d="M2 21h20"/>',
@@ -2248,7 +2403,7 @@ const MODULOS={central:['Central','<path d="M12 3.2 21 8l-9 4.8L3 8l9-4.8Z" fill
 const LOGO_MOD={};
 function logoModulo(mod, extra){ const kk=mod+'|'+(extra||''); if(LOGO_MOD[kk]) return LOGO_MOD[kk];
   const [nom,svg]=MODULOS[mod]||[mod,null]; const mi=ico('cortes',19); mi.className='mi'; if(svg) mi.querySelector('svg').innerHTML=svg;
-  return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else adminTab='chat'; render(); }},
+  return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else if(S.rol==='encargado') encTab='chat'; else adminTab='chat'; render(); }},
     h('img',{class:'wm',src:'marca/om-logo-transparente.png',alt:'Own Manager'}), h('span',{class:'dv'}), mi, h('span',{class:'mn'},nom)); }
 // Menú lateral por grupos. Abrir o cerrar un grupo solo toca el menú (no se vuelve a pintar la pantalla),
 // y cada grupo se queda abierto hasta que el usuario lo cierra. Al recargar la página todos arrancan cerrados:
@@ -2708,6 +2863,10 @@ async function adminConfig(vista){
   box.append(h('div',{class:'card stack'}, h('h3',{},'Alertas'), h('div',{class:'grid2',style:'align-items:end'}, h('label',{class:'f'},h('span',{class:'l'},'Litros máximos por manguera y turno'),max), h('label',{class:'f'},h('span',{class:'l'},'Tolerancia en pesos (no pide explicación)'),tol)),
     h('label',{class:'f'},h('span',{class:'l'},'Correos que reciben el reporte de turno y la verificación nocturna (separados por coma)'),correos),
     h('button',{class:'btn primary',onclick:async()=>{ const lista=correos.value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)); try{ await sel(sb.from('estaciones').update({max_litros_turno:Number(max.value)||8000, tolerancia_pesos:Number(tol.value)||0, correos_aviso:lista}).eq('id',c.estacionId)); c.maxLitrosTurno=Number(max.value)||8000; c.toleranciaPesos=Number(tol.value)||0; c.correosAviso=lista; correos.value=lista.join(', '); toast('Guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar')));
+  { const cierra=h('input',{type:'checkbox',id:'cfg-cierra'}); cierra.checked=c.cierraProductoDescarga!==false; const dir=h('input',{type:'text',value:c.direccion||'',id:'cfg-dir',placeholder:'Calle y número, colonia, ciudad'});
+    box.append(h('div',{class:'card stack'}, h('h3',{},'Descargas'), h('label',{class:'row',style:'gap:10px;align-items:center;cursor:pointer'},cierra,h('span',{},'Se cierra el producto mientras se descarga')),
+      h('label',{class:'f'},h('span',{class:'l'},'Dirección de la estación (se compara con la del comprobante de carga)'),dir),
+      h('button',{class:'btn primary',onclick:async()=>{ try{ await sel(sb.from('estaciones').update({cierra_producto_descarga:cierra.checked, direccion:dir.value.trim()||null}).eq('id',c.estacionId)); c.cierraProductoDescarga=cierra.checked; c.direccion=dir.value.trim(); toast('Guardado.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } }},'Guardar'))); }
   const isl=h('div',{class:'card stack'}, h('h3',{},'Islas, orden y código de pantalla'), h('p',{class:'small muted'},'El código de pantalla es lo que muestra el display de la bomba (por ejemplo "b n1" = lado B, número 1); con él la app reconoce cada foto. Si en las pruebas una bomba sale con otro código, cámbialo aquí. El orden es el de la lista de mangueras y del video.'));
   for(const i of c.islas){ const ul=h('div',{class:'list'}); const draw=()=>{ ul.innerHTML=''; i.mangueras.forEach((m,k)=>{ const cod=h('input',{type:'text',value:m.codigo||'',placeholder:'b n1',style:'width:84px;text-transform:uppercase;font-family:var(--font-mono)',oninput:()=>{ m.codigo=cod.value; }}); ul.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},`${k+1}. ${m.id} · ${m.producto}`),h('span',{class:'small muted'},'Lado '+m.lado)),h('div',{class:'row',style:'gap:6px'},cod,h('button',{class:'btn sm',disabled:k===0,onclick:()=>{[i.mangueras[k-1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k-1]];draw();}},'↑'),h('button',{class:'btn sm',disabled:k===i.mangueras.length-1,onclick:()=>{[i.mangueras[k+1],i.mangueras[k]]=[i.mangueras[k],i.mangueras[k+1]];draw();}},'↓')))); }); }; draw(); isl.append(h('div',{},h('p',{class:'eyebrow',style:'margin:8px 0'},i.nombre),ul)); }
   isl.append(h('button',{class:'btn primary',onclick:async()=>{ try{ for(const i of c.islas){ const vistos={}; for(const m of i.mangueras){ const n=String(m.codigo||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(n&&vistos[n]) throw new Error(`El código ${n} está repetido en ${i.nombre} (${vistos[n]} y ${m.id}).`); if(n) vistos[n]=m.id; } }
@@ -3195,9 +3354,9 @@ async function oficinaChat(){
       hilo.append(h('div',{class:'bub '+(m.rol==='usuario'?'yo':'ia')}, m.texto));
       if(m.referencias&&m.referencias.length) hilo.append(h('div',{class:'refs'},...m.referencias.map(r=>h('button',{class:'btn sm ghost',title:r.titulo,onclick:()=>verArchivo(r.drive_id,{nombre:r.titulo})},ico(r.tipo==='factura'?'factura':'comprobantes',16), ' '+r.titulo.slice(0,48)))));
     }
-    if(CHAT.ocupado) hilo.append(h('div',{class:'bub ia',style:'padding:10px 14px'}, omLoader({tam:'chico',texto:['Buscando en pagos y facturas…','Revisando documentos…','Armando la respuesta…'][Math.floor(Date.now()/1800)%3]})));
+    if(CHAT.ocupado) hilo.append(h('div',{class:'bub ia',style:'padding:10px 14px'}, omLoader({tam:'chico',texto:(esEncargado()?['Revisando las descargas…','Armando la respuesta…']:['Buscando en pagos y facturas…','Revisando documentos…','Armando la respuesta…'])[Math.floor(Date.now()/1800)%(esEncargado()?2:3)]})));
     hilo.scrollTop=hilo.scrollHeight; };
-  const inp=h('textarea',{rows:'2',placeholder:'Escribe aquí… (p. ej. ¿ya se le pagó a Gaspremia?)'});
+  const inp=h('textarea',{rows:'2',placeholder: esEncargado()? 'Escribe aquí…' : 'Escribe aquí… (p. ej. ¿ya se le pagó a Gaspremia?)'});
   const enviar=async()=>{ const t=inp.value.trim(); if(!t||CHAT.ocupado) return; inp.value=''; CHAT.mensajes.push({rol:'usuario',texto:t}); CHAT.ocupado=true; pinta();
     const j=await fnOficina({ mensajes:CHAT.mensajes.map(m=>({rol:m.rol,texto:m.texto})) }, 'chat-oficina').catch(e=>({ok:false,error:e.message}));
     CHAT.ocupado=false;
