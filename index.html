@@ -207,6 +207,12 @@ input.bad{border-color:var(--err);background:var(--err-soft)}
 .kiosco-avisos .av{display:flex;flex-direction:column;gap:3px;padding-top:12px;border-top:1px solid var(--line)}
 .kiosco-avisos .av .tx{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.4}
 @media (min-width:1200px){ .kiosco-avisos{position:absolute;top:0;right:100%;margin:0 24px 0 0;width:min(260px,calc((100vw - 720px)/2 - 40px));max-height:max(320px,100%);overflow-y:auto} }
+.lv-cuenta{display:flex;flex-direction:column;gap:0;padding:6px 16px}
+.lv-cuenta .r{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.lv-cuenta .r:first-child{border-top:0}
+.lv-cuenta .r b{font:500 14px var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lv-cuenta .r.tot{font-weight:600}.lv-cuenta .r.tot b{font-weight:600;font-size:15px}
+.lv-cuenta .r.pos b,.tot b.lv-pos{color:var(--ok)}.lv-cuenta .r.neg b,.tot b.lv-neg{color:var(--err)}
 .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .modo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 6px}
 .modo button{border:1px solid var(--line2);border-radius:var(--r);background:var(--surface);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;color:var(--fg);font-family:var(--font-body);transition:border-color .15s,background .15s}
@@ -648,7 +654,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.6.1';
+const OM_VERSION='1.7.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -791,7 +797,7 @@ function lecturasParaServidor(c){ return c.lecturas.map(l=>({ manguera_id:l.mang
 function aceitesParaServidor(c){ const v=(c.aceites&&c.aceites.vendidas)||{}; return catAceites().filter(a=>Number(v[a.id])>0).map(a=>({aceite_id:a.uuid, piezas:Number(v[a.id])})); }
 function dineroParaServidor(c){ const d=clone(c.dinero||{}); d._aceites=(c.aceites&&c.aceites.vendidas)||{}; d._calidad=c.calidad||null; return d; }
 function avatarEmpresa(){ const c=S.config; if(!c) return null;
-  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco',encargado:'Estación'})[S.rol]||'';
+  const rol=({dueno:'Dueño',oficina:'Oficina',central:'Central',kiosco:'Kiosco',encargado:'Estación',logistica:'Logística'})[S.rol]||'';
   const nombre=(S.rol==='dueno'||S.rol==='central')? (S.usuario&&S.usuario.nombre)||c.nombre : c.nombre;
   const av = c.logoData ? h('span',{class:'empresa',title:nombre}, h('img',{src:c.logoData,alt:nombre})) : h('span',{class:'empresa ini',title:nombre}, iniciales(nombre));
   return h('span',{class:'row',style:'gap:10px'}, av, h('span',{class:'emp-nm'}, h('b',{},nombre), h('small',{},rol))); }
@@ -859,11 +865,15 @@ async function entrarConCuenta(){
   }catch(e){ renderNoDb('No se pudo cargar la estación: '+(e.message||e.code)); return; }
   // sesión de despachador pendiente (recarga de página)
   const t=tokenGuardado(); if(t && S.rol==='kiosco'){ try{ const me=JSON.parse(sessionStorage.getItem('om_me')||'null'); await rpc('mis_cortes',{p_token:t}); S.token=t; S.me=me; }catch(e){ guardarToken(null); } }
-  if(S.rol==='oficina'){ S.screen='oficina'; } else if(S.rol==='encargado'){ S.screen='encargado'; } else if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
+  if(S.rol==='oficina'){ S.screen='oficina'; } else if(S.rol==='encargado'){ S.screen='encargado'; } else if(S.rol==='logistica'){ S.screen='logistica'; } else if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
   render();
 }
 async function cargarConfig(){
   const u=S.usuario; let estId=u.estacion_id;
+  if(u.rol==='logistica'){ // la oficina de Logística no pertenece a una gasolinera
+    let cfg=null; try{ cfg=(await sel(sb.from('log_config').select('*').limit(1)))[0]||null; }catch(e){}
+    S.estaciones=[]; S.desp=[]; S.mangPorUuid={}; ESTACION=(cfg&&cfg.nombre)||'Logística';
+    S.config={ estacionId:null, nombre:ESTACION, logoData:null, logoRatio:null, turnos:[], islas:[], aceites:[], precios:{}, terminales:[], clientesMarcados:[], correosAviso:[] }; return; }
   const estaciones = await sel(sb.from('estaciones').select('*').eq('activa',true).order('nombre'));
   S.estaciones=estaciones;
   if(!estId){ estId = (S.estacionElegida && estaciones.some(e=>e.id===S.estacionElegida)) ? S.estacionElegida : (estaciones[0]&&estaciones[0].id); }
@@ -884,7 +894,7 @@ async function cargarConfig(){
 }
 // Cabecera: logo de la estación (si tiene) o su nombre; sin cuenta, la marca Own Manager.
 function setBrand(){ const b=$('#brand'); if(!b) return; b.innerHTML='';
-  if(S.usuario && S.config){ b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:'OwnManager',style:'cursor:pointer',onclick:()=>{ if(S.rol==='oficina'){ oficinaTab='chat'; go('oficina'); } else if(S.rol==='encargado'){ encTab='chat'; go('encargado'); } else if(esTablero()){ adminTab='chat'; go('admin'); } else toqueLogoKiosco(); }})); }
+  if(S.usuario && S.config){ b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:'OwnManager',style:'cursor:pointer',onclick:()=>{ if(S.rol==='oficina'){ oficinaTab='chat'; go('oficina'); } else if(S.rol==='encargado'){ encTab='chat'; go('encargado'); } else if(S.rol==='logistica'){ logTab='lviajes'; logAlElegir('lviajes'); go('logistica'); } else if(esTablero()){ adminTab='chat'; go('admin'); } else toqueLogoKiosco(); }})); }
   else b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:''}), h('span',{class:'nm'},'OwnManager', h('small',{},'Corte por turno'))); }
 function medirLogo(){ const c=S.config; if(!c||!c.logoData) return; const im=new Image(); im.onload=()=>{ if(S.config===c) c.logoRatio=im.naturalHeight?im.naturalWidth/im.naturalHeight:null; }; im.src=c.logoData; }
 function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empty'}, h('b',{},'No se pudo entrar'), msg||'', h('button',{class:'btn block',style:'margin-top:10px',onclick:cerrarCuenta},'Cerrar cuenta'))); }
@@ -896,10 +906,10 @@ function toqueLogoKiosco(){ const ahora=Date.now(); toquesLogo=toquesLogo.filter
   if(confirm('¿Cerrar la cuenta de la estación en este dispositivo?\n\nPara volver a entrar se necesitan el correo y la contraseña del kiosco.')) cerrarCuenta(); }
 // ---- render
 function render(){
-  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina'||S.screen==='encargado')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='encargado'?'estacion':S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
+  app=$('#app'); { const v=$('#om-ver'); if(v) v.textContent='v'+OM_VERSION; } S.pinTeclado=null; document.body.removeAttribute('data-om-login'); if(S.usuario && (S.screen==='admin'||S.screen==='oficina'||S.screen==='encargado'||S.screen==='logistica')) document.body.setAttribute('data-om-nav','1'); else document.body.removeAttribute('data-om-nav'); { const mod=!S.usuario?null:S.rol==='encargado'?'estacion':S.rol==='logistica'?'logistica':S.rol==='oficina'?'oficina':(S.rol==='dueno'||S.rol==='central')?'central':S.rol==='kiosco'?'kiosko':null; if(mod) document.body.setAttribute('data-om-mod',mod); else document.body.removeAttribute('data-om-mod'); } setWho(); setBrand(); app.innerHTML='';
   if(S.usuario && !S.config){ app.append(h('div',{class:'card empty'}, h('b',{},'Falta la configuración de la estación'), 'Islas, mangueras y turnos todavía no están cargados. Mauricio los carga desde Claude y la app queda lista.')); return; }
   if(!S.usuario){ renderCuenta(); return; }
-  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:nocheAuto, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina, encargado:renderEncargado})[S.screen]();
+  ({login:renderLogin, home:renderHome, corte:renderCorte, noche:nocheAuto, admin:renderAdmin, deposito:renderDeposito, oficina:renderOficina, encargado:renderEncargado, logistica:renderLogistica})[S.screen]();
 }
 
 // ---- LOGIN
@@ -2217,6 +2227,7 @@ async function renderAdmin(){
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy'],['cortes','cortes','Lista de cortes'],['anulados','anulados','Anulados']]],
     ['descargas','descarga','Descargas'],
     navTareas(),
+    ['glog','viaje','Logística',[['lviajes','viaje','Viajes'],['lunidades','unidad','Unidades'],['loperadores','desp','Operadores'],['lclientes','clientes','Clientes'],...(dueno?[['lajustes','config','Ajustes']]:[])]],
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
@@ -2224,15 +2235,16 @@ async function renderAdmin(){
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]]];
   const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
+  Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','satcert','satconsulta','satnuevas','sathist'].includes(adminTab);
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','satcert','satconsulta','satnuevas','sathist'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'central'), main); app.append(shell);
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ const selEst=h('select',{style:'margin-top:8px;max-width:320px'},...S.estaciones.map(e=>h('option',{value:e.id,selected:e.id===S.config.estacionId},e.nombre))); selEst.addEventListener('change',async()=>{ S.estacionElegida=selEst.value; await cargarConfig(); render(); }); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await ({hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados})[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados}))[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -2415,6 +2427,222 @@ async function adminDescargas(){
   cont.innerHTML=''; cont.append(listaDescargas(rows, d=>{ DESC.detalle=d; render(); }));
 }
 
+// ---- LOGÍSTICA (16-nov-2026): viajes con su costo y lo cobrado, para ver la utilidad de cada uno.
+// La oficina de Logística (rol 'logistica') los da de alta a mano; el dueño y Contabilidad ven lo mismo en Central ▸ Logística.
+// Lo cobrado sale de la carta porte (el XML del CFDI se lee aquí mismo, sin teclear); el viaje sin carta porte queda marcado
+// y no entra en la utilidad. El pago del operador se captura como cantidad (hoy se calcula al tanteo); se guardan kilómetros,
+// horas y tipo de unidad para el cotizador. Nada se borra: los catálogos se pausan y los viajes se cancelan con motivo.
+const LOG={ vista:'lista', viaje:null, mes:null, cat:null, edita:null };
+let logTab='lviajes';
+const TIPOS_UNIDAD={full:['Full',31500], sencillo:['Sencillo',null], patona:['Patona',22500], corto:['Corto',20000], otro:['Otro',null]};
+const PRODUCTOS_LOG=['Magna','Premium','Diésel'];
+function esLogistica(){ return S.rol==='logistica'; }
+const logNum = v => { const x=Number(String(v==null?'':v).replace(/[$,\s]/g,'')); return isFinite(x)?x:0; };
+const logMes = ym => { const [y,m]=ym.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,1)).toLocaleDateString('es-MX',{timeZone:'UTC',month:'long',year:'numeric'}); return t[0].toUpperCase()+t.slice(1); };
+const logMesMas = (ym,d) => { const [y,m]=ym.split('-').map(Number); return new Date(Date.UTC(y,m-1+d,1)).toISOString().slice(0,7); };
+// Cuenta del viaje. Costo = efectivo (comidas + lo repuesto) + casetas + diésel + operador + mantenimiento (% de lo cobrado).
+// Lo cobrado solo cuenta con la carta porte anexada.
+function logCuenta(v){ const n=k=>logNum(v[k]); const cobrado=(!v.carta_porte||v.cobrado==null||v.cobrado==='')?null:logNum(v.cobrado);
+  const efectivo=n('comidas')+n('otros_efectivo'); const directo=efectivo+n('casetas')+n('diesel')+n('pago_operador');
+  const mant=cobrado==null?0:Math.round(cobrado*logNum(v.mantenimiento_pct))/100; const costo=directo+mant;
+  return { cobrado, efectivo, directo, mant, costo, utilidad:cobrado==null?null:cobrado-costo, margen:cobrado? (cobrado-costo)/cobrado*100 : null }; }
+const logPesos = n => (n<0?'−':'')+fmtMXN(Math.abs(n));
+async function logCargar(){ const [cfg, unidades, operadores, clientes] = await Promise.all([
+    sel(sb.from('log_config').select('*').limit(1)), sel(sb.from('log_unidades').select('*').order('nombre')),
+    sel(sb.from('log_operadores').select('*').order('nombre')), sel(sb.from('log_clientes').select('*').order('nombre')) ]);
+  return LOG.cat={ cfg:(cfg&&cfg[0])||{nombre:'Logística', mantenimiento_pct:0, origen_habitual:null}, unidades, operadores, clientes }; }
+// Lee el XML de la carta porte (CFDI). Lo cobrado es el subtotal menos el descuento, sin IVA.
+function leerCartaPorteXml(txt){ const doc=new DOMParser().parseFromString(txt,'application/xml'); const c=doc.documentElement;
+  if(!c || c.localName!=='Comprobante') throw new Error('Ese archivo no es el XML de un CFDI.');
+  const uno=n=>[...doc.getElementsByTagName('*')].find(e=>e.localName===n); const at=(e,k)=>e? e.getAttribute(k):null;
+  const rec=uno('Receptor'), tfd=uno('TimbreFiscalDigital'), cp=uno('CartaPorte');
+  const sub=Number(at(c,'SubTotal'))||0, desc=Number(at(c,'Descuento'))||0;
+  return { uuid:at(tfd,'UUID'), tipo:at(c,'TipoDeComprobante'), fecha:String(at(c,'Fecha')||'').slice(0,10), subtotal:Math.round((sub-desc)*100)/100, total:Number(at(c,'Total'))||0,
+    receptor:at(rec,'Nombre'), receptor_rfc:at(rec,'Rfc'), con_carta_porte:!!cp, km:cp? (Number(at(cp,'TotalDistRec'))||null):null }; }
+function logChip(v){ const c=logCuenta(v);
+  if(v.estado==='cancelado') return h('span',{class:'chip'},'cancelado');
+  if(!v.carta_porte) return h('span',{class:'chip warn'},'falta carta porte');
+  if(c.utilidad==null) return h('span',{class:'chip warn'},'falta lo cobrado');
+  return h('span',{class:'chip '+(c.utilidad<0?'err':'ok')}, logPesos(c.utilidad)+' · '+c.margen.toFixed(0)+' %'); }
+async function logViajes(){
+  if(LOG.vista==='forma') return logForma();
+  if(LOG.vista==='fin') return app.append(pantallaFin({titulo:'Viaje guardado', boton:'Terminar', onclick:()=>{ LOG.vista='lista'; LOG.viaje=null; render(); }}));
+  LOG.vista='lista'; if(!LOG.mes) LOG.mes=nowMX().fecha.slice(0,7);
+  app.append(h('button',{class:'btn primary',id:'lv-nuevo',style:'margin-top:10px',onclick:()=>{ LOG.viaje=null; LOG.vista='forma'; render(); }},'Nuevo viaje'));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando viajes…']));
+  let rows=[], cat; try{ cat=await logCargar();
+    rows=await sel(sb.from('log_viajes').select('*').gte('fecha',LOG.mes+'-01').lt('fecha',logMesMas(LOG.mes,1)+'-01').order('fecha',{ascending:false}).order('folio',{ascending:false}).limit(400)); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; const nom=(lista,id)=>((lista.find(x=>x.id===id)||{}).nombre)||'—';
+  const vivos=rows.filter(v=>v.estado!=='cancelado'); let cob=0, costo=0, sin=0; for(const v of vivos){ const c=logCuenta(v); if(c.cobrado==null) sin++; else { cob+=c.cobrado; costo+=c.costo; } }
+  const ir=d=>()=>{ LOG.mes=logMesMas(LOG.mes,d); render(); };
+  cont.append(h('div',{class:'row between',style:'margin-top:14px;align-items:center'}, h('button',{class:'btn sm',id:'lv-mes-ant',title:'Mes anterior','aria-label':'Mes anterior',onclick:ir(-1)},'‹'), h('b',{id:'lv-mes'},logMes(LOG.mes)), h('button',{class:'btn sm',id:'lv-mes-sig',title:'Mes siguiente','aria-label':'Mes siguiente',onclick:ir(1)},'›')));
+  const dato=(k,val,cls)=>h('div',{}, h('span',{class:'small muted'},k), h('b',{class:cls||''},val));
+  cont.append(h('div',{class:'tot',id:'lv-tot',style:'margin-top:12px'}, dato('Viajes',fmtInt(vivos.length)), dato('Cobrado',fmtMXN(cob)), dato('Costo',fmtMXN(costo)),
+    dato('Utilidad',logPesos(cob-costo), cob-costo<0?'lv-neg':'lv-pos'), dato('Margen', cob? ((cob-costo)/cob*100).toFixed(1)+' %':'—')));
+  if(sin) cont.append(h('p',{class:'small',id:'lv-sin',style:'margin:10px 0 0;color:var(--warn)'}, sin===1?'1 viaje sin carta porte: todavía no entra en la utilidad.':`${sin} viajes sin carta porte: todavía no entran en la utilidad.`));
+  const list=h('div',{class:'list',id:'lv-lista',style:'margin-top:14px'});
+  if(!rows.length) list.append(h('div',{class:'card empty'},h('b',{},'Sin viajes en este mes')));
+  for(const v of rows){ const sub=[fmtFecha(v.fecha), nom(cat.unidades,v.unidad_id), nom(cat.operadores,v.operador_id), v.litros? fmtInt(v.litros)+' L'+(v.producto?' '+v.producto:''):v.producto].filter(Boolean).join(' · ');
+    list.append(h('div',{class:'item',onclick:()=>{ LOG.viaje=v; LOG.vista='forma'; render(); }}, h('div',{class:'l'}, h('b',{},`${v.folio} · ${nom(cat.clientes,v.cliente_id)}${v.destino?' · '+v.destino:''}`), h('span',{class:'small muted'},sub)), logChip(v))); }
+  cont.append(list);
+}
+async function logForma(){
+  const v=LOG.viaje; const cancelado=!!v && v.estado==='cancelado'; const volver=()=>{ LOG.vista='lista'; LOG.viaje=null; render(); };
+  app.append(h('button',{class:'btn sm ghost',id:'lv-volver',style:'margin-top:10px',onclick:volver}, ico('volver',16),' Viajes'));
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando…']));
+  let cat, rec=[]; try{ cat=await logCargar(); rec=await sel(sb.from('log_viajes').select('*').eq('estado','abierto').order('fecha',{ascending:false}).order('folio',{ascending:false}).limit(300)); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML='';
+  const faltan=[!cat.clientes.some(c=>c.activo)&&'un cliente', !cat.unidades.some(u=>u.activa)&&'una unidad', !cat.operadores.some(o=>o.activo)&&'un operador'].filter(Boolean);
+  if(!v && faltan.length){ cont.append(h('div',{class:'card empty',id:'lv-faltan'}, h('b',{},'Antes del primer viaje'), 'Da de alta '+faltan.join(', ')+' en Catálogos.')); return; }
+  const opciones=(lista,k,id,vacio)=>[h('option',{value:''},vacio), ...lista.filter(x=>x[k]!==false||x.id===id).map(x=>h('option',{value:x.id,selected:x.id===id},x.nombre))];
+  const campo=(l,el)=>h('label',{class:'f'},h('span',{class:'l'},l),el);
+  const num=(id,val)=>h('input',{type:'text',inputmode:'decimal',id,value:(val==null||Number(val)===0)?'':String(Number(val)),placeholder:'0',autocomplete:'off'});
+  const fFecha=h('input',{type:'date',id:'lv-fecha',value:v?v.fecha:nowMX().fecha});
+  const fCliente=h('select',{id:'lv-cliente'},...opciones(cat.clientes,'activo',v&&v.cliente_id,'Elige el cliente'));
+  const fUnidad=h('select',{id:'lv-unidad'},...opciones(cat.unidades,'activa',v&&v.unidad_id,'Elige la unidad'));
+  const fOperador=h('select',{id:'lv-operador'},...opciones(cat.operadores,'activo',v&&v.operador_id,'Elige el operador'));
+  const fProd=h('select',{id:'lv-producto'}, h('option',{value:''},'Producto'), ...[...new Set([...PRODUCTOS_LOG, v&&v.producto].filter(Boolean))].map(p=>h('option',{value:p,selected:!!v&&v.producto===p},p)));
+  const fLitros=num('lv-litros', v&&v.litros), fKm=num('lv-km', v&&v.km), fHoras=num('lv-horas', v&&v.horas);
+  const fOrigen=h('input',{type:'text',id:'lv-origen',value:v?(v.origen||''):(cat.cfg.origen_habitual||''),placeholder:'De dónde sale',autocomplete:'off'});
+  const dl=h('datalist',{id:'lv-destinos'},...[...new Set(rec.map(r=>r.destino).concat(cat.clientes.map(c=>c.destino)).filter(Boolean))].map(d=>h('option',{value:d})));
+  const fDestino=h('input',{type:'text',id:'lv-destino',value:v?(v.destino||''):'',placeholder:'A dónde va',list:'lv-destinos',autocomplete:'off'});
+  const fComidas=num('lv-comidas', v&&v.comidas), fOtros=num('lv-otros', v&&v.otros_efectivo), fCasetas=num('lv-casetas', v&&v.casetas), fDiesel=num('lv-diesel', v&&v.diesel), fPago=num('lv-pago', v&&v.pago_operador);
+  const fOtrosNota=h('input',{type:'text',id:'lv-otros-nota',value:v?(v.otros_nota||''):'',placeholder:'Qué pagó el operador (opcional)',autocomplete:'off'});
+  const fCobrado=num('lv-cobrado', v&&v.cobrado); const fNotas=h('textarea',{rows:'2',id:'lv-notas',placeholder:'Notas (opcional)'}); fNotas.value=v?(v.notas||''):'';
+  let carta=v&&v.carta_porte? clone(v.carta_porte):null; const pct=v? Number(v.mantenimiento_pct)||0 : Number(cat.cfg.mantenimiento_pct)||0;
+  const actual=()=>({ carta_porte:carta, cobrado:carta? (fCobrado.value===''?null:logNum(fCobrado.value)):null, comidas:fComidas.value, otros_efectivo:fOtros.value, casetas:fCasetas.value, diesel:fDiesel.value, pago_operador:fPago.value, mantenimiento_pct:pct });
+  // --- cuenta en vivo
+  const cuenta=h('div',{class:'card lv-cuenta',id:'lv-cuenta'});
+  const pintaCuenta=()=>{ const c=logCuenta(actual()); cuenta.innerHTML=''; const fila=(k,val,cls)=>h('div',{class:'r '+(cls||'')}, h('span',{},k), h('b',{},val));
+    cuenta.append(fila('Efectivo (comidas y repuesto)',fmtMXN(c.efectivo)), fila('Casetas',fmtMXN(logNum(fCasetas.value))), fila('Diésel',fmtMXN(logNum(fDiesel.value))), fila('Operador',fmtMXN(logNum(fPago.value))),
+      fila(`Mantenimiento (${pct} % de lo cobrado)`, c.cobrado==null?'—':fmtMXN(c.mant)), fila('Costo del viaje',fmtMXN(c.costo),'tot'), fila('Cobrado', c.cobrado==null?'Falta la carta porte':fmtMXN(c.cobrado)),
+      fila('Utilidad', c.utilidad==null?'—':logPesos(c.utilidad)+' · '+c.margen.toFixed(1)+' %', 'tot '+(c.utilidad==null?'':c.utilidad<0?'neg':'pos'))); };
+  // --- carta porte
+  const cartaBox=h('div',{class:'card stack',id:'lv-carta-box',style:'gap:10px'});
+  const inCarta=h('input',{type:'file',accept:'.xml,application/xml,text/xml,application/pdf,image/*',hidden:true,id:'lv-carta'});
+  const pintaCarta=()=>{ cartaBox.innerHTML=''; cartaBox.append(h('p',{class:'eyebrow',style:'margin:0'},'Carta porte'));
+    if(!carta){ cartaBox.append(h('p',{class:'muted',style:'margin:0'},'De aquí sale lo cobrado. Sin carta porte el viaje queda marcado y no se calcula su utilidad.'));
+      if(!cancelado) cartaBox.append(h('button',{class:'btn',id:'lv-anexar',onclick:()=>inCarta.click()},'Anexar carta porte (XML o PDF)')); }
+    else { const delXml=carta.origen==='xml' && Number(carta.subtotal)>0;
+      cartaBox.append(h('div',{class:'row between',style:'align-items:center;gap:10px;flex-wrap:wrap'}, h('div',{class:'l'}, h('b',{},carta.nombre||'Carta porte'), h('span',{class:'small muted',style:'display:block'},[carta.receptor, carta.fecha?fmtFecha(carta.fecha):null, carta.uuid?'folio fiscal …'+String(carta.uuid).slice(-8):null].filter(Boolean).join(' · ')||'Archivo anexado')),
+        h('div',{class:'row',style:'gap:8px'}, h('button',{class:'btn sm ghost',id:'lv-ver-carta',onclick:async()=>{ try{ const {data,error}=await sb.storage.from('logistica').createSignedUrl(carta.ruta,3600); if(error) throw errSrv(error); window.open(data.signedUrl,'_blank'); }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),5000); } }},'Ver'),
+          cancelado?null:h('button',{class:'btn sm ghost',onclick:()=>inCarta.click()},'Cambiar'))));
+      fCobrado.readOnly=delXml||cancelado;
+      cartaBox.append(campo(delXml?'Cobrado (flete sin IVA, leído de la carta porte)':'Cobrado (flete sin IVA)', fCobrado)); }
+    cartaBox.append(inCarta); };
+  inCarta.addEventListener('change', async()=>{ const f=inCarta.files&&inCarta.files[0]; inCarta.value=''; if(!f) return;
+    const esXml=/\.xml$/i.test(f.name)||/xml/.test(f.type||''); let d=null;
+    try{ if(esXml) d=leerCartaPorteXml(await f.text()); }catch(e){ toast(e.message||'No se pudo leer el XML.',6000); return; }
+    if(d && !d.con_carta_porte){ toast('Ese CFDI no trae el complemento Carta Porte. Revisa que sea el archivo correcto.',7000); return; }
+    cartaBox.innerHTML=''; cartaBox.append(omLoader({texto:'Guardando la carta porte…'}));
+    try{ const ruta=`${S.usuario.empresa_id}/${nowMX().fecha.slice(0,7)}/cartas/${Date.now()}-${f.name.replace(/[^\w.\-]+/g,'_').slice(-60)}`;
+      const {error}=await sb.storage.from('logistica').upload(ruta, f, {contentType:f.type||(esXml?'text/xml':'application/pdf'), upsert:false}); if(error) throw errSrv(error);
+      carta= d? {ruta, nombre:f.name, origen:'xml', uuid:d.uuid, tipo:d.tipo, fecha:d.fecha, subtotal:d.subtotal, total:d.total, receptor:d.receptor, receptor_rfc:d.receptor_rfc} : {ruta, nombre:f.name, origen:'archivo'};
+      if(d){ fCobrado.value=d.subtotal>0? String(d.subtotal):''; if(d.km && !tocado.has('km') && !fKm.value) fKm.value=String(d.km); } }
+    catch(e){ toast('No se guardó la carta porte: '+(e.message||e.code),6000); }
+    pintaCarta(); pintaCuenta(); });
+  // --- se llena solo con el último viaje parecido (mismo destino y, si hay, mismo tipo de unidad)
+  const tocado=new Set(); const nota=h('p',{class:'small muted',id:'lv-sugerido',style:'margin:0'});
+  const sugerir=()=>{ if(v) return; const cli=cat.clientes.find(c=>c.id===fCliente.value), uni=cat.unidades.find(u=>u.id===fUnidad.value);
+    if(cli && !tocado.has('destino')){ const ult=rec.find(r=>r.cliente_id===cli.id); fDestino.value=(ult&&ult.destino)||cli.destino||fDestino.value; }
+    if(uni && !tocado.has('litros') && uni.capacidad_litros) fLitros.value=String(Number(uni.capacidad_litros));
+    const dest=fDestino.value.trim().toLowerCase(); nota.textContent=''; if(!dest){ pintaCuenta(); return; }
+    const mismos=rec.filter(r=>(r.destino||'').trim().toLowerCase()===dest); const tipoDe=id=>(cat.unidades.find(u=>u.id===id)||{}).tipo;
+    const base=(uni && mismos.find(r=>tipoDe(r.unidad_id)===uni.tipo)) || mismos[0];
+    if(base){ for(const [k,el] of [['km',fKm],['horas',fHoras],['comidas',fComidas],['casetas',fCasetas],['diesel',fDiesel],['pago_operador',fPago]]) if(!tocado.has(k) && Number(base[k])>0) el.value=String(Number(base[k]));
+      if(!tocado.has('producto') && base.producto) fProd.value=base.producto;
+      nota.textContent=`Se llenó con el viaje ${base.folio} del ${fmtFecha(base.fecha)}. Corrige lo que haya cambiado.`; }
+    pintaCuenta(); };
+  for(const [k,el] of [['destino',fDestino],['litros',fLitros],['km',fKm],['horas',fHoras],['comidas',fComidas],['casetas',fCasetas],['diesel',fDiesel],['pago_operador',fPago],['otros',fOtros],['cobrado',fCobrado]]) el.addEventListener('input',()=>{ tocado.add(k); pintaCuenta(); });
+  fProd.addEventListener('change',()=>tocado.add('producto')); fCliente.addEventListener('change',sugerir); fUnidad.addEventListener('change',sugerir); fDestino.addEventListener('change',sugerir);
+  // --- guardar / cancelar
+  const btn=h('button',{class:'btn primary big block',id:'lv-guardar'}, v?'Guardar cambios':'Guardar viaje');
+  btn.addEventListener('click', async()=>{ if(!fCliente.value){ toast('Elige el cliente.'); fCliente.focus(); return; } if(!fUnidad.value){ toast('Elige la unidad.'); fUnidad.focus(); return; } if(!fOperador.value){ toast('Elige el operador.'); fOperador.focus(); return; }
+    btn.disabled=true; const d={ fecha:fFecha.value, cliente_id:fCliente.value, unidad_id:fUnidad.value, operador_id:fOperador.value, producto:fProd.value, litros:logNum(fLitros.value)||null, origen:fOrigen.value.trim(), destino:fDestino.value.trim(),
+      km:logNum(fKm.value)||null, horas:logNum(fHoras.value)||null, comidas:logNum(fComidas.value), otros_efectivo:logNum(fOtros.value), otros_nota:fOtrosNota.value.trim(), casetas:logNum(fCasetas.value), diesel:logNum(fDiesel.value), pago_operador:logNum(fPago.value),
+      cobrado:carta? (fCobrado.value===''?null:logNum(fCobrado.value)):null, carta_porte:carta, notas:fNotas.value.trim() };
+    try{ await rpc('log_guardar_viaje',{p_id:v?v.id:null, p_d:d}); if(v){ toast('Viaje guardado.'); volver(); } else { LOG.viaje=null; LOG.vista='fin'; render(); } }
+    catch(e){ toast('No se pudo guardar: '+(e.message||e.code),6000); btn.disabled=false; } });
+  cont.append(h('div',{class:'row between',style:'align-items:center;gap:10px;margin-top:6px'}, h('h2',{style:'margin:0'}, v?`Viaje ${v.folio}`:'Nuevo viaje'), v?logChip(v):h('span',{})));
+  if(v) cont.append(h('p',{class:'small muted',style:'margin:4px 0 0'}, `Lo capturó ${v.creado_por_nombre||'—'} · ${fmtFecha(fechaMX(v.creado_en))} ${fmtHora(v.creado_en)}`+(v.actualizado_por_nombre&&v.actualizado_en!==v.creado_en? ` · último cambio: ${v.actualizado_por_nombre}, ${fmtFecha(fechaMX(v.actualizado_en))} ${fmtHora(v.actualizado_en)}`:'')));
+  if(cancelado) cont.append(h('p',{class:'small',id:'lv-cancelado',style:'margin:8px 0 0;color:var(--err)'},'Cancelado: '+(v.cancelado_motivo||'sin motivo')));
+  cont.append(h('div',{class:'card stack',id:'lv-datos',style:'margin-top:12px'}, h('p',{class:'eyebrow',style:'margin:0'},'El viaje'),
+      h('div',{class:'grid2'}, campo('Fecha',fFecha), campo('Cliente',fCliente), campo('Unidad',fUnidad), campo('Operador',fOperador)),
+      h('div',{class:'grid2'}, campo('Sale de',fOrigen), campo('Destino',fDestino), campo('Producto',fProd), campo('Litros',fLitros)),
+      h('div',{class:'grid2'}, campo('Kilómetros',fKm), campo('Horas del viaje',fHoras)), dl),
+    h('div',{class:'card stack',id:'lv-costos',style:'margin-top:12px'}, h('p',{class:'eyebrow',style:'margin:0'},'Lo que costó'), nota,
+      h('div',{class:'grid2'}, campo('Comidas del operador (efectivo)',fComidas), campo('Casetas',fCasetas), campo('Diésel',fDiesel), campo('Pago del operador',fPago)),
+      h('div',{class:'grid2'}, campo('Otro gasto en efectivo que se le repuso',fOtros), campo('¿En qué?',fOtrosNota))),
+    cartaBox, cuenta, h('div',{class:'card stack',style:'margin-top:12px'}, fNotas));
+  for(const b of [cartaBox, cuenta]) b.style.marginTop='12px';
+  pintaCarta(); pintaCuenta();
+  if(cancelado){ for(const el of cont.querySelectorAll('input,select,textarea')) el.disabled=true; return; }
+  cont.append(h('div',{style:'margin-top:12px'},btn));
+  if(v){ const motivo=h('input',{type:'text',placeholder:'Motivo para cancelarlo',id:'lv-motivo'});
+    cont.append(h('div',{class:'stack',style:'margin-top:18px;gap:8px'}, motivo, h('button',{class:'btn block ghost danger',id:'lv-cancelar',onclick:async()=>{ if(motivo.value.trim().length<4){ toast('Escribe el motivo.'); motivo.focus(); return; }
+      try{ await rpc('log_cancelar_viaje',{p_viaje:v.id,p_motivo:motivo.value.trim()}); toast('Viaje cancelado.'); volver(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); } }},'Cancelar viaje'))); }
+}
+// Catálogos de Logística: unidades, operadores y clientes. Se agregan, se corrigen y se pausan; no se borran.
+async function logCatalogo(tipo){
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando…']));
+  let cat; try{ cat=await logCargar(); }catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; const rows=cat[tipo]; const ed=LOG.edita&&LOG.edita.tipo===tipo? rows.find(r=>r.id===LOG.edita.id):null; const kAct=tipo==='unidades'?'activa':'activo';
+  const campo=(l,el)=>h('label',{class:'f'},h('span',{class:'l'},l),el); const txt=(id,val,ph)=>h('input',{type:'text',id,value:val||'',placeholder:ph||'',autocomplete:'off'});
+  const fNombre=txt('lc-nombre', ed&&ed.nombre, tipo==='unidades'?'Número o nombre de la unidad':tipo==='operadores'?'Nombre del operador':'Nombre del cliente');
+  let campos=[campo('Nombre',fNombre)], guardar;
+  if(tipo==='unidades'){ const fTipo=h('select',{id:'lc-tipo'},...Object.entries(TIPOS_UNIDAD).map(([k,[l]])=>h('option',{value:k,selected:ed?ed.tipo===k:k==='full'},l)));
+    const fCap=txt('lc-capacidad', ed&&ed.capacidad_litros? String(Number(ed.capacidad_litros)) : (ed?'':String(TIPOS_UNIDAD.full[1])), 'Litros'); fCap.setAttribute('inputmode','numeric'); const fPlacas=txt('lc-placas', ed&&ed.placas, 'Opcional');
+    fTipo.addEventListener('change',()=>{ const c=TIPOS_UNIDAD[fTipo.value][1]; fCap.value=c?String(c):''; });
+    campos.push(campo('Tipo',fTipo), campo('Capacidad (litros)',fCap), campo('Placas',fPlacas));
+    guardar=act=>rpc('log_guardar_unidad',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_tipo:fTipo.value, p_capacidad:logNum(fCap.value)||null, p_placas:fPlacas.value, p_activa:act}); }
+  else if(tipo==='operadores'){ guardar=act=>rpc('log_guardar_operador',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_activo:act}); }
+  else { const fRfc=txt('lc-rfc', ed&&ed.rfc, 'Opcional'), fDest=txt('lc-destino', ed&&ed.destino, 'Ciudad o estación a donde se le lleva');
+    campos.push(campo('RFC',fRfc), campo('Destino habitual',fDest));
+    guardar=act=>rpc('log_guardar_cliente',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_rfc:fRfc.value, p_destino:fDest.value, p_activo:act}); }
+  const btn=h('button',{class:'btn primary',id:'lc-guardar'}, ed?'Guardar cambios':'Agregar');
+  btn.addEventListener('click', async()=>{ if(fNombre.value.trim().length<2){ toast('Escribe el nombre.'); fNombre.focus(); return; } btn.disabled=true;
+    try{ await guardar(ed? ed[kAct]!==false : true); LOG.edita=null; toast(ed?'Cambios guardados.':'Agregado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
+  const pie=h('div',{class:'row',style:'gap:8px'}, btn); if(ed) pie.append(h('button',{class:'btn ghost',onclick:()=>{ LOG.edita=null; render(); }},'Cancelar'));
+  cont.append(h('div',{class:'card stack',id:'lc-forma',style:'margin-top:10px'}, h('div',{class:'grid2'},...campos), pie));
+  const list=h('div',{class:'list',id:'lc-lista',style:'margin-top:14px'});
+  if(!rows.length) list.append(h('div',{class:'card empty'},h('b',{}, tipo==='unidades'?'Todavía no hay unidades':tipo==='operadores'?'Todavía no hay operadores':'Todavía no hay clientes')));
+  for(const r of rows){ const act=r[kAct]!==false;
+    const sub= tipo==='unidades'? [(TIPOS_UNIDAD[r.tipo]||[r.tipo])[0], r.capacidad_litros? fmtInt(r.capacidad_litros)+' L':null, r.placas].filter(Boolean).join(' · ') : tipo==='clientes'? [r.destino, r.rfc].filter(Boolean).join(' · ') : '';
+    const pausar=async ev=>{ ev.stopPropagation(); try{ if(tipo==='unidades') await rpc('log_guardar_unidad',{p_id:r.id,p_nombre:r.nombre,p_tipo:r.tipo,p_capacidad:r.capacidad_litros,p_placas:r.placas,p_activa:!act});
+        else if(tipo==='operadores') await rpc('log_guardar_operador',{p_id:r.id,p_nombre:r.nombre,p_activo:!act}); else await rpc('log_guardar_cliente',{p_id:r.id,p_nombre:r.nombre,p_rfc:r.rfc,p_destino:r.destino,p_activo:!act});
+        render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } };
+    list.append(h('div',{class:'item',onclick:()=>{ LOG.edita={tipo,id:r.id}; render(); }}, h('div',{class:'l'}, h('b',{},r.nombre), (sub||!act)? h('span',{class:'small muted'},[sub, act?null:'en pausa'].filter(Boolean).join(' · ')):null),
+      h('button',{class:'btn sm ghost',onclick:pausar}, act?'Pausar':'Reactivar'))); }
+  cont.append(list);
+}
+// Ajustes de Logística (solo el dueño): nombre, origen habitual y el % de mantenimiento que entra en el costo de cada viaje nuevo.
+async function logAjustes(){
+  let cat; try{ cat=await logCargar(); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  const campo=(l,el)=>h('label',{class:'f'},h('span',{class:'l'},l),el);
+  const fNombre=h('input',{type:'text',id:'la-nombre',value:cat.cfg.nombre||''}), fPct=h('input',{type:'text',inputmode:'decimal',id:'la-pct',value:String(Number(cat.cfg.mantenimiento_pct)||0)}), fOrigen=h('input',{type:'text',id:'la-origen',value:cat.cfg.origen_habitual||'',placeholder:'Por ejemplo, la terminal de donde salen'});
+  const btn=h('button',{class:'btn primary',id:'la-guardar'},'Guardar');
+  btn.addEventListener('click', async()=>{ const p=logNum(fPct.value); if(p<0||p>100){ toast('El porcentaje va de 0 a 100.'); fPct.focus(); return; } btn.disabled=true;
+    try{ await rpc('log_guardar_config',{p_nombre:fNombre.value, p_mantenimiento_pct:p, p_origen:fOrigen.value}); toast('Guardado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
+  app.append(h('div',{class:'card stack',style:'margin-top:10px'}, h('div',{class:'grid2'}, campo('Nombre de la fletera',fNombre), campo('Mantenimiento (% de lo cobrado)',fPct), campo('De dónde salen normalmente',fOrigen)),
+    h('p',{class:'small muted',style:'margin:0'},'El porcentaje se aplica a los viajes que se den de alta de aquí en adelante; los ya capturados conservan el suyo.'), h('div',{},btn)));
+}
+const LOG_PANTALLAS={ lviajes:logViajes, lunidades:()=>logCatalogo('unidades'), loperadores:()=>logCatalogo('operadores'), lclientes:()=>logCatalogo('clientes'), lajustes:logAjustes };
+const LOG_TITULOS={ lviajes:'Viajes', lunidades:'Unidades', loperadores:'Operadores', lclientes:'Clientes', lajustes:'Ajustes de Logística' };
+const logAlElegir = k => { if(k==='lviajes'){ LOG.vista='lista'; LOG.viaje=null; } LOG.edita=null; };
+async function renderLogistica(){
+  if(!esLogistica()){ go(S.rol==='oficina'?'oficina':S.rol==='encargado'?'encargado':esTablero()?'admin':'login'); return; }
+  const items=[['lviajes','viaje','Viajes'],['tareas','tarea','Mis tareas'],['gcat','catalogo','Catálogos',[['lunidades','unidad','Unidades'],['loperadores','desp','Operadores'],['lclientes','clientes','Clientes']]]];
+  const titulos=Object.assign({tareas:'Mis tareas'}, LOG_TITULOS); delete titulos.lajustes;
+  if(!titulos[logTab]) logTab='lviajes';
+  const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
+  shell.append(navLateral(items, logTab, k=>{ logTab=k; logAlElegir(k); if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'logistica'), main); app.append(shell);
+  main.append(h('div',{}, window.innerWidth<=760? logoModulo('logistica','movil'):null, h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[logTab])));
+  const prev=app; app=main;
+  try{ await (logTab==='tareas'? pantallaTareas : LOG_PANTALLAS[logTab])(); } finally{ app=prev; }
+}
+
 // ---- TAREAS PARA TODAS LAS RAMAS (16-nov-2026)
 // Las tareas solo bajan: dueño → Contabilidad, Oficina y Estación · Central → Oficina y Estación · Oficina → la Estación de su gasolinera.
 // Las cierra quien las recibe (con foto si la tarea la pide; sin ella se cierra igual y queda marcado) y quedan "por revisar"
@@ -2423,8 +2651,9 @@ const TAR={ vista:'lista', t:null };
 const RAMA={encargado:'Estación', oficina:'Oficina', central:'Contabilidad', logistica:'Logística'};
 const DIAS_SEM=['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
 const rutinaTxt = r => r.frecuencia==='diaria'?'Cada día':r.frecuencia==='semanal'?`Cada ${DIAS_SEM[(r.dia||1)-1]}`:`El día ${r.dia} de cada mes`;
-const paraQuien = () => S.rol==='dueno'?['encargado','oficina','central']:S.rol==='central'?['encargado','oficina']:S.rol==='oficina'?['encargado']:[];
-const esParaMi = t => t.para_rol===S.rol && (t.para_rol==='central' || t.estacion_id===S.config.estacionId);
+const paraQuien = () => S.rol==='dueno'?['encargado','oficina','central','logistica']:S.rol==='central'?['encargado','oficina','logistica']:S.rol==='oficina'?['encargado']:[];
+const sinGasolinera = r => r==='central' || r==='logistica'; // ramas cuyas tareas no llevan gasolinera
+const esParaMi = t => t.para_rol===S.rol && (sinGasolinera(t.para_rol) || t.estacion_id===S.config.estacionId);
 const puedoRevisar = t => t.creada_por===S.usuario.id || S.rol==='dueno' || (S.rol==='central' && t.para_rol!=='central');
 function tareaVence(t){ if(!t.vence) return null; const hoy=nowMX().fecha; return t.vence<hoy?{txt:'Venció el '+fmtFecha(t.vence),vencida:true}:t.vence===hoy?{txt:'Vence hoy',vencida:false}:{txt:'Vence el '+fmtFecha(t.vence),vencida:false}; }
 function tareaChip(t){
@@ -2443,8 +2672,9 @@ function listaTareas(rows, onclick, vacio, conRama){ const list=h('div',{class:'
 async function cargarTareas(tabla){ tabla=tabla||'tareas';
   if(tabla==='tareas'){ try{ await sb.rpc('generar_tareas_hoy',{p_estacion:null}); }catch(e){} } // las rutinas de hoy, por si la tarea programada no ha corrido
   const q=()=>{ let x=sb.from(tabla).select('*'); if(tabla==='tareas') x=x.neq('estado','cancelada'); return x; };
+  if(esLogistica()) return await sel(q().eq('para_rol','logistica').order('creada_en',{ascending:false}).limit(120)); // sus tareas no llevan gasolinera
   let rows=await sel(q().eq('estacion_id',S.config.estacionId).order('creada_en',{ascending:false}).limit(120));
-  if(esCentral()) rows=rows.concat(await sel(q().eq('para_rol','central').order('creada_en',{ascending:false}).limit(60)));
+  if(esCentral()) for(const r of ['central','logistica']) rows=rows.concat(await sel(q().eq('para_rol',r).order('creada_en',{ascending:false}).limit(60)));
   const vistos=new Set(); return rows.filter(r=>!vistos.has(r.id)&&vistos.add(r.id)); }
 const ordenPend=(a,b)=>(a.vence||'9999')<(b.vence||'9999')?-1:(a.vence||'9999')>(b.vence||'9999')?1:0;
 // Grupo "Tareas" del menú (igual en Central, Oficina y Estación): Avisos al kiosko · Elaborar tarea (quien puede mandar) · Mis tareas (a quien le mandan).
@@ -2524,12 +2754,12 @@ function formaTarea(alTerminar){
   const vence=h('input',{type:'date',id:'nt-vence',min:nowMX().fecha}); const diaS=h('select',{id:'nt-dia-sem'},...DIAS_SEM.map((d,i)=>h('option',{value:String(i+1)},d[0].toUpperCase()+d.slice(1))));
   const diaM=h('select',{id:'nt-dia-mes'},...Array.from({length:28},(_,i)=>h('option',{value:String(i+1)},'Día '+(i+1))));
   const donde=h('div',{}); const cuando=h('div',{});
-  const pinta=()=>{ donde.innerHTML=''; if(para.value!=='central'){ donde.append(h('p',{class:'small muted',style:'margin:0'}, ESTACION)); if(varias) donde.append(h('label',{class:'row',style:'gap:10px;align-items:center;cursor:pointer;margin-top:6px'},todas,h('span',{},'En todas las gasolineras'))); }
+  const pinta=()=>{ donde.innerHTML=''; if(!sinGasolinera(para.value)){ donde.append(h('p',{class:'small muted',style:'margin:0'}, ESTACION)); if(varias) donde.append(h('label',{class:'row',style:'gap:10px;align-items:center;cursor:pointer;margin-top:6px'},todas,h('span',{},'En todas las gasolineras'))); }
     cuando.innerHTML=''; cuando.append(rep.value===''? h('label',{class:'f'},h('span',{class:'l'},'Fecha límite (opcional)'),vence) : rep.value==='semanal'? h('label',{class:'f'},h('span',{class:'l'},'Qué día'),diaS) : rep.value==='mensual'? h('label',{class:'f'},h('span',{class:'l'},'Qué día del mes'),diaM) : h('span',{})); };
   rep.addEventListener('change',pinta); para.addEventListener('change',pinta); pinta();
   const btn=h('button',{class:'btn primary big block',id:'nt-asignar'},'Asignar');
   btn.addEventListener('click', async()=>{ const tt=titulo.value.trim(); if(tt.length<3){ toast('Escribe qué hay que hacer.'); titulo.focus(); return; } btn.disabled=true;
-    const ests= para.value==='central'? [null] : (varias && todas.checked? S.estaciones.map(e=>e.id) : [S.config.estacionId]);
+    const ests= sinGasolinera(para.value)? [null] : (varias && todas.checked? S.estaciones.map(e=>e.id) : [S.config.estacionId]);
     try{ for(const e of ests){
         if(rep.value==='') await rpc('crear_tarea',{p_para:para.value, p_estacion:e, p_titulo:tt, p_detalle:detalle.value.trim()||null, p_pide_foto:foto.checked, p_vence:vence.value||null});
         else await rpc('crear_rutina',{p_para:para.value, p_estacion:e, p_titulo:tt, p_detalle:detalle.value.trim()||null, p_pide_foto:foto.checked, p_frecuencia:rep.value, p_dia:rep.value==='semanal'?Number(diaS.value):rep.value==='mensual'?Number(diaM.value):null}); }
@@ -2574,6 +2804,9 @@ async function kioscoAvisos(cont){ if(esApk()) return;
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  viaje:'<path d="M2.5 6.5h11v9h-11z"/><path d="M13.5 9.5h4l3 3.2v2.8h-7"/><circle cx="6.5" cy="17" r="1.7"/><circle cx="16.8" cy="17" r="1.7"/>',
+  unidad:'<path d="M3 8.5h12v7H3z"/><path d="M15 11h3.2l2.3 2.5v2H15"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/><path d="M6 8.5v-2h6v2"/>',
+  catalogo:'<path d="M5 4.5h11a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3v-12Z"/><path d="M5 16.5a3 3 0 0 1 3-3h11"/><path d="M9 8.5h6"/>',
   tareamas:'<path d="M4 6h12M4 11h9M4 16h6"/><path d="M17.5 13.5v6M14.5 16.5h6"/>',
   aviso:'<path d="M4 10v4h3l6 4V6l-6 4H4Z"/><path d="M16.5 9.5a4 4 0 0 1 0 5M19 7a7.5 7.5 0 0 1 0 10"/>',
   tarea:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.3 1.3L7.3 4.8M3.5 12l1.3 1.3 2.5-2.5M3.5 18l1.3 1.3 2.5-2.5"/>',
@@ -2610,13 +2843,15 @@ const ICONS={
 };
 function ico(nombre, tam){ const sp=h('span',{class:'ic'}); sp.innerHTML=`<svg viewBox="0 0 24 24" width="${tam||20}" height="${tam||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[nombre]||''}</svg>`; return sp; }
 
-const MODULOS={central:['Central','<path d="M12 3.2 21 8l-9 4.8L3 8l9-4.8Z" fill="currentColor" stroke="none"/><path d="M3.6 12.3 12 16.8l8.4-4.5"/><path d="M3.6 16.4 12 20.9l8.4-4.5"/>'], oficina:['Oficina',null], kiosko:['Kiosko',null], logistica:['Logística',null],
+const MODULOS={central:['Central','<path d="M12 3.2 21 8l-9 4.8L3 8l9-4.8Z" fill="currentColor" stroke="none"/><path d="M3.6 12.3 12 16.8l8.4-4.5"/><path d="M3.6 16.4 12 20.9l8.4-4.5"/>'], oficina:['Oficina',null], kiosko:['Kiosko',null],
+  // Pictograma de Logística: trazo vectorizado del maestro HD del kit (marca/om-logistica-trazo.txt), no redibujado.
+  logistica:['Logística','<path fill-rule="evenodd" fill="currentColor" stroke="none" d="M18.75 11.96 18.43 12.06 17.95 12.35 17.44 12.95 17.25 13.41 17.25 14.33 17.35 14.64 17.61 15.08 18.21 15.61 18.84 15.83 19.57 15.80 20.24 15.49 20.80 14.91 20.99 14.50 21.09 13.75 21.01 13.39 20.77 12.83 20.10 12.18 19.57 11.96ZM18.94 12.93 19.30 12.93 19.57 13.05 19.95 13.46 20.02 13.73 19.95 14.21 19.69 14.55 19.47 14.67 18.79 14.67 18.38 14.33 18.29 14.14 18.29 13.56 18.41 13.32ZM5.81 11.96 5.01 12.37 4.70 12.71 4.41 13.27 4.31 13.63 4.31 14.11 4.53 14.81 5.28 15.58 5.83 15.80 6.65 15.80 7.33 15.51 8.01 14.81 8.22 14.02 8.15 13.32 7.91 12.78 7.35 12.25 6.75 11.96ZM6.15 12.95 6.46 12.95 6.82 13.12 7.09 13.41 7.19 13.73 7.11 14.21 6.97 14.43 6.68 14.64 6.34 14.74 5.74 14.57 5.54 14.40 5.38 14.04 5.38 13.65 5.47 13.44 5.76 13.12ZM23.50 8.58 22.49 7.21 20.82 4.65 20.41 3.88 20.07 3.49 19.78 3.35 16.16 3.32 16.02 3.37 15.85 3.64 15.87 11.02 15.73 11.19 15.51 11.29 14.88 11.29 14.62 10.81 1.15 10.81 0.93 11.00 0.93 11.31 0.52 11.60 0.52 13.07 0.62 13.22 1.39 13.41 1.54 13.70 1.68 13.80 3.59 13.80 3.83 12.88 4.10 12.40 4.55 11.87 5.13 11.48 5.64 11.29 6.58 11.24 7.38 11.48 7.81 11.75 8.27 12.18 8.66 12.81 8.90 13.80 16.53 13.80 16.84 12.66 17.49 11.87 17.85 11.60 18.38 11.36 18.84 11.26 19.49 11.26 20.39 11.58 21.01 12.08 21.50 12.86 21.74 13.80 22.63 13.80 23.31 13.39 23.50 13.17 23.50 11.84 23.33 11.75 23.02 11.75 22.94 11.65 22.94 11.22 23.09 11.07 23.40 11.00 23.50 10.88ZM17.54 5.25 17.64 5.18 19.86 5.21 21.18 7.26 21.47 7.84 21.38 7.91 17.64 7.96 17.51 7.84ZM1.03 1.20 0.86 1.63 0.84 9.72 0.96 9.91 1.30 10.01 14.38 9.98 14.81 9.91 14.91 1.42 14.69 0.98 14.38 0.69 13.92 0.50 2.00 0.50 1.51 0.69ZM3.06 2.84 3.37 2.58 11.77 2.58 12.11 2.87 12.18 3.06 12.13 7.91 11.87 8.20 11.63 8.30 3.30 8.30 2.96 7.89 2.94 7.47 2.96 3.03Z"/>','0 0 24 16.33',[23,15.65]],
   // Pictograma de Estación: trazo vectorizado del maestro HD del kit (marca/om-estacion-trazo.txt), no redibujado.
   estacion:['Estación','<path fill-rule="evenodd" fill="currentColor" stroke="none" d="M17.15 11.93 17.15 14.06 17.45 14.12 19.22 14.08 19.24 11.95ZM6.65 10.12 6.63 10.50 6.93 10.93 6.96 11.34 7.08 11.41 7.23 11.15 7.21 10.68 7.10 10.42 6.78 10.14ZM19.41 10.05 19.35 10.20 19.50 10.85 19.60 11.84 19.61 14.08 21.78 14.10 21.84 12.16 21.80 11.97 19.74 11.92 19.69 11.84 19.71 10.08 19.65 10.01ZM16.14 8.10 16.06 8.35 16.08 13.35 16.14 13.92 16.47 14.03 16.64 14.18 16.76 14.18 16.81 14.10 16.87 9.94 16.96 9.80 18.34 9.75 22.04 9.77 22.12 9.97 22.12 14.06 22.23 14.18 22.98 14.14 23.00 8.65 22.45 7.97 22.29 7.90 16.62 7.88 16.42 7.92ZM23.50 14.89 23.43 14.68 23.31 14.57 23.16 14.53 16.74 14.53 16.59 14.48 16.47 14.33 16.33 14.25 15.69 14.27 15.63 14.21 15.65 5.25 15.71 5.19 20.55 4.31 20.64 4.27 20.60 4.20 17.11 3.47 16.55 3.43 14.44 3.86 10.78 4.72 1.36 6.70 1.19 6.80 3.49 7.34 3.55 7.39 3.55 9.64 3.64 9.71 3.83 9.51 4.12 9.36 4.93 9.32 4.97 7.19 5.06 7.11 13.11 5.66 13.92 5.56 13.97 5.82 13.92 9.71 13.97 10.61 13.99 14.18 13.92 14.27 13.22 14.27 13.15 14.18 13.13 14.01 12.94 13.78 12.63 13.58 12.63 11.92 12.70 11.71 12.61 11.26 12.59 9.94 12.50 9.77 12.27 9.64 10.42 9.62 10.18 9.71 9.99 9.90 9.94 10.03 9.92 11.30 9.69 11.41 9.15 11.84 9.02 12.10 8.95 12.59 8.95 13.19 9.11 13.47 9.24 13.54 9.41 13.54 9.82 13.26 9.90 13.32 9.88 13.60 9.52 13.88 9.39 14.25 7.04 14.29 6.95 14.03 6.61 13.67 6.35 13.60 6.33 12.40 6.39 11.86 6.48 11.92 6.52 12.05 6.52 12.98 6.55 13.22 6.67 13.43 6.89 13.58 7.19 13.50 7.38 13.24 7.39 13.00 7.32 12.74 7.19 12.66 7.15 13.04 7.04 13.19 6.89 13.17 6.80 13.02 6.80 12.07 6.70 11.50 6.63 11.37 6.40 11.32 6.33 11.24 6.31 9.84 6.07 9.67 4.27 9.62 3.98 9.75 3.81 10.03 3.77 11.26 3.10 11.80 2.97 12.03 2.89 12.46 2.87 13.09 2.97 13.39 3.13 13.56 3.28 13.60 3.79 13.50 3.81 13.58 3.66 13.82 3.30 14.06 3.30 14.20 3.23 14.27 1.14 14.27 0.52 14.83 0.59 15.09 1.38 15.15 23.39 15.13 23.50 15.02ZM9.62 14.14 9.71 14.03 9.88 13.97 12.66 13.95 12.79 14.06 12.81 14.21 12.74 14.27 9.67 14.25ZM3.62 14.21 3.73 13.99 3.94 13.95 6.50 13.97 6.63 14.20 6.53 14.29 3.68 14.27ZM9.80 11.86 9.84 11.99 9.79 12.94 9.62 13.22 9.45 13.24 9.30 13.13 9.24 12.98 9.34 12.44 9.47 12.10 9.67 11.88ZM3.71 11.84 3.75 11.97 3.69 12.12 3.68 13.00 3.56 13.17 3.34 13.21 3.23 13.04 3.27 12.53 3.51 11.99 3.62 11.86ZM4.39 10.20 5.82 10.14 5.88 10.20 5.86 11.21 4.44 11.22 4.39 11.17ZM12.10 10.18 12.10 11.17 12.03 11.24 10.91 11.24 10.48 11.19 10.50 10.16 12.03 10.12ZM21.74 2.33 21.61 2.01 21.37 1.83 17.32 0.57 16.96 0.50 16.31 0.52 9.62 2.31 0.91 4.54 0.71 4.65 0.52 4.93 0.50 6.24 0.63 6.42 8.42 4.74 16.44 2.91 17.05 2.91 20.68 3.75 21.56 3.90 21.73 3.71Z"/>','0 0 24 15.65',[24,15.65]]};
 const LOGO_MOD={};
 function logoModulo(mod, extra){ const kk=mod+'|'+(extra||''); if(LOGO_MOD[kk]) return LOGO_MOD[kk];
   const [nom,svg,vb,tam]=MODULOS[mod]||[mod,null]; const mi=ico('cortes',19); mi.className='mi'; { const sv=mi.querySelector('svg'); if(svg) sv.innerHTML=svg; if(vb) sv.setAttribute('viewBox',vb); if(tam){ sv.setAttribute('width',tam[0]); sv.setAttribute('height',tam[1]); } }
-  return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else if(S.rol==='encargado') encTab='chat'; else adminTab='chat'; render(); }},
+  return LOGO_MOD[kk]=h('a',{class:'modulo '+mod+(extra?' '+extra:''),href:'#',title:'Own Manager '+nom,onclick:e=>{ e.preventDefault(); if(S.rol==='oficina') oficinaTab='chat'; else if(S.rol==='encargado') encTab='chat'; else if(S.rol==='logistica'){ logTab='lviajes'; logAlElegir('lviajes'); } else adminTab='chat'; render(); }},
     h('img',{class:'wm',src:'marca/om-logo-transparente.png',alt:'Own Manager'}), h('span',{class:'dv'}), mi, h('span',{class:'mn'},nom)); }
 // Menú lateral por grupos. Abrir o cerrar un grupo solo toca el menú (no se vuelve a pintar la pantalla),
 // y cada grupo se queda abierto hasta que el usuario lo cierra. Al recargar la página todos arrancan cerrados:
@@ -3746,7 +3981,7 @@ async function revisarVersion(){
   try{
     const r=await fetch('version.json?ts='+Date.now(),{cache:'no-store'}); if(!r.ok) return; const j=await r.json(); const v=j&&j.version; if(!v || !versionMayor(v, OM_VERSION)) return;
     // Sin trabajo a medias (entrada, PIN, inicio): se actualiza sola. Con un corte abierto: aviso con botón.
-    const tranquilo = !S.corte && ['login','home','admin','oficina'].includes(S.screen||'login') && !document.querySelector('#om-trabajando');
+    const tranquilo = !S.corte && (['login','home','admin','oficina'].includes(S.screen||'login') || (S.screen==='logistica' && LOG.vista!=='forma')) && !(S.screen==='admin' && adminTab==='lviajes' && LOG.vista==='forma') && !document.querySelector('#om-trabajando');
     if(tranquilo && !S.rol){ aplicarVersion(v); return; }
     if(tranquilo && S.rol==='kiosco'){ aplicarVersion(v); return; }
     if($('#om-nueva')) return;
