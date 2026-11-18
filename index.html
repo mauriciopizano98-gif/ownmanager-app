@@ -695,7 +695,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.9.0';
+const OM_VERSION='1.9.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1026,6 +1026,11 @@ async function logout(){ const t=S.token; S.me=null; S.corte=null; S.frames=[]; 
 // ---- TURNO DE NOCHE (velador): dos tramos (22–24 y 00–06), isla nocturna preseleccionada, las demás cerradas solas.
 function turnosNoche(){ return (S.config.turnos||[]).filter(t=>Number(t.noche)>=1).sort((a,b)=>Number(a.noche)-Number(b.noche)); }
 function hayModoNoche(){ return turnosNoche().length===2; }
+// Etiquetas de la noche según el horario de la estación (22–24 / 00–06 en Energéticos; 21–24 / 00–05 en Grupo Pizano).
+function etqNoche(){ const [a,b]=turnosNoche(); const hh=(x,fin)=>{ const n=Number(String(x||'').split(':')[0])||0; return (fin&&n===0)?24:n; }; const p=n=>String(n).padStart(2,'0');
+  if(!a||!b) return { ini:'22', med:'24', fin:'6', r1:'22–24', r2:'00–06' };
+  const i=hh(a.inicio), m=hh(a.fin,true), i2=hh(b.inicio), f=hh(b.fin,true);
+  return { ini:String(i), med:String(m), fin:String(f), r1:p(i)+'–'+p(m), r2:p(i2)+'–'+p(f) }; }
 // Ventana en la que la pantalla ofrece primero el turno de noche: 23:00 → 07:30 (los turnos de día siguen disponibles abajo).
 function esHorarioNoche(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=23*60 || m<7*60+30; } // modo noche (veladores): 23:00–07:30
 function esEntradaNoche(){ const t=nowMX(); const m=t.hora*60+t.min; return m>=23*60 || m<7*60; }    // entrada solo con veladores: 23:00–07:00
@@ -1131,7 +1136,7 @@ async function empezarTramo(st, tramo, isla){
   try{
     if(tramo===1){
       for(const i of S.config.islas){ if(i.id===isla.id) continue; const x=estados.find(y=>y.isla===i.id); if(x&&(x.estado==='enviado'||x.estado==='omitida'||x.estado==='abierto')) continue;
-        await rpc('registrar_isla_omitida',{p_token:S.token, p_isla:i.uuid, p_fecha:fecha, p_turno:turno, p_motivo:'Bomba cerrada en la noche (sin venta) · tramo 22–24'}); }
+        await rpc('registrar_isla_omitida',{p_token:S.token, p_isla:i.uuid, p_fecha:fecha, p_turno:turno, p_motivo:'Bomba cerrada en la noche (sin venta) · tramo '+etqNoche().r1}); }
     }
     const x=estados.find(y=>y.isla===isla.id && y.estado==='abierto');
     const id = x? x.id : await rpc('abrir_corte',{p_token:S.token, p_isla:isla.uuid, p_fecha:fecha, p_turno:turno});
@@ -2129,6 +2134,7 @@ function reducirLogo(file){ return new Promise((res,rej)=>{ if(!/^image\/(png|jp
 // A medianoche no se imprime nada; a las 6 sale este. Se arma con los cortes del propio velador (mi_corte).
 async function generarPDFNoche(st){
   if(!window.jspdf) throw new Error('No se cargó el generador de PDF.');
+  const EN=etqNoche();
   const i1=islaNocturna();
   const traer=async(x)=>{ if(!x||!x.id) return null; try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); return j? corteDesdeServidor(j):null; }catch(_){ return null; } };
   const c1=await traer(st.e1.find(y=>y.isla===i1.id)), c2=await traer(st.e2.find(y=>y.isla===i1.id));
@@ -2164,13 +2170,13 @@ async function generarPDFNoche(st){
   const l1=(c1&&c1.lecturas)||[], l2=(c2&&c2.lecturas)||[]; const claves=[...new Set([...l1,...l2].map(l=>l.manguera))];
   const filasL=claves.map(k=>{ const a=l1.find(l=>l.manguera===k), b=l2.find(l=>l.manguera===k); return [k,(a||b||{}).producto||'', a&&a.inicial!=null?fmtL(a.inicial):'—', a&&a.final!=null?fmtL(a.final):'—', a&&a.litros!=null?fmtL(a.litros):'—', b&&b.final!=null?fmtL(b.final):'—', b&&b.litros!=null?fmtL(b.litros):'—', fmtL((a&&a.litros||0)+(b&&b.litros||0))]; });
   filasL.push(Object.assign(['Total','','','',fmtL(lit(c1)),'',fmtL(lit(c2)),fmtL(lit(c1)+lit(c2))],{bold:true}));
-  tabla([{t:'Manguera',w:22},{t:'Producto',w:20},{t:'Inicial 22h',w:25,a:'right'},{t:'Final 24h',w:25,a:'right'},{t:'L 22–24',w:20,a:'right'},{t:'Final 6h',w:25,a:'right'},{t:'L 00–06',w:20,a:'right'},{t:'L noche',w:25,a:'right'}],filasL,{pagina:1,total:TOTAL,titulo:'Lecturas'});
+  tabla([{t:'Manguera',w:22},{t:'Producto',w:20},{t:'Inicial '+EN.ini+'h',w:25,a:'right'},{t:'Final '+EN.med+'h',w:25,a:'right'},{t:'L '+EN.r1,w:20,a:'right'},{t:'Final '+EN.fin+'h',w:25,a:'right'},{t:'L '+EN.r2,w:20,a:'right'},{t:'L noche',w:25,a:'right'}],filasL,{pagina:1,total:TOTAL,titulo:'Lecturas'});
   txt(M,y,'Venta por producto',{b:true,s:11}); y+=3;
   const prods=[...new Set([...Object.keys((c1&&c1.venta&&c1.venta.porProducto)||{}),...Object.keys((c2&&c2.venta&&c2.venta.porProducto)||{})])];
   const vp=(c,p)=>(c&&c.venta&&c.venta.porProducto&&c.venta.porProducto[p])||{litros:0,importe:0,precio:null};
   const filasV=prods.map(p=>[p, fmtL(vp(c1,p).litros)+' L', vp(c1,p).precio!=null?fmtMXN(vp(c1,p).importe):'—', fmtL(vp(c2,p).litros)+' L', vp(c2,p).precio!=null?fmtMXN(vp(c2,p).importe):'—', fmtMXN((Number(vp(c1,p).importe)||0)+(Number(vp(c2,p).importe)||0))]);
   filasV.push(Object.assign(['Total',fmtL(lit(c1))+' L',vimp(c1)!=null?fmtMXN(vimp(c1)):'—',fmtL(lit(c2))+' L',vimp(c2)!=null?fmtMXN(vimp(c2)):'—',fmtMXN((vimp(c1)||0)+(vimp(c2)||0))],{bold:true}));
-  tabla([{t:'Producto',w:32},{t:'L 22–24',w:28,a:'right'},{t:'$ 22–24',w:30,a:'right'},{t:'L 00–06',w:28,a:'right'},{t:'$ 00–06',w:30,a:'right'},{t:'$ noche',w:34,a:'right'}],filasV,{pagina:1,total:TOTAL,titulo:'Venta'});
+  tabla([{t:'Producto',w:32},{t:'L '+EN.r1,w:28,a:'right'},{t:'$ '+EN.r1,w:30,a:'right'},{t:'L '+EN.r2,w:28,a:'right'},{t:'$ '+EN.r2,w:30,a:'right'},{t:'$ noche',w:34,a:'right'}],filasV,{pagina:1,total:TOTAL,titulo:'Venta'});
   pie(1,TOTAL);
   // ---------- Página 2: dinero por tramo, otras islas y firmas
   doc.addPage(); cabecera('Dinero por tramo · comprobación de las otras islas');
@@ -2183,7 +2189,7 @@ async function generarPDFNoche(st){
   tabla([{t:'',w:62},{t:t1n,w:40,a:'right'},{t:t2n,w:40,a:'right'},{t:'Noche',w:40,a:'right'}],filasD,{pagina:2,total:TOTAL,titulo:'Dinero'});
   const coment=[c1&&c1.dinero&&c1.dinero.comentario?`${t1n}: ${c1.dinero.comentario}`:null, c2&&c2.dinero&&c2.dinero.comentario?`${t2n}: ${c2.dinero.comentario}`:null].filter(Boolean);
   if(coment.length){ txt(M,y,'Comentarios: '+coment.join(' · '),{s:8,c:GRIS,mw:W-2*M}); y+=10; }
-  txt(M,y,'Otras islas a las 6 (comprobación)',{b:true,s:11}); y+=3;
+  txt(M,y,'Otras islas a las '+EN.fin+' (comprobación)',{b:true,s:11}); y+=3;
   const filasO=otras.map(o=>{ const c=o.c; const x=o.x; const l=(c&&c.lecturas)||[]; const lt=c&&c.totales?Number(c.totales.litros)||0:l.reduce((a,q)=>a+(Number(q.litros)||0),0);
     const estado = !x? 'Sin corte' : x.estado==='omitida'? 'Cerrada' : (c&&c.dinero&&c.dinero.sinVentas)? 'Sin ventas (inicial = final, leído por la IA)' : x.estado==='enviado'? (lt>0.05?'Con venta · '+fmtL(lt)+' L':'Enviada') : 'Abierta';
     return Object.assign([o.isla.nombre, estado, c&&c.enviadoEn?fmtHora(c.enviadoEn):'—', fmtL(lt)+' L'],{color: lt>0.05?ROJO:NOCHE}); });
