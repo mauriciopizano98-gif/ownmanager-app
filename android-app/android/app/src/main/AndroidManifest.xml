@@ -35,6 +35,10 @@
 
         </activity>
 
+        <!-- Notificaciones (Firebase): ícono blanco derivado del isotipo oficial y acento lima. -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_om" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/om_lima" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -49,4 +53,7 @@
     <!-- Permisos -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Notificaciones (Android 13+ pide permiso al usuario) y vibración de la franja de aviso dentro de la app. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>
