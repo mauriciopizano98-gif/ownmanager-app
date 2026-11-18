@@ -242,6 +242,12 @@ button.lu-zona:hover{border-color:var(--z);background:color-mix(in srgb,var(--z)
 .lu-fotos .t img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface2);display:block}
 .lu-fotos .mas{aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1.5px dashed var(--line2);border-radius:var(--r-sm);background:transparent;color:var(--muted);font:500 13px var(--font-body);cursor:pointer}
 .lu-fotos .mas:hover{border-color:var(--mod-ink);color:var(--fg)}
+#om-push{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9000;display:flex;flex-direction:column;gap:8px;align-items:center;padding:0 10px;pointer-events:none}
+#om-push .f{pointer-events:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;max-width:560px;box-sizing:border-box;padding:12px 14px;border-radius:var(--r);background:var(--surface);border:1.5px solid var(--brand);box-shadow:0 10px 30px rgba(0,0,0,.28);animation:om-push-in .25s ease-out}
+#om-push .ic{flex:none;width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--brand);color:#0B0F14;line-height:0}
+#om-push .tx{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;gap:2px}
+#om-push .tx b{font-size:15px}#om-push .tx span{font-size:14px;color:var(--muted)}
+@keyframes om-push-in{from{transform:translateY(-14px);opacity:0}to{transform:none;opacity:1}}
 .lv-cuenta{display:flex;flex-direction:column;gap:0;padding:6px 16px}
 .lv-cuenta .r{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
 .lv-cuenta .r:first-child{border-top:0}
@@ -689,7 +695,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='1.8.1';
+const OM_VERSION='1.9.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -898,6 +904,7 @@ async function entrarConCuenta(){
     S.usuario=u; S.rol=u.rol; S.isOwner=esTablero();
     await cargarConfig();
   }catch(e){ renderNoDb('No se pudo cargar la estación: '+(e.message||e.code)); return; }
+  pushIniciar(); // notificaciones del teléfono (solo en la APK que las trae); no espera ni estorba la entrada
   // sesión de despachador pendiente (recarga de página)
   const t=tokenGuardado(); if(t && S.rol==='kiosco'){ try{ const me=JSON.parse(sessionStorage.getItem('om_me')||'null'); await rpc('mis_cortes',{p_token:t}); S.token=t; S.me=me; }catch(e){ guardarToken(null); } }
   if(S.rol==='oficina'){ S.screen='oficina'; } else if(S.rol==='encargado'){ S.screen='encargado'; } else if(S.rol==='logistica'){ S.screen='logistica'; } else if(esTablero()){ S.adminOk=true; S.screen='admin'; } else S.screen = S.me ? 'home' : 'login';
@@ -933,7 +940,7 @@ function setBrand(){ const b=$('#brand'); if(!b) return; b.innerHTML='';
   else b.append(h('img',{class:'om',src:'marca/om-icono-oscuro.png',alt:''}), h('span',{class:'nm'},'OwnManager', h('small',{},'Corte por turno'))); }
 function medirLogo(){ const c=S.config; if(!c||!c.logoData) return; const im=new Image(); im.onload=()=>{ if(S.config===c) c.logoRatio=im.naturalHeight?im.naturalWidth/im.naturalHeight:null; }; im.src=c.logoData; }
 function renderNoDb(msg){ app.innerHTML=''; app.append(h('div',{class:'card empty'}, h('b',{},'No se pudo entrar'), msg||'', h('button',{class:'btn block',style:'margin-top:10px',onclick:cerrarCuenta},'Cerrar cuenta'))); }
-async function cerrarCuenta(){ try{ if(S.token) await rpc('cerrar_sesion',{p_token:S.token}); }catch(e){} guardarToken(null); S.token=null; S.me=null; S.corte=null; S.adminOk=false; await sb.auth.signOut(); }
+async function cerrarCuenta(){ try{ if(S.token) await rpc('cerrar_sesion',{p_token:S.token}); }catch(e){} await pushQuitar(); guardarToken(null); S.token=null; S.me=null; S.corte=null; S.adminOk=false; await sb.auth.signOut(); }
 // Kiosco: salir de la cuenta de la estación está escondido para que el velador no se tope con correo y contraseña (decisión de Mauricio, 13-nov-2026):
 // 4 toques seguidos al logo Om de arriba a la izquierda (en menos de 3 s) → confirmar → se cierra la cuenta.
 let toquesLogo=[];
@@ -2461,6 +2468,59 @@ async function adminDescargas(){
   catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   cont.innerHTML=''; cont.append(listaDescargas(rows, d=>{ DESC.detalle=d; render(); }));
 }
+
+// ---- NOTIFICACIONES EN EL TELÉFONO (APK) (17-nov-2026)
+// Qué se avisa lo decide la base (migración 049) y lo entrega la función "notificar" por Firebase. Aquí solo:
+//   1) se registra el teléfono a nombre de la cuenta que entró (solo en la APK que ya trae notificaciones; en la anterior no hace nada),
+//   2) si el aviso llega con la app abierta se muestra como franja arriba (en un teléfono fijo en la app no se ve la barra de Android),
+//   3) al tocar el aviso se abre la pantalla que corresponde.
+// Además, en los celulares del Kiosko el aviso "faltan 5 minutos para el corte" se muestra con el reloj del propio teléfono,
+// así funciona aunque Firebase no esté configurado; la clave evita mostrarlo dos veces si también llega por Firebase.
+const PUSH={ plugin:null, oyentes:false, token:null, vistos:{} };
+function cargarScript(src){ return new Promise((ok,mal)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>mal(new Error('No se pudo cargar '+src)); document.head.append(s); }); }
+async function pushIniciar(){
+  try{ const C=window.Capacitor; if(!esApk() || !C || typeof C.isPluginAvailable!=='function' || !C.isPluginAvailable('PushNotifications')) return; // navegador o APK anterior
+    if(!window.capacitorExports) await cargarScript('vendor/capacitor-6.2.1.js');
+    const P=PUSH.plugin||(PUSH.plugin=window.capacitorExports.registerPlugin('PushNotifications'));
+    if(!PUSH.oyentes){ PUSH.oyentes=true;
+      P.addListener('registration', t=>{ PUSH.token=t&&t.value; pushGuardar(); });
+      P.addListener('registrationError', e=>console.warn('notificaciones', e));
+      P.addListener('pushNotificationReceived', n=>{ const d=(n&&n.data)||{}; pushFranja({ titulo:n.title||d.titulo, cuerpo:n.body||d.cuerpo, datos:d, clave:d.tipo==='corte_proximo'? 'corte:'+d.fin : d.aviso }); });
+      P.addListener('pushNotificationActionPerformed', a=>pushAbrir(((a&&a.notification&&a.notification.data))||{})); }
+    let p=await P.checkPermissions(); if(p.receive!=='granted' && p.receive!=='denied') p=await P.requestPermissions();
+    if(p.receive!=='granted') return;
+    if(PUSH.token) pushGuardar(); else await P.register();
+  }catch(e){ console.warn('notificaciones', e); }
+}
+async function pushGuardar(){ if(!PUSH.token || !S.usuario) return; try{ await rpc('registrar_dispositivo',{p_token:PUSH.token, p_plataforma:'android'}); }catch(e){ console.warn('notificaciones', e); } }
+async function pushQuitar(){ if(!PUSH.token) return; try{ await rpc('quitar_dispositivo',{p_token:PUSH.token}); }catch(e){} }
+// Franja de aviso con la app abierta. No tapa los botones de abajo y se quita al tocar "Entendido" (o sola, si trae duración).
+function pushFranja({titulo, cuerpo, datos, clave, dura}){
+  if(clave){ if(PUSH.vistos[clave]) return; PUSH.vistos[clave]=true; }
+  let caja=document.getElementById('om-push'); if(!caja){ caja=h('div',{id:'om-push'}); document.body.append(caja); }
+  const f=h('div',{class:'f',role:'status'}, h('span',{class:'ic'},ico('aviso',20)), h('div',{class:'tx'}, h('b',{},titulo||'Aviso'), cuerpo? h('span',{},cuerpo):null));
+  const quitar=()=>{ f.remove(); if(!caja.children.length) caja.remove(); };
+  if(datos && datos.tipo && datos.tipo!=='corte_proximo') f.append(h('button',{class:'btn sm',onclick:()=>{ quitar(); pushAbrir(datos); }},'Ver'));
+  f.append(h('button',{class:'btn sm ghost',onclick:quitar},'Entendido')); caja.append(f);
+  try{ if(navigator.vibrate) navigator.vibrate([180,90,180]); }catch(e){}
+  if(dura) setTimeout(quitar, dura);
+}
+// Al tocar un aviso: a la pantalla donde se atiende.
+function pushAbrir(d){ try{ const t=d&&d.tipo; if(!t || !S.usuario) return;
+    if(t==='tarea_nueva'){ TAR.vista='lista'; TAR.t=null; if(S.rol==='encargado'){ encTab='tareas'; go('encargado'); } else if(S.rol==='oficina'){ oficinaTab='tareas'; go('oficina'); } else if(S.rol==='logistica'){ logTab='tareas'; go('logistica'); } else if(esTablero()){ adminTab='tareas'; go('admin'); } }
+    else if(t==='tarea_hecha' && esTablero()){ adminTab='elaborar'; go('admin'); }
+    else if(t==='descarga_enviada' && esTablero()){ DESC.detalle=null; adminTab='descargas'; go('admin'); }
+  }catch(e){ console.warn('notificaciones', e); } }
+// Celulares del Kiosko: 5 minutos antes de que termine cada turno. Se revisa cada 20 segundos con el reloj del teléfono.
+function avisoCorteLocal(){ try{ if(!esApk() || S.rol!=='kiosco' || !S.config || !Array.isArray(S.config.turnos) || S.corte) return; // con un corte ya abierto no hace falta recordarlo
+    const a=nowMX(); const ahora=a.hora*60+a.min;
+    for(const t of S.config.turnos){ const m=/^(\d{1,2}):(\d{2})/.exec(String(t.fin||'')); if(!m) continue; const fin=Number(m[1])*60+Number(m[2]);
+      const falta=((fin-ahora)%1440+1440)%1440; if(falta<1 || falta>5) continue;
+      // misma clave que usa el servidor: la fecha y hora en que termina el turno
+      const dia= fin<ahora? addDays(a.fecha,1) : a.fecha; const finTxt=`${dia}T${String(m[1]).padStart(2,'0')}:${m[2]}`;
+      pushFranja({ titulo: falta===1?'Corte de turno en 1 minuto':`Corte de turno en ${falta} minutos`, cuerpo:'Empecemos a tomar lecturas.', datos:{tipo:'corte_proximo'}, clave:'corte:'+finTxt, dura:(falta+2)*60000 }); }
+  }catch(e){} }
+setInterval(avisoCorteLocal, 20000); window.__avisoCorte=avisoCorteLocal; // gancho para pruebas
 
 // ---- LOGÍSTICA (16-nov-2026): viajes con su costo y lo cobrado, para ver la utilidad de cada uno.
 // La oficina de Logística (rol 'logistica') los da de alta a mano; el dueño y Contabilidad ven lo mismo en Central ▸ Logística.
