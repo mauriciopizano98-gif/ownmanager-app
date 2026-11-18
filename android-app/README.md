@@ -20,6 +20,15 @@ Lo compila GitHub Actions (`.github/workflows/android.yml`), no una computadora:
 - Deja el APK en **Releases**. El último siempre está en
   `https://github.com/mauriciopizano98-gif/ownmanager-app/releases/download/latest-apk/OwnManager.apk`.
 
+## Notificaciones (desde el APK 1.2.0)
+
+- Complemento `@capacitor/push-notifications` (Firebase Cloud Messaging). La app web registra el teléfono y la función
+  `notificar` de Supabase entrega los avisos; ver `PASO15_NOTIFICACIONES.md` en el repositorio `ownmanager`.
+- Tercer secreto del repositorio: `GOOGLE_SERVICES_JSON` (el archivo `google-services.json` de Firebase, completo, de la
+  app Android `com.ownmanager.corte`). Sin él la compilación se detiene con un mensaje claro.
+- Permisos nuevos: `POST_NOTIFICATIONS` (Android 13+ lo pregunta al usuario) y `VIBRATE`.
+- Ícono de la barra: `res/drawable-*/ic_stat_om.png`, silueta blanca del isotipo oficial (solo recoloreado); acento lima.
+
 ## Nueva versión del APK
 
 1. En `android/app/build.gradle` sube `versionCode` (entero, +1) y `versionName` (texto, p. ej. `1.0.1`).
