@@ -94,6 +94,8 @@ jobs:
           path: OwnManager.apk
 
       - name: Release con versión
+        # Solo se publica desde main: una compilación de prueba en otra rama deja el APK como artefacto y no toca la descarga.
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-v${{ steps.version.outputs.name }}-${{ github.run_number }}
@@ -105,6 +107,8 @@ jobs:
           files: OwnManager.apk
 
       - name: Release fijo "latest-apk" (siempre el último APK)
+        # Solo se publica desde main: una compilación de prueba en otra rama deja el APK como artefacto y no toca la descarga.
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-apk
