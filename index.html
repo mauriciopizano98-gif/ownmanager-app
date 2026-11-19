@@ -908,9 +908,15 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .lv-um b{font:700 17px var(--font-mono);font-stretch:80%;text-align:right;color:var(--fg)}
 .lv-um.err b{color:var(--err)}
 .lv-um>span:last-child{text-align:right;color:var(--muted);font:500 15px var(--font-mono);font-stretch:80%}
-@media (min-width:761px){
-  body[data-om-nav] #lv-nuevo{position:absolute;top:6px;right:0;margin:0!important}
-}
+/* Renglón del título con acción: el título a la izquierda y el botón de crear a la derecha, asentados en la misma línea.
+   El botón ocupa su lugar en el renglón (no flota), así nunca se encima con lo que sigue. */
+.om-main>.cab-acc{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:end}
+.om-main>.cab-acc>*{grid-column:1}
+.om-main>.cab-acc>.btn{grid-column:2;grid-row:1/span 4;align-self:end;margin:0 0 4px;white-space:nowrap}
+/* Periodo (mes): las dos flechas juntas, con el nombre en medio y ancho fijo para que no brinquen al cambiar de mes. Igual que el día en Central › Hoy. */
+.per-nav{display:flex;align-items:center;gap:10px;margin-top:18px}
+.per-nav b{font:600 16px var(--font-body);white-space:nowrap;min-width:17ch;text-align:center}
+.per-nav .btn{min-width:44px;min-height:44px;padding:0;font-size:22px;line-height:1}
 @media (max-width:760px){
   #lv-tot{grid-template-columns:repeat(2,minmax(0,1fr))}
   #lv-tot div{border-bottom:1px solid var(--line)}
@@ -1159,7 +1165,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.1.0';
+const OM_VERSION='2.1.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -3117,11 +3123,13 @@ function logChip(v){ const c=logCuenta(v);
   if(!v.carta_porte) return h('span',{class:'chip warn'},'falta carta porte');
   if(c.utilidad==null) return h('span',{class:'chip warn'},'falta lo cobrado');
   return h('span',{class:'chip '+(c.utilidad<0?'err':'ok')}, logPesos(c.utilidad)+' · '+c.margen.toFixed(0)+' %'); }
+// Botón de crear de una pantalla de lista: va en el renglón del título, a la derecha, ocupando su lugar (no flota).
+function accionTitulo(btn){ const cab=app.firstElementChild; if(cab && cab.querySelector('h1')){ cab.classList.add('cab-acc'); cab.append(btn); } else app.append(btn); return btn; }
 async function logViajes(){
   if(LOG.vista==='forma') return logForma();
   if(LOG.vista==='fin') return app.append(pantallaFin({titulo:'Viaje guardado', boton:'Terminar', onclick:()=>{ LOG.vista='lista'; LOG.viaje=null; render(); }}));
   LOG.vista='lista'; if(!LOG.mes) LOG.mes=nowMX().fecha.slice(0,7);
-  app.append(h('button',{class:'btn primary',id:'lv-nuevo',style:'margin-top:10px',onclick:()=>{ LOG.viaje=null; LOG.vista='forma'; render(); }},'Nuevo viaje'));
+  accionTitulo(h('button',{class:'btn primary',id:'lv-nuevo',onclick:()=>{ LOG.viaje=null; LOG.vista='forma'; render(); }},'Nuevo viaje'));
   const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando viajes…']));
   let rows=[], cat; try{ cat=await logCargar();
     rows=await sel(sb.from('log_viajes').select('*').gte('fecha',LOG.mes+'-01').lt('fecha',logMesMas(LOG.mes,1)+'-01').order('fecha',{ascending:false}).order('folio',{ascending:false}).limit(400)); }
@@ -3129,7 +3137,7 @@ async function logViajes(){
   cont.innerHTML=''; const nom=(lista,id)=>((lista.find(x=>x.id===id)||{}).nombre)||'—';
   const vivos=rows.filter(v=>v.estado!=='cancelado'); let cob=0, costo=0, sin=0; for(const v of vivos){ const c=logCuenta(v); if(c.cobrado==null) sin++; else { cob+=c.cobrado; costo+=c.costo; } }
   const ir=d=>()=>{ LOG.mes=logMesMas(LOG.mes,d); render(); };
-  cont.append(h('div',{class:'row between',style:'margin-top:14px;align-items:center'}, h('button',{class:'btn sm',id:'lv-mes-ant',title:'Mes anterior','aria-label':'Mes anterior',onclick:ir(-1)},'‹'), h('b',{id:'lv-mes'},logMes(LOG.mes)), h('button',{class:'btn sm',id:'lv-mes-sig',title:'Mes siguiente','aria-label':'Mes siguiente',onclick:ir(1)},'›')));
+  cont.append(h('div',{class:'per-nav'}, h('button',{class:'btn sm',id:'lv-mes-ant',title:'Mes anterior','aria-label':'Mes anterior',onclick:ir(-1)},'‹'), h('b',{id:'lv-mes'},logMes(LOG.mes)), h('button',{class:'btn sm',id:'lv-mes-sig',title:'Mes siguiente','aria-label':'Mes siguiente',onclick:ir(1)},'›')));
   const dato=(k,val,cls)=>h('div',{}, h('span',{class:'small muted'},k), h('b',{class:cls||''},val));
   cont.append(h('div',{class:'tot',id:'lv-tot',style:'margin-top:12px'}, dato('Viajes',fmtInt(vivos.length)), dato('Cobrado',fmtMXN(cob)), dato('Costo',fmtMXN(costo)),
     dato('Utilidad',logPesos(cob-costo), cob-costo<0?'lv-neg':'lv-pos'), dato('Margen', cob? ((cob-costo)/cob*100).toFixed(1)+' %':'—')));
@@ -3280,7 +3288,7 @@ function logFaltaUnidad(d){ const f=[]; const v=x=>String(x==null?'':x).trim(); 
 const logUnidadIncompleta = u => !u.linea_id || !u.anio || !u.tarjeta || !(u.fotos||[]).length || !(u.tanques||[]).length || (u.tipo!=='corto' && (u.tanques||[]).some(t=>!t.anio));
 async function logUnidades(){
   if(LOG.edita && LOG.edita.tipo==='unidades') return logUnidadForma();
-  app.append(h('button',{class:'btn primary',id:'lu-nueva',style:'margin-top:10px',onclick:()=>{ LOG.edita={tipo:'unidades', id:null}; render(); }},'Nueva unidad'));
+  accionTitulo(h('button',{class:'btn primary',id:'lu-nueva',onclick:()=>{ LOG.edita={tipo:'unidades', id:null}; render(); }},'Nueva unidad'));
   const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando…']));
   let cat; try{ cat=await logCargar(); }catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   cont.innerHTML=''; const list=h('div',{class:'list',id:'lc-lista',style:'margin-top:14px'});
