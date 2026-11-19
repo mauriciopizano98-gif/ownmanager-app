@@ -39,4 +39,9 @@ Lo compila GitHub Actions (`.github/workflows/android.yml`), no una computadora:
 
 `npm run icons` regenera los íconos a partir del ícono oficial del Manual de identidad v1.1 (`assets/om-icono-app-verde-1254.png`: cuadro lima #84FF00 con el "Om" en negro) en `android/app/src/main/res/mipmap-*`; el fondo adaptativo es lima y el splash es #0B0F14.
 
+## Archivos y PDF (desde el APK 1.3.0)
 
+El visor web de la APK no descarga archivos armados en memoria, no abre pestañas y no trae lector de PDF. Por eso
+la app guarda el archivo en la carpeta temporal (`@capacitor/filesystem`, directorio CACHE) y lo abre con el lector
+del teléfono (`@capacitor-community/file-opener`); si el teléfono no tiene con qué abrirlo, ofrece compartirlo
+(`@capacitor/share`). No pide permisos nuevos. Con un APK anterior la app avisa que hace falta la versión nueva.
