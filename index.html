@@ -172,7 +172,7 @@ body[data-om-login] .foot{display:none}
 .btn.ghost.danger{border-color:transparent}
 .btn.block{width:100%}
 .btn.big{min-height:54px;font-size:16px;border-radius:var(--r)}
-.btn[disabled]{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn[disabled]:not(.trabaja){opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .btn.sm{min-height:34px;padding:5px 12px;font-size:13px;border-radius:var(--r-xs)}
 
 /* Chips */
@@ -720,7 +720,7 @@ td.r{font-size:15px;font-weight:600}
 .btn.ghost:hover{border-color:var(--line2)}
 .btn.sm{min-height:38px;font-size:14px}
 .btn.big{min-height:60px;font-size:19px}
-.btn[disabled],.btn.primary[disabled]{background:var(--accent-soft);color:var(--muted);border-color:transparent;opacity:1}
+.btn[disabled]:not(.trabaja),.btn.primary[disabled]:not(.trabaja){background:var(--accent-soft);color:var(--muted);border-color:transparent;opacity:1}
 
 /* Campos: rótulo visible encima, 48 px, borde gris */
 label.f span.l{font-size:14px;font-weight:600;color:var(--fg);letter-spacing:0}
@@ -957,9 +957,16 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
    se espera; lo demás ocurre una vez y queda fijo; nada nace de tamaño cero;
    con "reducir movimiento" se quitan los desplazamientos.
    ===================================================================== */
-:root{--om-g1:#C6FF8A;--om-g3:#C6FF8A;--om-destello:#84FF00;--om-disco-borde:#0B0F14}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) :root{--om-destello:#FFFFFF} }
-:root[data-theme="dark"] :root{--om-destello:#FFFFFF}
+:root{--om-g1:#C6FF8A;--om-g3:#C6FF8A;--om-destello:#84FF00;--om-pista:1;--om-sello:#17663A}
+/* La luz siempre es lima. Donde el logo va en lima (tema oscuro, pantalla de entrada negra), la línea y la gota quedan tenues
+   para que la luz se note al recorrerlas; donde va en negro (tema claro), la línea queda entera. */
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--om-pista:.3;--om-sello:#84FF00} }
+:root[data-theme="dark"]{--om-pista:.3;--om-sello:#84FF00}
+.om-login,body[data-om-login]{--om-pista:.3}
+.om-splash{--om-pista:1}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .om-splash{--om-pista:.3} }
+:root[data-theme="dark"] .om-splash{--om-pista:.3}
+.om-loader:not(.fin):not(.listo) .sw,.om-loader:not(.fin):not(.listo) .gt{opacity:var(--om-pista)}
 /* 2 · Espera: el logo quieto, una luz recorre su línea y enciende la gota; el texto lleva un brillo */
 .om-loader .sw{clip-path:none;animation:none}
 .om-loader .gt{transform:none;animation:none}
@@ -968,6 +975,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .om-loader .destello{transform-box:fill-box;transform:translateX(-100%);animation:om-pasa 1.9s cubic-bezier(.4,0,.6,1) infinite}
 .om-loader svg path.chispa{fill:var(--om-destello);opacity:0;animation:om-chispa 1.9s linear infinite}
 @keyframes om-pasa{0%{transform:translateX(-100%)}62%,100%{transform:translateX(330%)}}
+@keyframes om-late{from{opacity:0}to{opacity:.95}}
 @keyframes om-chispa{0%,46%{opacity:0}58%{opacity:.95}80%,100%{opacity:0}}
 .om-loader:not(.chico) .txt{font:500 15px/1.4 var(--font-body);letter-spacing:0;min-height:21px;background:linear-gradient(90deg,var(--muted) 0 40%,var(--fg) 50%,var(--muted) 60% 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:om-brillo 1.9s linear infinite}
 .om-splash .om-loader:not(.chico) .txt{color:transparent}
@@ -980,7 +988,9 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 :root[data-theme="dark"] .om-splash{--om-stroke:#84FF00}
 .om-splash.off{opacity:0;transform:translateY(-14px) scale(.98)}
 .om-trabajando .trab-t{color:var(--fg);letter-spacing:0}
-.om-trabajando .trab-s{color:var(--muted);font:500 15px/1.45 var(--font-body)}
+.om-trabajando .trab-in{gap:10px}
+.om-trabajando .trab-t{font:600 22px/1.25 var(--font-body);margin-top:10px}
+.om-trabajando .trab-s{color:var(--fg);font:700 46px/1 var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;min-width:4ch}
 /* 1 · Entrada: el logotipo oficial aparece por partes (línea, Own, Manager) y gira la frase */
 .solo-estado{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .om-entrada{display:flex;flex-direction:column;align-items:center;gap:18px;width:min(300px,72vw)}
@@ -1022,9 +1032,50 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 @media (min-width:761px){ body[data-om-nav].om-entrando .top{animation-name:om-aparece} body[data-om-nav].om-entrando .sidenav{animation:om-lado .45s var(--ease-out) both} }
 @keyframes om-lado{from{transform:translateX(-100%)}}
 /* 3 · Botón que responde: se hunde al tocarlo (arriba) y, mientras trabaja, corre un hilo abajo */
-.btn.trabaja{position:relative;overflow:hidden}
-.btn.trabaja::after{content:"";position:absolute;left:0;bottom:0;width:35%;height:3px;background:currentColor;animation:om-hilo .75s var(--ease-in-out) infinite}
+.btn.trabaja,.btn.hecho,.btn.vuelve{position:relative;overflow:hidden}
+.btn.trabaja[disabled]{cursor:progress}
+.btn.trabaja::after{content:"";position:absolute;left:0;bottom:0;width:35%;height:4px;background:currentColor;animation:om-hilo .75s var(--ease-in-out) infinite}
+/* el texto gira: sale el anterior hacia arriba y entra el nuevo desde abajo (el mismo giro de la frase de entrada) */
+.btn.gira>*,.btn.vuelve>:not(.btn-h){animation:om-rollo-entra .24s var(--ease-in-out) both}
+.btn.gira::before,.btn.trabaja[data-ocupado]:not([data-ocupado=""])::before{position:absolute;inset:0;padding:inherit;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.btn.gira::before{content:attr(data-antes);animation:om-rollo-sale .24s var(--ease-in-out) both}
+.btn.trabaja[data-ocupado]:not([data-ocupado=""])>*,.btn.hecho>:not(.btn-h){animation:om-rollo-sale .24s var(--ease-in-out) both}
+.btn.trabaja[data-ocupado]:not([data-ocupado=""])::before{content:attr(data-ocupado);animation:om-rollo-entra .24s var(--ease-in-out) both}
+.btn .btn-h{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;pointer-events:none;animation:om-rollo-entra .24s var(--ease-in-out) both}
+.btn .btn-h[data-t]::after{content:attr(data-t)}
+.btn .btn-h svg{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.btn.vuelve .btn-h{animation:om-rollo-sale .24s var(--ease-in-out) both}
+.btn.trabaja .om-loader.chico svg{display:none}
+@keyframes om-rollo-entra{from{opacity:0;transform:translateY(1.25em)}}
+@keyframes om-rollo-sale{to{opacity:0;transform:translateY(-1.25em)}}
+@keyframes om-desaparece{to{opacity:0}}
 @keyframes om-hilo{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
+/* Kiosko · fotos que eligió la IA. Cuando la IA leyó todas las bombas solo se ven sus fotos (una por bomba, se recorren de lado)
+   y debajo lo que leyó y a qué manguera lo asignó. Ya no se puede escoger otra imagen: solo guardar o grabar el video otra vez. */
+.card.ia-lista>.now,.card.ia-lista>.film,.card.ia-lista>.mlist,.card.ia-lista>.otras,.card.ia-lista>.k-manual,.card.ia-lista>.bomba,.card.ia-lista>p.muted,.card.ia-lista>.alert{display:none!important}
+.card.ia-lista>.k-video{background:var(--surface);color:var(--fg);border:1.5px solid var(--borde-btn);font-weight:600;font-size:16px;min-height:52px;margin-top:10px}
+.card.ia-lista>.hint{font-size:17px;font-weight:600;color:var(--fg);margin:0}
+.ia-gal{margin:12px -18px 16px}
+.ia-gal.nueva{animation:om-sube .38s var(--ease-out) both}
+.ia-tira{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 11%;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.ia-tira::-webkit-scrollbar{display:none}
+.ia-tira:focus-visible{outline:3px solid var(--focus-soft);outline-offset:-3px}
+.ia-fic{flex:0 0 100%;min-width:0;margin:0;scroll-snap-align:center;scroll-snap-stop:always;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.ia-img{appearance:none;display:block;width:100%;aspect-ratio:4/3;padding:0;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface2);cursor:zoom-in;transition:transform .25s var(--ease-out),filter .25s var(--ease-out),opacity .25s var(--ease-out)}
+.ia-img img{display:block;width:100%;height:100%;object-fit:cover}
+.ia-img.vacia{display:grid;place-items:center;cursor:default;color:var(--muted);font:600 15px var(--font-body);border-style:dashed}
+.ia-fic figcaption{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;max-width:100%;transition:opacity .25s var(--ease-out)}
+.ia-num{font:700 34px/1 var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--fg);letter-spacing:0}
+.ia-que{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;font:500 17px/1.3 var(--font-body);color:var(--fg)}
+.ia-tira.vivo .ia-fic:not(.act) .ia-img{transform:scale(.94);filter:grayscale(1);opacity:.5}
+.ia-tira.vivo .ia-fic:not(.act) figcaption{opacity:.3}
+.ia-pie{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:14px}
+.ia-pie .ia-cta{min-width:74px;text-align:center;font:600 17px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--fg2,var(--fg))}
+.ia-pie button{appearance:none;width:48px;height:48px;border-radius:50%;border:1.5px solid var(--line2);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:transform .12s var(--ease-out),opacity .15s}
+.ia-pie button:active{transform:scale(.95)}
+.ia-pie button[disabled]{opacity:.3;cursor:default}
+.ia-pie button:focus-visible,.ia-img:focus-visible{outline:3px solid var(--focus-soft);outline-offset:2px}
+@media (min-width:761px){ .ia-tira{padding-inline:26%} }
 /* 4 · Lista que llega: la forma de los renglones con un brillo lento; luego los datos, uno tras otro */
 .om-cargando{flex-direction:column;align-items:center;gap:18px;padding:22px 0}
 .om-esq{width:100%;display:flex;flex-direction:column;gap:8px}
@@ -1042,27 +1093,30 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 #om-push .f .btn{background:transparent;color:#F4F5F7;border-color:#5B6675;min-height:44px}
 #om-push .f .btn.ghost{background:var(--lima);color:#0B0F14;border-color:var(--lima);font-weight:700}
 @keyframes om-baja-aviso{from{transform:translateY(-105%)}}
-/* 6 · Final: se traza el disco, se dibuja la palomita, sale una sola onda y queda fijo */
-.om-loader.fin svg{width:176px}
+/* 6 · Final con sello: se traza el círculo y la palomita, sale una sola onda y las palabras se enfocan. Un segundo, una sola vez. */
+.om-loader.fin svg{width:146px;overflow:visible}
 .om-loader.fin svg .letras,.om-loader.fin .sw,.om-loader.fin .dz,.om-loader.fin svg path.chispa{display:none}
 .om-loader.fin .gt{animation:none;transform:none;opacity:0}
-.om-loader .disco{fill:var(--lima);stroke:var(--om-disco-borde);stroke-width:22;stroke-dasharray:1483;stroke-dashoffset:0;transform-box:fill-box;transform-origin:50% 50%;transform:rotate(-90deg)}
-.om-loader .onda{fill:none;stroke:var(--om-disco-borde);stroke-width:10;opacity:0;transform-box:fill-box;transform-origin:50% 50%}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) :root{--om-disco-borde:#84FF00} }
-:root[data-theme="dark"] :root{--om-disco-borde:#84FF00}
-.om-loader .chk{stroke:#0B0F14;stroke-width:38;stroke-dasharray:340;stroke-dashoffset:0;transform:none;opacity:1}
+.om-loader .disco{fill:none;stroke:var(--om-sello);stroke-width:28;stroke-linecap:round;stroke-dasharray:1483;stroke-dashoffset:0;transform-box:fill-box;transform-origin:50% 50%;transform:rotate(-90deg)}
+.om-loader .onda{fill:none;stroke:var(--om-sello);stroke-width:13;opacity:0;transform-box:fill-box;transform-origin:50% 50%}
+.om-loader .chk{fill:none;stroke:var(--om-sello);stroke-width:34;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:314;stroke-dashoffset:0;transform:none;opacity:1}
 .om-loader.fin .disco{animation:om-disco .45s var(--ease-out) both}
 .om-loader.fin .chk{animation:om-chk2 .25s var(--ease-out) .35s both}
 .om-loader.fin .onda{animation:om-onda .75s var(--ease-out) .5s both}
-.fin h1{animation:om-palabra .4s var(--ease-out) .5s both}
-@keyframes om-disco{from{stroke-dashoffset:1483;fill-opacity:0}}
-@keyframes om-chk2{from{stroke-dashoffset:340}}
-@keyframes om-onda{from{opacity:.45;transform:scale(1)}to{opacity:0;transform:scale(1.5)}}
+.fin h1{font-size:24px;font-weight:600;margin-top:8px}
+.fin h1>span{display:inline-block;animation:om-palabra .4s var(--ease-out) .5s both}
+.fin h1>span:nth-child(2){animation-delay:.6s} .fin h1>span:nth-child(3){animation-delay:.7s} .fin h1>span:nth-child(n+4){animation-delay:.8s}
+@keyframes om-disco{from{stroke-dashoffset:1483}}
+@keyframes om-chk2{from{stroke-dashoffset:314}}
+@keyframes om-onda{from{opacity:.55;transform:scale(1)}to{opacity:0;transform:scale(1.6)}}
 @keyframes om-palabra{from{opacity:0;filter:blur(4px);transform:translateY(4px)}}
 @media (prefers-reduced-motion:reduce){
-  .om-loader .destello,.om-loader svg path.chispa,.om-esq i::after,.btn.trabaja::after{animation:none}
+  .om-loader .destello,.om-esq i::after,.btn.trabaja::after{animation:none} .btn.trabaja::after{width:100%}
+  .om-loader svg path.chispa{animation:om-late 1.4s ease-in-out infinite alternate}
   .om-loader:not(.chico) .txt{animation:none;background-position:50% 0}
-  .om-logo-partes i,.om-entrando .top,.om-entrando .om-main,body[data-om-nav].om-entrando .sidenav,.om-main .list>.item,.om-main .list>.lv-cab,#om-push .f,.fin h1{animation-name:om-aparece}
+  .om-logo-partes i,.om-entrando .top,.om-entrando .om-main,body[data-om-nav].om-entrando .sidenav,.om-main .list>.item,.om-main .list>.lv-cab,#om-push .f,.fin h1>span,.btn.gira>*,.btn.vuelve>:not(.btn-h),.btn .btn-h{animation-name:om-aparece}
+  .btn.gira::before,.btn.trabaja[data-ocupado]:not([data-ocupado=""])>*,.btn.hecho>:not(.btn-h),.btn.vuelve .btn-h{animation-name:om-desaparece}
+  .ia-gal.nueva{animation-name:om-aparece} .ia-img,.ia-fic figcaption{transition:none} .ia-tira.vivo .ia-fic:not(.act) .ia-img{transform:none}
   .om-lema .tira,.om-entrando .top::after,.om-loader.fin .disco,.om-loader.fin .chk,.om-loader.fin .onda{animation:none}
   .om-splash.off{transform:none} .btn:active{transform:none}
 }
@@ -1103,7 +1157,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.0.0';
+const OM_VERSION='2.0.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1200,7 +1254,9 @@ function omLoader(o){ o=o||{}; const id='omg'+(++omSeq); const chico=o.tam==='ch
 function omListo(o){ o=o||{}; const el=omLoader({texto:o.texto||''}); el.classList.add('fin'); el.removeAttribute('aria-busy');
   // Diseño v2: se traza un disco, se dibuja la palomita, sale una sola onda y todo queda fijo.
   const svg=el.querySelector('svg'); const pieza=(tag,cls,at)=>{ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); e.setAttribute('class',cls); for(const k in at) e.setAttribute(k,at[k]); svg.append(e); return e; };
-  pieza('circle','onda',{cx:640,cy:620,r:236}); pieza('circle','disco',{cx:640,cy:620,r:236}); pieza('path','chk',{d:'M528 628 L604 704 L756 536'}); return el; }
+  pieza('circle','onda',{cx:640,cy:620,r:236}); pieza('circle','disco',{cx:640,cy:620,r:236}); pieza('path','chk',{d:'M538.9 625.6 L611.9 698.7 L746.8 552.6'}); return el; }
+// El título del final llega palabra por palabra (el texto es el mismo; solo va en piezas para poder enfocarlas una tras otra).
+function omPalabras(t){ const out=[]; String(t||'').split(' ').forEach((w,i)=>{ if(i) out.push(' '); if(w) out.push(h('span',{},w)); }); return out; }
 // Barra de pulso bajo la cabecera mientras el tablero espera al servidor (con retardo para no parpadear).
 let omPend=0, omPendT=null;
 function omCarga(delta){ omPend=Math.max(0,omPend+delta); const bar=$('#om-topbar'); if(!bar) return;
@@ -1574,7 +1630,7 @@ function fallaNoche(e){
 }
 // Pantalla de final: animación de marca una sola vez que termina en palomita y se queda quieta.
 function pantallaFin(o){
-  const box=h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},o.titulo||'Listo'), o.texto? h('p',{class:'muted'},o.texto):null, o.extra||null,
+  const box=h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},...omPalabras(o.titulo||'Listo')), o.texto? h('p',{class:'muted'},o.texto):null, o.extra||null,
     o.boton? h('button',{class:'btn primary big block',onclick:o.onclick},o.boton):null);
   return box;
 }
@@ -1621,7 +1677,7 @@ function siguienteNoche(c){
 }
 async function botonPDFNoche(st){
   return h('button',{class:'btn ok big block',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t=b.textContent; b.textContent='Generando…';
-    try{ const blob=await generarPDFNoche(st); const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:`Noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+    try{ const blob=await generarPDFNoche(st); const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:`Noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); btnHecho(b,'Listo'); }
     catch(e){ toast('No se pudo generar el PDF: '+(e.message||e),5000); }
     b.disabled=false; b.textContent=t; }},'Imprimir el corte de la noche');
 }
@@ -1795,7 +1851,7 @@ async function renderLecturasNoche(c){
 function renderFotosListas(c){
   app.innerHTML='';
   // Palomita fija = ya quedó; el teléfono terminó su parte. La IA sigue leyendo en segundo plano y el resultado espera en la computadora.
-  app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},'Fotos guardadas'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
+  app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},...omPalabras('Fotos guardadas')), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)} · ${c.despachadorNombre}`),
     esCorteNoche(c)? siguienteFotosNoche(c) : h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Listo · siguiente despachador')));
   setWho();
 }
@@ -1866,8 +1922,8 @@ function renderEvidencia(){
   const film=h('div',{class:'film',hidden:true});
   const mlist=h('div',{class:'mlist'});
   const bomba=h('div',{class:'bomba',hidden:true});
-  const btnBomba=h('button',{class:'btn big block',onclick:()=>abrirArchivo(bombaIn)}, ico('camara',20), 'Foto de una bomba');
-  const btnVideo=h('button',{class:'btn primary big block',onclick:()=>abrirArchivo(vidIn)}, ico('video',22), 'Grabar video de las bombas');
+  const btnBomba=h('button',{class:'btn big block k-manual',onclick:()=>abrirArchivo(bombaIn)}, ico('camara',20), 'Foto de una bomba');
+  const btnVideo=h('button',{class:'btn primary big block k-video',onclick:()=>abrirArchivo(vidIn)}, ico('video',22), 'Grabar video de las bombas');
   const btnSubir=h('button',{class:'btn ok big block',disabled:true},'Guardar fotos y terminar en bombas');
   const listas=()=>ms.filter(l=>pendientes[l.manguera]||l.fotoId||l.omitida).length;
   const tieneFoto=l=>!!(pendientes[l.manguera]||l.fotoId);
@@ -1914,7 +1970,34 @@ function renderEvidencia(){
     repetir.append(h('div',{style:'font-size:40px;text-align:center'},'🎥'), h('h3',{style:'text-align:center'},'Vuelve a grabar el video'), h('p',{class:'muted',style:'text-align:center'},status.textContent),
       h('button',{class:'btn primary big block',onclick:()=>{ S.repetirVideo=false; abrirArchivo(vidIn); }},'Repetir el video'),
       h('p',{class:'hint',style:'text-align:center'},'Graba en horizontal, de frente a cada pantalla, 2 o 3 segundos sin moverte.')); }
-  function drawAll(){ drawNow(); drawList(); drawFilm(); drawRepetir(); }
+  // ── Fotos que eligió la IA (18-nov-2026, Mauricio): si la IA leyó TODAS las bombas, solo se ven sus fotos y su lectura.
+  // No se puede escoger otro cuadro ni tomar foto a mano; solo guardar o grabar el video otra vez. Si falta alguna, todo sigue como antes.
+  const galeria=h('div',{class:'ia-gal',hidden:true}); let galK=0, galObs=null, galOn=false;
+  const leidaIA=l=>{ const p=pendientes[l.manguera]; return !!(p && p.codigo && p.valor!=null && !p.dudosa); };
+  const iaCompleta=()=> !!S.iaVideoHecha && !S.repetirVideo && ms.some(l=>!l.omitida) && ms.every(l=> l.omitida || leidaIA(l));
+  function drawGaleria(){ const on=iaCompleta(); card.classList.toggle('ia-lista',on); galeria.hidden=!on; if(galObs){ galObs.disconnect(); galObs=null; }
+    if(on){ btnSubir.after(btnVideo); } else if(btnVideo.nextSibling!==btnBomba){ card.insertBefore(btnVideo, btnBomba); }
+    galeria.classList.toggle('nueva', on && !galOn); galOn=on; galeria.innerHTML=''; if(!on) return;
+    const n=ms.length; galK=Math.min(galK,n-1);
+    const tira=h('div',{class:'ia-tira',tabindex:'0',role:'group','aria-label':'Fotos que eligió la IA, una por bomba'});
+    const fics=ms.map((l,k)=>{ const p=pendientes[l.manguera];
+      if(l.omitida) return h('figure',{class:'ia-fic'}, h('div',{class:'ia-img vacia'},'Sin foto'),
+        h('figcaption',{}, h('span',{class:'ia-que'}, 'Omitida este turno'), h('span',{class:'ia-que'}, etiquetaProducto(l.producto), `Lado ${l.lado}`),
+          h('button',{class:'btn sm ghost',onclick:()=>{ restaurarManguera(l); active=k; drawAll(); programarGuardado(); }},'Sí vendió')));
+      return h('figure',{class:'ia-fic'},
+        h('button',{type:'button',class:'ia-img','aria-label':`Ver grande la foto de ${l.producto}, lado ${l.lado}`,onclick:()=>lightbox(p.url)}, h('img',{src:p.url,alt:'',draggable:'false'})),
+        h('figcaption',{}, h('span',{class:'ia-num'},fmtL(p.valor)), h('span',{class:'ia-que'}, etiquetaProducto(l.producto), `Lado ${l.lado}`))); });
+    tira.append(...fics);
+    const cta=h('span',{class:'ia-cta','aria-live':'polite'}); const suave=()=>{ try{ return !window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_){ return true; } };
+    const ir=k=>{ k=Math.max(0,Math.min(n-1,k)); const f=fics[k]; tira.scrollTo({left:f.offsetLeft-(tira.clientWidth-f.offsetWidth)/2, behavior:suave()?'smooth':'auto'}); };
+    const bIzq=h('button',{type:'button','aria-label':'Foto anterior',onclick:()=>ir(galK-1)}, ico('izq',22)); const bDer=h('button',{type:'button','aria-label':'Foto siguiente',onclick:()=>ir(galK+1)}, ico('der',22));
+    const marca=k=>{ galK=k; fics.forEach((f,j)=>f.classList.toggle('act',j===k)); cta.textContent=`${k+1} de ${n}`; bIzq.disabled=k<=0; bDer.disabled=k>=n-1; };
+    tira.addEventListener('keydown',e=>{ if(e.key==='ArrowRight'){ e.preventDefault(); ir(galK+1); } else if(e.key==='ArrowLeft'){ e.preventDefault(); ir(galK-1); } });
+    galeria.append(tira, n>1? h('div',{class:'ia-pie'}, bIzq, cta, bDer) : null); marca(galK);
+    requestAnimationFrame(()=>{ if(!tira.isConnected) return; const f=fics[galK]; tira.scrollLeft=f.offsetLeft-(tira.clientWidth-f.offsetWidth)/2;
+      if('IntersectionObserver' in window){ tira.classList.add('vivo'); galObs=new IntersectionObserver(es=>{ let mejor=null; for(const e of es) if(e.isIntersecting && (!mejor || e.intersectionRatio>mejor.intersectionRatio)) mejor=e; if(mejor) marca(fics.indexOf(mejor.target)); },{root:tira,threshold:.6}); fics.forEach(f=>galObs.observe(f)); } });
+  }
+  function drawAll(){ drawNow(); drawList(); drawFilm(); drawRepetir(); drawGaleria(); }
   // ── Foto por bomba: la IA lee el código de la pantalla y asigna la manguera ──
   function asignar(k, foto){ const l=ms[k]; if(l.omitida) restaurarManguera(l); const previa=pendientes[l.manguera]||null; pendientes[l.manguera]={blob:foto.blob,url:foto.url,t:-1,codigo:foto.codigo||null,valor:foto.valor??null}; return previa; }
   function selector(foto, actualK, onElegida){ // botones grandes para decir qué manguera es
@@ -1965,13 +2048,13 @@ function renderEvidencia(){
   });
   vidIn.addEventListener('change', ()=>{ const f=vidIn.files[0]; vidIn.value=''; if(f) procesarVideo(f); });
   async function procesarVideo(f){ status.hidden=false; status.textContent=''; bomba.hidden=true; btnVideo.disabled=true; btnBomba.disabled=true; S.iaVideoHecha=false;
-    trabajando('OwnManager está trabajando', 'Sacando los cuadros del video… no toques la pantalla, tarda máximo 1 minuto.');
-    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ trabajando('OwnManager está trabajando', `Sacando los cuadros del video (${Math.round(p*100)} %)… no toques la pantalla, tarda máximo 1 minuto.`); }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0&&p.dudosa) delete pendientes[l.manguera]; }); drawAll(); } // lo bien leído en el video anterior se conserva
+    trabajando(TRAB_LECTURA, 0);
+    try{ S.frames=await extraerCuadros(f, 1, (p)=>{ trabajando(TRAB_LECTURA, p*.3); }); ms.forEach(l=>{ const p=pendientes[l.manguera]; if(p&&p.t>=0&&p.dudosa) delete pendientes[l.manguera]; }); drawAll(); } // lo bien leído en el video anterior se conserva
     catch(e){ trabajandoFin(); status.textContent=e&&e.largo? e.message : 'No se pudo leer el video en este dispositivo. Usa la foto por bomba.'; if(e&&e.largo) toast(e.message, 8000); vidIn.value=''; btnVideo.disabled=false; btnBomba.disabled=false; return; }
     // La IA revisa los cuadros, encuentra cada bomba por su código y lee el contador. Pantalla bloqueada mientras tanto.
-    trabajando('OwnManager está trabajando', `Buscando las bombas en ${S.frames.length} cuadros… no toques la pantalla, tarda máximo 1 minuto.`);
+    trabajando(TRAB_LECTURA, .3);
     try{
-      const res=await identificarVideo(c, S.frames, (hechos,total)=>{ trabajando('OwnManager está trabajando', `Leyendo las bombas… cuadro ${hechos} de ${total}. No toques la pantalla, tarda máximo 1 minuto.`); });
+      const res=await identificarVideo(c, S.frames, (hechos,total)=>{ trabajando(TRAB_LECTURA, .3+(total? hechos/total : 0)*.7); });
       let rec=0; ms.forEach(l=>{ const mejor=res[l.mangueraId]; if(!mejor||l.omitida) return; const fr=S.frames[mejor.i]; if(!fr) return;
         const previa=pendientes[l.manguera]; // de un video anterior: se queda la mejor (legible, más votos, más nítida)
         const nueva={blob:fr.blob,url:fr.url,t:fr.t,codigo:mejor.codigo,valor:mejor.valor,dudosa:!mejor.legible,votos:mejor.votos||0,nitidez:mejor.nitidez||0};
@@ -1994,7 +2077,7 @@ function renderEvidencia(){
   btnSubir.addEventListener('click', ()=>subirEvidencia(pendientes));
   const otras=h('details',{class:'otras'}, h('summary',{},'Otra forma de tomar la evidencia'), h('div',{style:'margin-top:8px'}, h('button',{class:'btn block',onclick:()=>{ abrirArchivo(fotoIn); }}, ico('camara',18), 'Foto de la manguera marcada (sin IA)')));
   if(noche){ btnBomba.hidden = (S.intentosVideo||0)<3; otras.hidden=true; } // de noche: solo el video; la foto por bomba aparece si tras 3 videos sigue faltando algo
-  card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, repetir, now, film, mlist, btnSubir, otras);
+  card.append(btnVideo, btnBomba, bomba, vidIn, fotoIn, bombaIn, prog, status, repetir, now, film, mlist, galeria, btnSubir, otras);
   app.append(card); if(!esApk() && !noche) app.append(panelAdelanto(c)); drawAll();
   if(S.videoPendiente){ const f=S.videoPendiente; S.videoPendiente=null; procesarVideo(f); } // video grabado desde "Ahora graba la Isla N"
 }
@@ -2017,12 +2100,15 @@ function panelAdelanto(c){
     h('button',{class:'btn block big'+(hechas?'':' primary'),onclick:()=>{ S.adelanto=true; render(); }}, ico('editar',18), hechas?'Seguir adelantando':'Adelantar datos del turno'));
   return adel;
 }
-// Pantalla completa "OwnManager está trabajando": tapa todo y bloquea clics mientras la IA revisa el video.
-function trabajando(texto, detalle){ let el=$('#om-trabajando'); if(!el){ el=h('div',{id:'om-trabajando',class:'om-splash om-trabajando',role:'alertdialog','aria-modal':'true','aria-busy':'true'}); const ld=omLoader({texto:''}); ld.id='om-trab-loader'; el.append(h('div',{class:'trab-in'}, ld, h('div',{class:'trab-t'},texto||'OwnManager está trabajando'), h('div',{class:'trab-s'},detalle||''))); document.body.append(el);
+// Pantalla completa de trabajo ("Leyendo números mecánicos" + avance): tapa todo y bloquea clics mientras la IA revisa el video.
+const TRAB_LECTURA='Leyendo números mecánicos';
+// Pantalla de trabajo: un solo texto y el avance real del proceso (de 1 a 100 %). El avance nunca retrocede.
+function trabajando(texto, avance){ let el=$('#om-trabajando'); const pct=a=>Math.max(1, Math.min(100, Math.round((Number(a)||0)*100)));
+  if(!el){ el=h('div',{id:'om-trabajando',class:'om-splash om-trabajando',role:'alertdialog','aria-modal':'true','aria-busy':'true'}); const ld=omLoader({texto:''}); ld.id='om-trab-loader'; el._pct=pct(avance); el.append(h('div',{class:'trab-in'}, ld, h('div',{class:'trab-t'},texto||TRAB_LECTURA), h('div',{class:'trab-s',role:'progressbar','aria-valuemin':'1','aria-valuemax':'100','aria-valuenow':String(el._pct)},el._pct+' %'))); document.body.append(el);
     const para=e=>{ e.preventDefault(); e.stopPropagation(); }; ['click','pointerdown','touchstart','touchmove','wheel','contextmenu'].forEach(ev=>el.addEventListener(ev,para,{passive:false,capture:true}));
     el._teclas=e=>{ e.preventDefault(); e.stopPropagation(); }; document.addEventListener('keydown',el._teclas,true); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
     document.body.classList.add('om-velado'); el._vivo=setInterval(()=>{ try{ tocar(); }catch(_){} },20000); } // el proceso cuenta como actividad: la sesión no se cierra a medias
-  else { el.querySelector('.trab-t').textContent=texto||'OwnManager está trabajando'; el.querySelector('.trab-s').textContent=detalle||''; }
+  else { el._pct=Math.max(el._pct||1, pct(avance)); el.querySelector('.trab-t').textContent=texto||TRAB_LECTURA; const ps=el.querySelector('.trab-s'); ps.textContent=el._pct+' %'; ps.setAttribute('aria-valuenow',String(el._pct)); }
   return el; }
 function trabajandoFin(){ const el=$('#om-trabajando'); if(!el) return; clearInterval(el._vivo); document.removeEventListener('keydown',el._teclas,true); document.body.classList.remove('om-velado'); el.classList.add('off'); setTimeout(()=>el.remove(),260); }
 // Manda los cuadros del video a la IA por lotes y devuelve el mejor cuadro por manguera:
@@ -2625,7 +2711,7 @@ async function descargarPDF(c, btn){
   if(!window.jspdf){ toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return; }
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Generando PDF…'; }
   try{ const blob=await pdfDelCorte(c); const ap=(c.despachadorNombre||'').split(' ')[0]; const nombre=`Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}_${(c.islaNombre||'').replace(/\s+/g,'')}_${ap}.pdf`;
-    const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); toast('PDF listo para imprimir y firmar.'); }
+    const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); toast('PDF listo para imprimir y firmar.'); btnHecho(btn,'Listo'); }
   catch(e){ toast('No se pudo generar el PDF: '+(e.message||e.code||e),5000); }
   if(btn){ btn.disabled=false; btn.textContent=orig; }
 }
@@ -2672,7 +2758,7 @@ async function enviarCorte(tot,litros,sheet,venta,t,dif,btn){
   if(sheet) sheet.remove(); S.corte=null; S.frames=[];
   app.innerHTML='';
   const noche=esCorteNoche(c);
-  app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},noche?'Listo, gracias':'Corte enviado'), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)}`),
+  app.append(h('div',{class:'card stack fin',style:'text-align:center'}, omListo(), h('h1',{},...omPalabras(noche?'Listo, gracias':'Corte enviado')), h('p',{class:'muted'},`${c.islaNombre} · ${turnoNombre(c.turno)}`),
     h('div',{class:'tot'},...Object.entries(tot).map(([p,v])=>h('div',{},h('span',{class:'small muted'},p),h('b',{},fmtL(v))))),
     dif!=null? h('div',{class:'diff '+(Math.abs(dif)<=(S.config.toleranciaPesos??50)?'ok':(dif<0?'bad':'warn'))}, h('span',{class:'lbl'},dif<0?'Faltante':(dif>0?'Sobrante':'Cuadra exacto')), h('b',{},(dif>0?'+':'')+fmtMXN(dif))) : null,
     h('p',{class:'seal'},'Sello: '+hash.slice(0,24)+'…'),
@@ -2874,7 +2960,7 @@ async function descargaDetalle(d, volver){
   if(d.estado==='enviada'){
     acc.append(h('button',{class:'btn',id:'desc-pdf',onclick:async ev=>{ const b=ev.currentTarget; b.disabled=true; const t0=b.textContent; b.textContent='Generando…';
       try{ const j=await fnOficina({descarga_id:d.id, accion:'pdf'},'leer-descarga'); if(!j.ok) throw new Error(j.error||'No se pudo');
-        const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'descarga.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+        const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'descarga.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); btnHecho(b,''); }
       catch(e){ aviso('No se pudo generar el PDF: '+(e.message||e),'err'); } b.disabled=false; b.textContent=t0; }},'PDF'));
     acc.append(h('button',{class:'btn ghost',id:'desc-releer',onclick:async ev=>{ const b=ev.currentTarget; b.disabled=true; b.textContent='Leyendo las fotos…'; const j=await leerDescarga(d.id,{releer:true}); if(!j.ok) aviso('No se pudo leer: '+(j.error||''),'err'); await recargar(); }},'Volver a leer las fotos'));
   }
@@ -2886,7 +2972,7 @@ function anularDescargaUI(d, alTerminar){
   const motivo=h('input',{type:'text',placeholder:'Motivo (obligatorio)',id:'anular-desc-motivo'});
   const btn=h('button',{class:'btn big block',style:'background:var(--err);color:var(--neon-fg);border-color:var(--err)',disabled:true},'Anular');
   motivo.addEventListener('input',()=>{ btn.disabled=motivo.value.trim().length<4; });
-  btn.addEventListener('click', async()=>{ btn.disabled=true; try{ await rpc('anular_descarga',{p_descarga:d.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast('Descarga anulada.'); alTerminar(); }catch(e){ toast('No se pudo anular: '+(e.message||e.code),6000); btn.disabled=false; } });
+  btn.addEventListener('click', async()=>{ btn.dataset.ocupado='Anulando…'; btn.disabled=true; try{ await rpc('anular_descarga',{p_descarga:d.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast('Descarga anulada.'); alTerminar(); }catch(e){ toast('No se pudo anular: '+(e.message||e.code),6000); btn.disabled=false; } });
   sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Anular esta descarga?'), h('p',{class:'small muted',style:'margin:0'},'Las fotos y lo leído se conservan, marcados como anulados. Queda en la bitácora con tu usuario, la hora y el motivo.'), motivo, btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Cancelar')));
   document.body.append(sheet); motivo.focus();
 }
@@ -3099,7 +3185,7 @@ async function logForma(){
   // --- guardar / cancelar
   const btn=h('button',{class:'btn primary big block',id:'lv-guardar'}, v?'Guardar cambios':'Guardar viaje');
   btn.addEventListener('click', async()=>{ if(!fCliente.value){ toast('Elige el cliente.'); fCliente.focus(); return; } if(!fUnidad.value){ toast('Elige la unidad.'); fUnidad.focus(); return; } if(!fOperador.value){ toast('Elige el operador.'); fOperador.focus(); return; }
-    btn.disabled=true; const d={ fecha:fFecha.value, cliente_id:fCliente.value, unidad_id:fUnidad.value, operador_id:fOperador.value, producto:fProd.value, litros:logNum(fLitros.value)||null, origen:fOrigen.value.trim(), destino:fDestino.value.trim(),
+    btn.dataset.ocupado='Guardando…'; btn.disabled=true; const d={ fecha:fFecha.value, cliente_id:fCliente.value, unidad_id:fUnidad.value, operador_id:fOperador.value, producto:fProd.value, litros:logNum(fLitros.value)||null, origen:fOrigen.value.trim(), destino:fDestino.value.trim(),
       km:logNum(fKm.value)||null, horas:logNum(fHoras.value)||null, comidas:logNum(fComidas.value), otros_efectivo:logNum(fOtros.value), otros_nota:fOtrosNota.value.trim(), casetas:logNum(fCasetas.value), diesel:logNum(fDiesel.value), pago_operador:logNum(fPago.value),
       cobrado:carta? (fCobrado.value===''?null:logNum(fCobrado.value)):null, carta_porte:carta, notas:fNotas.value.trim() };
     try{ await rpc('log_guardar_viaje',{p_id:v?v.id:null, p_d:d}); if(v){ toast('Viaje guardado.'); volver(); } else { LOG.viaje=null; LOG.vista='fin'; render(); } }
@@ -3233,7 +3319,7 @@ async function logUnidadForma(){
     pintaFotos(); revisa(); });
   // --- guardar
   btn.addEventListener('click', async()=>{ const f=logFaltaUnidad(d); if(f.length){ toast('Falta '+f[0]+(f.length>1?` y ${f.length-1} dato${f.length>2?'s':''} más`:'')+'.',5000); falta.scrollIntoView&&falta.scrollIntoView({block:'center'}); return; }
-    btn.disabled=true; const limpio=a=>a? {drive_id:a.drive_id, nombre:a.nombre}:null;
+    btn.dataset.ocupado='Guardando…'; btn.disabled=true; const limpio=a=>a? {drive_id:a.drive_id, nombre:a.nombre}:null;
     const p={ linea_id:d.linea_id, nombre:d.nombre.trim(), placas:d.placas.trim(), color:d.color.trim(), marca:d.marca.trim(), modelo:d.modelo.trim(), anio:String(d.anio).trim(), tipo:d.tipo, tarjeta:limpio(d.tarjeta), fotos:d.fotos.map(limpio),
       tanques:d.tanques.map(t=> d.tipo==='corto'? {capacidad:logNum(t.capacidad)} : d.tipo==='compartido'? {matricula:t.matricula.trim().toUpperCase(), color:t.color.trim(), anio:String(t.anio).trim(), tarjeta:limpio(t.tarjeta), compartimientos:t.compartimientos.map(c=>({numero_economico:c.numero_economico.trim().toUpperCase(), capacidad:logNum(c.capacidad)}))}
         : {matricula:t.matricula.trim().toUpperCase(), numero_economico:t.numero_economico.trim().toUpperCase(), capacidad:logNum(t.capacidad), color:t.color.trim(), anio:String(t.anio).trim(), tarjeta:limpio(t.tarjeta)}) };
@@ -3261,7 +3347,7 @@ async function logCatalogo(tipo){
     campos.push(campo('RFC',fRfc), campo('Destino habitual',fDest));
     guardar=act=>rpc('log_guardar_cliente',{p_id:ed?ed.id:null, p_nombre:fNombre.value, p_rfc:fRfc.value, p_destino:fDest.value, p_activo:act}); }
   const btn=h('button',{class:'btn primary',id:'lc-guardar'}, ed?'Guardar cambios':'Agregar');
-  btn.addEventListener('click', async()=>{ if(fNombre.value.trim().length<2){ toast('Escribe el nombre.'); fNombre.focus(); return; } btn.disabled=true;
+  btn.addEventListener('click', async()=>{ if(fNombre.value.trim().length<2){ toast('Escribe el nombre.'); fNombre.focus(); return; } btn.dataset.ocupado='Guardando…'; btn.disabled=true;
     try{ await guardar(ed? ed[kAct]!==false : true); LOG.edita=null; toast(ed?'Cambios guardados.':'Agregado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
   const pie=h('div',{class:'row',style:'gap:8px'}, btn); if(ed) pie.append(h('button',{class:'btn ghost',onclick:()=>{ LOG.edita=null; render(); }},'Cancelar'));
   cont.append(h('div',{class:'card stack',id:'lc-forma',style:'margin-top:10px'}, h('div',{class:'grid2'},...campos), pie));
@@ -3281,13 +3367,13 @@ async function logAjustes(){
   const campo=(l,el)=>h('label',{class:'f'},h('span',{class:'l'},l),el);
   const fNombre=h('input',{type:'text',id:'la-nombre',value:cat.cfg.nombre||''}), fPct=h('input',{type:'text',inputmode:'decimal',id:'la-pct',value:String(Number(cat.cfg.mantenimiento_pct)||0)}), fOrigen=h('input',{type:'text',id:'la-origen',value:cat.cfg.origen_habitual||'',placeholder:'Por ejemplo, la terminal de donde salen'});
   const btn=h('button',{class:'btn primary',id:'la-guardar'},'Guardar');
-  btn.addEventListener('click', async()=>{ const p=logNum(fPct.value); if(p<0||p>100){ toast('El porcentaje va de 0 a 100.'); fPct.focus(); return; } btn.disabled=true;
+  btn.addEventListener('click', async()=>{ const p=logNum(fPct.value); if(p<0||p>100){ toast('El porcentaje va de 0 a 100.'); fPct.focus(); return; } btn.dataset.ocupado='Guardando…'; btn.disabled=true;
     try{ await rpc('log_guardar_config',{p_nombre:fNombre.value, p_mantenimiento_pct:p, p_origen:fOrigen.value}); toast('Guardado.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
   app.append(h('div',{class:'card stack',style:'margin-top:10px'}, h('div',{class:'grid2'}, campo('Nombre de la fletera',fNombre), campo('Mantenimiento (% de lo cobrado)',fPct), campo('De dónde salen normalmente',fOrigen)),
     h('p',{class:'small muted',style:'margin:0'},'El porcentaje se aplica a los viajes que se den de alta de aquí en adelante; los ya capturados conservan el suyo.'), h('div',{},btn)));
   // Líneas de transporte: una empresa puede tener varias; cada unidad pertenece a una.
   const fLinea=h('input',{type:'text',id:'la-linea',placeholder:'Nombre de la línea',autocomplete:'off'}); const bLinea=h('button',{class:'btn',id:'la-linea-agregar'},'Agregar línea');
-  bLinea.addEventListener('click', async()=>{ if(fLinea.value.trim().length<2){ toast('Escribe el nombre de la línea.'); fLinea.focus(); return; } bLinea.disabled=true;
+  bLinea.addEventListener('click', async()=>{ if(fLinea.value.trim().length<2){ toast('Escribe el nombre de la línea.'); fLinea.focus(); return; } bLinea.dataset.ocupado='Agregando…'; bLinea.disabled=true;
     try{ await rpc('log_guardar_linea',{p_id:null, p_nombre:fLinea.value, p_activa:true}); toast('Línea agregada.'); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); bLinea.disabled=false; } });
   const ll=h('div',{class:'list',id:'la-lineas'}); for(const l of cat.lineas) ll.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},l.nombre), l.activa?null:h('span',{class:'small muted'},'en pausa')),
     h('button',{class:'btn sm ghost',onclick:async()=>{ try{ await rpc('log_guardar_linea',{p_id:l.id, p_nombre:l.nombre, p_activa:!l.activa}); render(); }catch(e){ toast('No se pudo: '+(e.message||e.code),5000); } }}, l.activa?'Pausar':'Reactivar')));
@@ -3423,7 +3509,7 @@ function formaTarea(alTerminar){
     cuando.innerHTML=''; cuando.append(rep.value===''? h('label',{class:'f'},h('span',{class:'l'},'Fecha límite (opcional)'),vence) : rep.value==='semanal'? h('label',{class:'f'},h('span',{class:'l'},'Qué día'),diaS) : rep.value==='mensual'? h('label',{class:'f'},h('span',{class:'l'},'Qué día del mes'),diaM) : h('span',{})); };
   rep.addEventListener('change',pinta); para.addEventListener('change',pinta); pinta();
   const btn=h('button',{class:'btn primary big block',id:'nt-asignar'},'Asignar');
-  btn.addEventListener('click', async()=>{ const tt=titulo.value.trim(); if(tt.length<3){ toast('Escribe qué hay que hacer.'); titulo.focus(); return; } btn.disabled=true;
+  btn.addEventListener('click', async()=>{ const tt=titulo.value.trim(); if(tt.length<3){ toast('Escribe qué hay que hacer.'); titulo.focus(); return; } btn.dataset.ocupado='Asignando…'; btn.disabled=true;
     const ests= sinGasolinera(para.value)? [null] : (varias && todas.checked? S.estaciones.map(e=>e.id) : [S.config.estacionId]);
     try{ for(const e of ests){
         if(rep.value==='') await rpc('crear_tarea',{p_para:para.value, p_estacion:e, p_titulo:tt, p_detalle:detalle.value.trim()||null, p_pide_foto:foto.checked, p_vence:vence.value||null});
@@ -3443,7 +3529,7 @@ async function pantallaAvisos(){
   const texto=h('textarea',{rows:'3',placeholder:'Aviso para los despachadores',id:'av-texto',maxlength:'400'}); const hasta=h('input',{type:'date',id:'av-hasta',min:nowMX().fecha});
   const todas=h('input',{type:'checkbox',id:'av-todas'}); const varias=esCentral() && (S.estaciones||[]).length>1;
   const btn=h('button',{class:'btn primary',id:'av-publicar'},'Publicar');
-  btn.addEventListener('click', async()=>{ const tx=texto.value.trim(); if(tx.length<3){ toast('Escribe el aviso.'); texto.focus(); return; } btn.disabled=true;
+  btn.addEventListener('click', async()=>{ const tx=texto.value.trim(); if(tx.length<3){ toast('Escribe el aviso.'); texto.focus(); return; } btn.dataset.ocupado='Publicando…'; btn.disabled=true;
     const ests=varias && todas.checked? S.estaciones.map(e=>e.id) : [S.config.estacionId];
     try{ for(const e of ests) await rpc('crear_aviso_kiosco',{p_estacion:e, p_texto:tx, p_hasta:hasta.value||null}); toast(ests.length>1?`Aviso publicado en ${ests.length} gasolineras.`:'Aviso publicado.'); render(); }
     catch(e){ toast('No se pudo: '+(e.message||e.code),6000); btn.disabled=false; } });
@@ -3469,6 +3555,7 @@ async function kioscoAvisos(cont){ if(esApk()) return;
 
 // ---- Iconos de línea minimalistas (stroke, currentColor)
 const ICONS={
+  izq:'<path d="M15 5l-7 7 7 7"/>', der:'<path d="M9 5l7 7-7 7"/>',
   subir:'<path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9"/><path d="M4.5 15.5v4h15v-4"/>',
   palomita:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
@@ -3534,7 +3621,36 @@ function navAbiertos(items, actual){ if(NAV.abiertos) return NAV.abiertos;
 // Diseño v2: etiqueta de producto (bloque con el nombre escrito y el color del combustible).
 // Botón con icono de línea y texto (sin emojis).
 function ponBoton(b, icono, txt){ b.replaceChildren(ico(icono, icono==='video'?22:20), document.createTextNode(txt)); }
-try{ new MutationObserver(ms=>{ for(const m of ms){ const n=m.target; const b=n.nodeType===1? (n.closest&&n.closest('.btn')) : (n.parentElement&&n.parentElement.closest('.btn')); if(b) b.classList.toggle('trabaja', !!b.disabled && /…\s*$/.test(b.textContent||'')); } }).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['disabled'],childList:true,characterData:true}); }catch(e){}
+// Botón que responde (animación 3 de la opción 4). Solo es apariencia: no cambia el texto real del botón ni lo que hace.
+//  · Trabaja = deshabilitado con texto que termina en "…" o marcado con data-ocupado: conserva su color y corre un hilo abajo.
+//  · El texto gira: si la app cambió el texto, sale el anterior y entra el nuevo; si no lo cambió, data-ocupado dice qué mostrar.
+//  · btnHecho(b,'Guardado'): palomita + palabra por un momento, solo en botones que se quedan en la misma pantalla.
+function omBtnEnvuelve(b){ for(const n of [...b.childNodes]) if(n.nodeType===3 && n.nodeValue.trim()){ const sp=document.createElement('span'); sp.className='btn-t'; b.replaceChild(sp,n); sp.append(n); } }
+function omBtnAncho(b, texto, extra){ try{ if(!texto) return; const cs=getComputedStyle(b); const m=document.createElement('span'); m.textContent=texto;
+    m.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap;pointer-events:none'; m.style.font=cs.font; m.style.fontStretch=cs.fontStretch; m.style.letterSpacing=cs.letterSpacing; document.body.append(m); const tw=m.getBoundingClientRect().width; m.remove();
+    const w=Math.ceil(tw+(extra||0)+parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight)+parseFloat(cs.borderLeftWidth)+parseFloat(cs.borderRightWidth))+2; if(w>b.offsetWidth){ if(b._omMin===undefined) b._omMin=b.style.minWidth||''; b.style.minWidth=w+'px'; } }catch(_){} }
+function omBtnAnchoFin(b){ if(b._omMin!==undefined){ b.style.minWidth=b._omMin; delete b._omMin; } }
+function omBtnSuelta(b){ for(const sp of [...b.children]) if(sp.classList.contains('btn-t')) sp.replaceWith(...sp.childNodes); }
+function omBtnEstado(b, antes){ if(!b||!b.classList) return; const fin=b.classList.contains('hecho')||b.classList.contains('vuelve');
+  const ocupado=!fin && !!b.disabled && (/…\s*$/.test(b.textContent||'') || b.dataset.ocupado!==undefined);
+  if(ocupado){ const nuevo=!b.classList.contains('trabaja'); if(nuevo && b.dataset.ocupado) omBtnAncho(b, b.dataset.ocupado, 0); b.classList.add('trabaja'); omBtnEnvuelve(b);
+    if(antes && /…\s*$/.test(b.textContent||'') && antes.trim()!==(b.textContent||'').trim()){ b.dataset.antes=antes.trim(); b.classList.remove('gira'); void b.offsetWidth; b.classList.add('gira'); }
+    else if(nuevo) b.classList.remove('gira'); }
+  else if(b.classList.contains('trabaja')){ b.classList.remove('trabaja','gira'); delete b.dataset.antes; delete b.dataset.ocupado; if(!fin){ omBtnSuelta(b); omBtnAnchoFin(b); } }
+  else if(!fin && !b.disabled && b.dataset.ocupado!==undefined){ delete b.dataset.ocupado; }
+  else if(fin){ omBtnEnvuelve(b); if(b.classList.contains('hecho') && !b.querySelector(':scope>.btn-h') && b._omHecho) b.append(b._omHecho); } }
+function btnHecho(b, texto){ if(!b) return; Promise.resolve().then(()=>{ if(!b.isConnected) return; clearTimeout(b._omT1); clearTimeout(b._omT2);
+  const capa=document.createElement('span'); capa.className='btn-h'; capa.setAttribute('aria-hidden','true'); if(texto==null) texto='Guardado'; if(texto) capa.dataset.t=texto;
+  capa.innerHTML='<svg viewBox="0 0 24 24"><path d="M5 12.5 L10 17.5 L19 7.5"/></svg>';
+  b.querySelectorAll(':scope>.btn-h').forEach(x=>x.remove()); b._omHecho=capa; b.classList.remove('trabaja','gira','vuelve'); delete b.dataset.antes; delete b.dataset.ocupado; omBtnEnvuelve(b); omBtnAncho(b, texto, 28); b.classList.add('hecho'); b.append(capa);
+  b._omT1=setTimeout(()=>{ b.classList.remove('hecho'); b.classList.add('vuelve'); omBtnEnvuelve(b);
+    b._omT2=setTimeout(()=>{ b.classList.remove('vuelve'); b._omHecho=null; capa.remove(); omBtnSuelta(b); omBtnAnchoFin(b); omBtnEstado(b); },260); },1300); }); }
+try{ new MutationObserver(ms=>{ const vistos=new Map();
+  for(const m of ms){ const n=m.target; const b=n.nodeType===1? (n.closest&&n.closest('.btn')) : (n.parentElement&&n.parentElement.closest('.btn')); if(!b) continue;
+    let antes=vistos.get(b)||''; if(!antes && m.type==='childList' && n===b){ for(const r of m.removedNodes){ if(r.nodeType===3 && !r.parentNode) antes+=r.nodeValue; else if(r.nodeType===1 && !r.parentNode && r.classList && r.classList.contains('btn-t')) antes+=r.textContent; } }
+    vistos.set(b,antes); }
+  for(const [b,antes] of vistos) omBtnEstado(b,antes);
+}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['disabled'],childList:true,characterData:true}); }catch(e){}
 function etiquetaProducto(p){ const k=String(p||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); return h('span',{class:'prod-et '+(/magna|super|regular/.test(k)?'verde':/premium/.test(k)?'rojo':/diesel/.test(k)?'negro':'')}, p); }
 function navLateral(items, actual, onpick, mod){
   const nav=h('nav',{class:'sidenav'}); if(mod) nav.append(logoModulo(mod));
@@ -3591,7 +3707,7 @@ async function adminHoy(){
     const pdfTurnoBtn=(tu)=>{ const completo=S.config.islas.every(i=>cs.some(x=>x.turno===tu.id&&x.isla===i.id&&(x.estado==='enviado'||x.estado==='omitida'))); if(!completo) return null;
       return h('button',{class:'btn sm ghost',style:'margin-top:4px',title:'Reporte del turno en PDF, con fotos',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t0=b.textContent; b.textContent='Generando…';
         try{ const j=await fnOficina({accion:'pdf', estacion_id:S.config.estacionId, fecha, turno:tu.id},'reporte-turno'); if(!j.ok) throw new Error(j.error||'No se pudo');
-          const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'turno.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+          const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'turno.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); btnHecho(b,''); }
         catch(e){ aviso('No se pudo generar el PDF del turno: '+(e.message||e),'err'); } b.disabled=false; b.textContent=t0; }},'PDF'); };
     for(const tu of S.config.turnos){ m.append(h('div',{class:'h',style:'text-align:left'},tu.nombre,h('br'),h('span',{class:'small',style:'font-weight:400'},tu.inicio),pdfTurnoBtn(tu)));
       for(const i of S.config.islas){ const c=cs.find(x=>x.turno===tu.id&&x.isla===i.id&&x.estado!=='abierto')||cs.find(x=>x.turno===tu.id&&x.isla===i.id);
@@ -3800,7 +3916,7 @@ async function adminPrecios(){
     h('button',{class:'btn primary big',onclick:async(ev)=>{ const b=ev.currentTarget; const pr={}; for(const p of productos){ if(qIn[p].value==='') { aviso('Escribe el precio nuevo de '+p+'. Si no cambia, deja el mismo de hoy.','err',6000); return; } pr[p]=Number(qIn[p].value); }
       if(!cuando.value){ aviso('Elige el día y la hora.','err'); return; } const d=new Date(cuando.value); if(!(d>new Date())){ aviso('La hora ya pasó; elige una hora futura o usa "Cambiar precios ahora".','err',7000); return; }
       if(productos.every(p=>Number(pr[p])===Number(c.precios[p]))){ aviso('Los precios son iguales a los de hoy; no hay nada que programar.','err',6000); return; }
-      b.disabled=true; try{ await rpc('programar_cambio_precio',{p_estacion:c.estacionId, p_precios:pr, p_cuando:d.toISOString(), p_nota:nota.value.trim()||null}); aviso(`${fmtCuando(d.toISOString())} · ${listaPrecios(pr)}`,'ok',8000,'Cambio programado'); nota.value=''; pintarHist(); }
+      b.dataset.ocupado='Programando…'; b.disabled=true; try{ await rpc('programar_cambio_precio',{p_estacion:c.estacionId, p_precios:pr, p_cuando:d.toISOString(), p_nota:nota.value.trim()||null}); aviso(`${fmtCuando(d.toISOString())} · ${listaPrecios(pr)}`,'ok',8000,'Cambio programado'); nota.value=''; pintarHist(); btnHecho(b,'Programado'); }
       catch(e){ const m=String(e.message||e.code||e); aviso(m.includes('fecha_pasada')?'La hora ya pasó.':m.includes('fecha_lejana')?'Máximo 60 días adelante.':'No se programó: '+m,'err',8000); } b.disabled=false; }},'Programar cambio'));
   if(puede) app.append(prog);
   // ── Pendientes e historial ──
@@ -3883,7 +3999,7 @@ async function satCertificados(){
     pintaFirma(dueno && !n.llaves);
     if(dueno){
       const acciones=h('div',{class:'row',style:'gap:8px;flex-wrap:wrap'});
-      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Probando la e.firma con el SAT…'; try{ const j=await fnOficina({accion:'probar',negocio_id:n.id},'sat-descarga'); msg.textContent = j.ok? `✓ e.firma de ${j.nombre||j.rfc} (${j.rfc}) vigente hasta ${satFmtD(j.vigente_hasta)} · el SAT dio token.` : '✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Probar e.firma'));
+      acciones.append(h('button',{class:'btn',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.dataset.ocupado=''; b.disabled=true; msg.textContent='Probando la e.firma con el SAT…'; try{ const j=await fnOficina({accion:'probar',negocio_id:n.id},'sat-descarga'); msg.textContent = j.ok? `✓ e.firma de ${j.nombre||j.rfc} (${j.rfc}) vigente hasta ${satFmtD(j.vigente_hasta)} · el SAT dio token.` : '✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Probar e.firma'));
       acciones.append(h('button',{class:'btn '+(n.sat_activo?'ghost':'primary'),disabled:!n.llaves,onclick:async()=>{ try{ await rpc('sat_configurar',{p_negocio:n.id,p_activo:!n.sat_activo,p_desde:null}); toast(n.sat_activo?'Sincronización pausada.':'Sincronización activada; la primera solicitud sale en la próxima corrida.'); render(); }catch(e){ aviso('No se pudo: '+(e.message||e.code),'err'); } }}, n.sat_activo?'Pausar':'Activar'));
       card.append(acciones);
     }
@@ -3906,7 +4022,7 @@ async function satConsulta(){
   pintaEstado();
   const pedir=h('button',{class:'btn primary big',disabled:!dueno,onclick:async(ev)=>{ const b=ev.currentTarget; const n=conLlaves.find(x=>x.id===SATV.negocio)||conLlaves[0]; const di=desde.value, df=hasta.value;
       if(!di||!df){ toast('Elige las dos fechas.'); return; } if(di>df){ toast('La fecha inicial no puede ser después de la final.'); return; }
-      b.disabled=true; msg.textContent=`Pidiendo al SAT las facturas de ${n.nombre} del ${satFmtD(di)} al ${satFmtD(df)}…`;
+      b.dataset.ocupado=''; b.disabled=true; msg.textContent=`Pidiendo al SAT las facturas de ${n.nombre} del ${satFmtD(di)} al ${satFmtD(df)}…`;
       try{ const j=await fnOficina({accion:'solicitar',negocio_id:n.id,desde:di,hasta:df},'sat-descarga');
         if(j.ok){ aviso(`El SAT aceptó la solicitud ${j.id_solicitud} de ${n.nombre} (${satFmtD(di)} → ${satFmtD(df)}). Tarda de minutos a horas; cada 20 minutos se revisa y se descarga sola. Síguela en Historial de solicitudes.`,'ok',15000,'Solicitud enviada al SAT'); msg.textContent=''; }
         else msg.textContent='✕ '+(j.error||j.mensaje||'No se pudo'); }
@@ -3946,7 +4062,7 @@ async function satHistorial(){
   for(const n of negocios){ const r=porId[n.id]||{};
     resumen.append(h('div',{class:'item',style:'cursor:default;align-items:flex-start'}, h('div',{class:'l'}, h('b',{},n.nombre), h('div',{class:'small muted'},`Pide desde ${satFmtD(r.sat_desde||n.sat_desde)} · cubierto hasta ${satFmtF(r.sat_cubierto_hasta||n.sat_cubierto_hasta)} · ${r.solicitudes_pendientes||0} en camino · últimos 30 días: ${r.registradas_30d||0} nuevas, ${r.ya_registradas_30d||0} ya estaban, ${r.errores_30d||0} con error`), r.ultima_solicitud? h('div',{class:'small muted'},`Última solicitud ${satFmtF(r.ultima_solicitud)} · ${r.ultimo_estado||''}${r.ultimo_mensaje?' · '+r.ultimo_mensaje:''}`):null),
       h('div',{class:'row',style:'gap:6px;align-items:center'}, !n.llaves? h('span',{class:'chip warn'},'Sin llaves') : n.sat_activo? h('span',{class:'chip ok'},'Activo') : h('span',{class:'chip'},'Pausado'),
-        h('button',{class:'btn sm ghost',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; msg.textContent='Revisando con el SAT…'; try{ const j=await fnOficina({accion:'avanzar',negocio_id:n.id},'sat-descarga'); const rr=j.resumen||{}; if(j.ok){ aviso(`${rr.verificadas||0} verificadas · ${rr.descargados||0} paquetes · ${rr.registradas||0} facturas nuevas · ${rr.ya_registradas||0} ya estaban · ${rr.errores||0} errores` + ((j.log||[]).length? ' — '+j.log.slice(-3).join(' | '):''),'ok',15000,'Revisión con el SAT'); render(); } else msg.textContent='✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Revisar ahora')))); }
+        h('button',{class:'btn sm ghost',disabled:!n.llaves,onclick:async(ev)=>{ const b=ev.currentTarget; b.dataset.ocupado=''; b.disabled=true; msg.textContent='Revisando con el SAT…'; try{ const j=await fnOficina({accion:'avanzar',negocio_id:n.id},'sat-descarga'); const rr=j.resumen||{}; if(j.ok){ aviso(`${rr.verificadas||0} verificadas · ${rr.descargados||0} paquetes · ${rr.registradas||0} facturas nuevas · ${rr.ya_registradas||0} ya estaban · ${rr.errores||0} errores` + ((j.log||[]).length? ' — '+j.log.slice(-3).join(' | '):''),'ok',15000,'Revisión con el SAT'); render(); } else msg.textContent='✕ '+(j.error||'No se pudo'); }catch(e){ msg.textContent='✕ '+e.message; } b.disabled=false; }},'Revisar ahora')))); }
   resumen.append(msg); box.append(resumen);
   const lista=h('div',{class:'stack'}); box.append(h('div',{class:'row between'}, h('label',{class:'f',style:'margin:0'},h('span',{class:'l'},'Empresa'),satSelectorEmpresa(negocios,true,()=>pinta()))), lista);
   async function pinta(){ lista.innerHTML=''; const espera=omEsperando(['Cargando solicitudes…']); lista.append(espera);
@@ -3986,8 +4102,8 @@ async function adminConfig(vista){
       h('div',{class:'row',style:'align-items:center;gap:12px;flex-wrap:wrap'}, prev, h('div',{class:'row'}, h('button',{class:'btn sm',onclick:()=>file.click()},'Subir logo (PNG o JPG)'), logoNuevo? h('button',{class:'btn sm ghost',onclick:()=>{ logoNuevo=null; logoTocado=true; msg.textContent='Se quitará el logo al guardar; se usará el nombre.'; drawPrev(); }},'Quitar') : null), file), msg,
       h('div',{class:'grid2',style:'align-items:end'}, h('label',{class:'f'},h('span',{class:'l'},'Nombre que firma los correos'),remN), h('label',{class:'f'},h('span',{class:'l'},'Correo remitente (del dominio mauriciopizano.com)'),rem)),
       h('button',{class:'btn primary',onclick:async(ev)=>{ const b=ev.currentTarget; const n=nom.value.trim(); if(!n){ toast('Escribe el nombre de la estación.'); return; } const r=rem.value.trim().toLowerCase(); if(r && !/^[^@\s]+@mauriciopizano\.com$/.test(r)){ toast('El remitente debe ser un correo @mauriciopizano.com (es el dominio verificado para enviar).',5000); return; }
-        b.disabled=true; try{ const upd={nombre:n, remitente:r||null, remitente_nombre:remN.value.trim()||n}; if(logoTocado) upd.logo_data=logoNuevo; await sel(sb.from('estaciones').update(upd).eq('id',c.estacionId));
-          c.nombre=n; c.remitente=r; c.remitenteNombre=upd.remitente_nombre; if(logoTocado){ c.logoData=logoNuevo; c.logoRatio=null; medirLogo(); } ESTACION=n; const e=S.estaciones.find(x=>x.id===c.estacionId); if(e){ e.nombre=n; if(logoTocado) e.logo_data=logoNuevo; } logoTocado=false; setBrand(); toast('Identidad guardada.'); }
+        b.dataset.ocupado='Guardando…'; b.disabled=true; try{ const upd={nombre:n, remitente:r||null, remitente_nombre:remN.value.trim()||n}; if(logoTocado) upd.logo_data=logoNuevo; await sel(sb.from('estaciones').update(upd).eq('id',c.estacionId));
+          c.nombre=n; c.remitente=r; c.remitenteNombre=upd.remitente_nombre; if(logoTocado){ c.logoData=logoNuevo; c.logoRatio=null; medirLogo(); } ESTACION=n; const e=S.estaciones.find(x=>x.id===c.estacionId); if(e){ e.nombre=n; if(logoTocado) e.logo_data=logoNuevo; } logoTocado=false; setBrand(); toast('Identidad guardada.'); btnHecho(b,'Guardado'); }
         catch(e){ toast('No se guardó: '+(e.message||e.code),5000); } b.disabled=false; }},'Guardar identidad'))); }
   if(vista==='terminales'){
   // terminales bancarias
@@ -4011,7 +4127,7 @@ async function adminConfig(vista){
   isl.append(h('button',{class:'btn primary',onclick:async()=>{ try{ for(const i of c.islas){ const vistos={}; for(const m of i.mangueras){ const n=String(m.codigo||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(n&&vistos[n]) throw new Error(`El código ${n} está repetido en ${i.nombre} (${vistos[n]} y ${m.id}).`); if(n) vistos[n]=m.id; } }
     for(const i of c.islas) for(let k=0;k<i.mangueras.length;k++) await sel(sb.from('mangueras').update({orden:k+1, codigo_pantalla:(i.mangueras[k].codigo||'').trim()||null}).eq('id',i.mangueras[k].uuid)); toast('Orden y códigos guardados.'); }catch(e){ toast('No se guardó: '+(e.message||e.code),6000); } }},'Guardar orden y códigos'));
   box.append(isl);
-  box.append(h('div',{class:'card stack'}, h('h3',{},'Integridad de los cortes'), h('p',{class:'small muted'},'Recalcula el sello de todos los cortes enviados y avisa si alguno fue alterado por fuera de la app.'), h('button',{class:'btn block',onclick:async e=>{ e.target.disabled=true; try{ const r=await rpc('verificar_integridad',{p_estacion:c.estacionId}); toast(r&&r.length?`⚠ ${r.length} corte(s) con sello que no coincide`:'✓ Todos los cortes enviados coinciden con su sello.',6000); }catch(err){ toast('No se pudo: '+(err.message||err.code),5000); } e.target.disabled=false; }},'Verificar ahora')));
+  box.append(h('div',{class:'card stack'}, h('h3',{},'Integridad de los cortes'), h('p',{class:'small muted'},'Recalcula el sello de todos los cortes enviados y avisa si alguno fue alterado por fuera de la app.'), h('button',{class:'btn block',onclick:async e=>{ e.target.dataset.ocupado='Verificando…'; e.target.disabled=true; try{ const r=await rpc('verificar_integridad',{p_estacion:c.estacionId}); toast(r&&r.length?`⚠ ${r.length} corte(s) con sello que no coincide`:'✓ Todos los cortes enviados coinciden con su sello.',6000); }catch(err){ toast('No se pudo: '+(err.message||err.code),5000); } e.target.disabled=false; }},'Verificar ahora')));
 }
 // ===== OFICINA · Pagos a proveedores y Proveedores (dueño, central, oficina) =====
 // Todo pasa por la función del servidor "registrar-comprobante" (IA + Drive + registrar_pago) y por las RPC
@@ -4241,7 +4357,7 @@ async function renderWizardPago(cuentas, fijo){
         if(!f.proveedorId && !f.proveedorNombre.trim()){ msg.textContent='Escribe el nombre del proveedor.'; return; }
         if(!/^\d{4}-\d{2}-\d{2}$/.test(f.fecha)){ msg.textContent='Revisa la fecha.'; return; }
         if(!(Number(f.monto)>0)){ msg.textContent='Revisa el importe.'; return; }
-        const b=e.currentTarget; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
+        const b=e.currentTarget; b.dataset.ocupado=''; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
         const j=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, cuenta_id:f.cuentaId,
           proveedor_id:f.proveedorId||null, proveedor_nombre:f.proveedorId?null:f.proveedorNombre.trim(), fecha:f.fecha, monto:Number(f.monto),
           referencia:f.referencia.trim()||null, concepto:f.concepto.trim()||null, factura:f.factura.trim()||null, factura_id:f.facturaId||null, metodo:f.metodo, extraido_ia:ia }).catch(err=>({ok:false,error:err.message}));
@@ -4280,7 +4396,7 @@ async function consultaComprobantes(){
       if(!j.ok){ btn.disabled=false; btn.textContent='Generar expediente'; aviso(j.error||'error','err'); return; }
       r.expediente_drive_id=(j.drive||'').split('/d/')[1]?.split('/')[0]||'x'; btn.disabled=false; btn.className='btn sm ghost'; btn.textContent='Abrir expediente'; window.open(j.drive,'_blank','noopener'); });
     acciones.append(btn);
-    if(r.expediente_drive_id) acciones.append(h('button',{class:'btn sm ghost',title:'Volver a armarlo',onclick:async e=>{ const b=e.currentTarget; b.disabled=true; const j=await fnOficina({ factura_id:r.id, rehacer:true }, 'expediente-pago').catch(err=>({ok:false,error:err.message})); b.disabled=false; if(!j.ok){ aviso(j.error||'error','err'); return; } toast('Expediente rehecho.'); render(); }},'Rehacer'));
+    if(r.expediente_drive_id) acciones.append(h('button',{class:'btn sm ghost',title:'Volver a armarlo',onclick:async e=>{ const b=e.currentTarget; b.dataset.ocupado='Rehaciendo…'; b.disabled=true; const j=await fnOficina({ factura_id:r.id, rehacer:true }, 'expediente-pago').catch(err=>({ok:false,error:err.message})); b.disabled=false; if(!j.ok){ aviso(j.error||'error','err'); return; } toast('Expediente rehecho.'); render(); }},'Rehacer'));
     list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${sf}`), h('span',{class:'small muted'},`${r.negocio} · pagada el ${fmtFecha(r.pago_fecha)}${r.concepto?' · '+r.concepto:''}`), acciones),
       h('div',{style:'text-align:right'}, h('b',{},fmtMonto(r.total)), h('div',{},h('span',{class:'chip ok'},'pagada')))));
   }
@@ -4621,7 +4737,7 @@ async function renderWizardFactura(fijo){
         if(!f.proveedorId && !f.proveedorNombre.trim()){ msg.textContent='Escribe el nombre del proveedor.'; return; }
         if(!/^\d{4}-\d{2}-\d{2}$/.test(f.fecha)){ msg.textContent='Revisa la fecha.'; return; }
         if(!(Number(f.total)>=0)){ msg.textContent='Revisa el total.'; return; }
-        const b=e.currentTarget; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
+        const b=e.currentTarget; b.dataset.ocupado=''; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
         const j=await fnOficina({ accion:'registrar', xml_base64:w.xml?w.xml.b64:null, pdf_base64:w.pdf?w.pdf.b64:null, pdf_mime:w.pdf?w.pdf.mime:null, negocio_id:negocioId,
           proveedor_id:f.proveedorId||null, proveedor_nombre:f.proveedorId?null:f.proveedorNombre.trim(), proveedor_rfc:x.emisor_rfc||null, fecha:f.fecha, total:Number(f.total), serie:f.serie.trim()||null, folio:f.folio.trim()||null, concepto:f.concepto.trim()||null, notas:f.notas.trim()||null }, 'registrar-factura').catch(err=>({ok:false,error:err.message}));
         if(!j.ok){ b.disabled=false; msg.textContent=''; if(j.codigo==='factura_duplicada') w.paso='archivos'; render(); aviso(j.error||'No se pudo registrar la factura.','err',10000,'No se puede registrar'); return; }
