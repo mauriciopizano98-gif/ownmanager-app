@@ -1157,7 +1157,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.0.1';
+const OM_VERSION='2.0.2';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1677,7 +1677,7 @@ function siguienteNoche(c){
 }
 async function botonPDFNoche(st){
   return h('button',{class:'btn ok big block',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t=b.textContent; b.textContent='Generando…';
-    try{ const blob=await generarPDFNoche(st); const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:`Noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); btnHecho(b,'Listo'); }
+    try{ const blob=await generarPDFNoche(st); if(await entregarBlob(blob, `Noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`)) btnHecho(b,'Listo'); }
     catch(e){ toast('No se pudo generar el PDF: '+(e.message||e),5000); }
     b.disabled=false; b.textContent=t; }},'Imprimir el corte de la noche');
 }
@@ -2711,7 +2711,7 @@ async function descargarPDF(c, btn){
   if(!window.jspdf){ toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return; }
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Generando PDF…'; }
   try{ const blob=await pdfDelCorte(c); const ap=(c.despachadorNombre||'').split(' ')[0]; const nombre=`Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}_${(c.islaNombre||'').replace(/\s+/g,'')}_${ap}.pdf`;
-    const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); toast('PDF listo para imprimir y firmar.'); btnHecho(btn,'Listo'); }
+    if(await entregarBlob(blob, nombre)){ toast('PDF listo para imprimir y firmar.'); btnHecho(btn,'Listo'); } }
   catch(e){ toast('No se pudo generar el PDF: '+(e.message||e.code||e),5000); }
   if(btn){ btn.disabled=false; btn.textContent=orig; }
 }
@@ -2722,7 +2722,9 @@ async function pdfDelCorte(c){ if(_pdfCache.id===c.id&&_pdfCache.hash===(c.hash|
 async function imprimirPDF(c, btn, silencioso){
   if(!window.jspdf||!window.jspdf.jsPDF){ if(!silencioso) toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return false; }
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Preparando impresión…'; }
-  try{ const blob=await pdfDelCorte(c); const url=URL.createObjectURL(blob);
+  try{ const blob=await pdfDelCorte(c);
+    if(esApk()) return await entregarBlob(blob, `Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}.pdf`);
+    const url=URL.createObjectURL(blob);
     const prev=document.getElementById('omPrint'); if(prev) prev.remove();
     const fr=h('iframe',{id:'omPrint',title:'Impresión del corte',style:'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none'});
     await new Promise(res=>{ let done=false; const fin=()=>{ if(!done){ done=true; res(); } }; fr.onload=fin; fr.onerror=fin; fr.src=url; document.body.append(fr); setTimeout(fin,3500); });
@@ -2952,7 +2954,7 @@ async function descargaDetalle(d, volver){
   const previas={}; await firmarDescarga(fotos, previas);
   const grid=h('div',{class:'fotos'});
   for(const [k,nombre] of PASOS_DESCARGA){ const ft=fotos[k];
-    grid.append(h('figure',{}, ft&&previas[k]? h('img',{src:previas[k],alt:nombre,loading:'lazy',style:'width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);cursor:zoom-in',onclick:()=>window.open(previas[k],'_blank')}) : h('div',{class:'enc-falta'},ft?'Foto guardada':'Sin foto'), h('figcaption',{}, h('b',{},nombre), ft? h('span',{class:'small muted'},' · '+fmtHora(ft.en)):null))); }
+    grid.append(h('figure',{}, ft&&previas[k]? h('img',{src:previas[k],alt:nombre,loading:'lazy',style:'width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm);border:1px solid var(--line);cursor:zoom-in',onclick:()=>abrirUrl(previas[k], nombre+'.jpg')}) : h('div',{class:'enc-falta'},ft?'Foto guardada':'Sin foto'), h('figcaption',{}, h('b',{},nombre), ft? h('span',{class:'small muted'},' · '+fmtHora(ft.en)):null))); }
   app.append(h('div',{class:'card stack'}, h('h3',{style:'margin:0'},'Fotos'), grid));
   if(!central) return;
   const acc=h('div',{class:'row',style:'gap:8px;flex-wrap:wrap;margin-top:12px'});
@@ -2960,7 +2962,7 @@ async function descargaDetalle(d, volver){
   if(d.estado==='enviada'){
     acc.append(h('button',{class:'btn',id:'desc-pdf',onclick:async ev=>{ const b=ev.currentTarget; b.disabled=true; const t0=b.textContent; b.textContent='Generando…';
       try{ const j=await fnOficina({descarga_id:d.id, accion:'pdf'},'leer-descarga'); if(!j.ok) throw new Error(j.error||'No se pudo');
-        const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'descarga.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); btnHecho(b,''); }
+        if(await entregarBlob(blobDeBase64(j.pdf_base64), j.nombre||'descarga.pdf')) btnHecho(b,''); }
       catch(e){ aviso('No se pudo generar el PDF: '+(e.message||e),'err'); } b.disabled=false; b.textContent=t0; }},'PDF'));
     acc.append(h('button',{class:'btn ghost',id:'desc-releer',onclick:async ev=>{ const b=ev.currentTarget; b.disabled=true; b.textContent='Leyendo las fotos…'; const j=await leerDescarga(d.id,{releer:true}); if(!j.ok) aviso('No se pudo leer: '+(j.error||''),'err'); await recargar(); }},'Volver a leer las fotos'));
   }
@@ -2995,6 +2997,38 @@ async function adminDescargas(){
 // así funciona aunque Firebase no esté configurado; la clave evita mostrarlo dos veces si también llega por Firebase.
 const PUSH={ plugin:null, oyentes:false, token:null, vistos:{} };
 function cargarScript(src){ return new Promise((ok,mal)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>mal(new Error('No se pudo cargar '+src)); document.head.append(s); }); }
+// ── Archivos en el teléfono (APK) ───────────────────────────────────────────────────────────────────────────
+// En la APK la página corre en un visor web que no descarga archivos armados en memoria, no abre pestañas y no trae
+// lector de PDF: los botones de PDF "generaban" y no pasaba nada. Ahí el archivo se guarda en la carpeta temporal de
+// la app y se abre de inmediato con el lector del teléfono (decisión de Mauricio, 18-nov-2026). Hace falta la APK 1.3.0
+// (complementos Filesystem y FileOpener); con una APK anterior se avisa en claro. En un navegador nada cambia.
+const APKF={};
+function apkPuedeArchivos(){ try{ const C=window.Capacitor; return !!(esApk() && C && typeof C.isPluginAvailable==='function' && C.isPluginAvailable('Filesystem') && C.isPluginAvailable('FileOpener')); }catch(_){ return false; } }
+function nombreDeArchivo(n, mime){ let t=String(n||'archivo').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^[_.]+|_+$/g,'').slice(-90)||'archivo';
+  if(!/\.[A-Za-z0-9]{2,5}$/.test(t)){ const ext={'application/pdf':'pdf','image/jpeg':'jpg','image/png':'png','image/webp':'webp','text/xml':'xml','application/xml':'xml'}[String(mime||'').split(';')[0]]; if(ext) t+='.'+ext; }
+  return t; }
+async function apkAbrirArchivo(blob, nombre, mime){
+  if(!apkPuedeArchivos()){ aviso('Para abrir archivos en el teléfono hace falta la versión nueva de la app OwnManager.','err',12000,'Archivo'); return false; }
+  mime=String(mime||blob.type||'application/pdf').split(';')[0]||'application/pdf';
+  if(!window.capacitorExports) await cargarScript('vendor/capacitor-6.2.1.js');
+  const comp=n=>APKF[n]||(APKF[n]=window.capacitorExports.registerPlugin(n));
+  const w=await comp('Filesystem').writeFile({ path:'OwnManager/'+nombreDeArchivo(nombre,mime), data:await archivoABase64(blob), directory:'CACHE', recursive:true });
+  try{ await comp('FileOpener').open({ filePath:w.uri, contentType:mime, openWithDefault:true }); return true; }
+  catch(e){ // el teléfono no tiene con qué abrirlo: se ofrece compartirlo o guardarlo
+    if(window.Capacitor.isPluginAvailable('Share')){ try{ await comp('Share').share({ title:nombreDeArchivo(nombre,mime), url:w.uri, dialogTitle:'Abrir o compartir' }); }catch(_){} return true; }
+    throw new Error('El teléfono no tiene una app para abrir este archivo.'); }
+}
+// Entrega un archivo que ya está en memoria: en la APK se abre con el lector del teléfono; en un navegador se descarga como siempre.
+async function entregarBlob(blob, nombre){
+  if(esApk()) return apkAbrirArchivo(blob, nombre, blob.type);
+  const url=URL.createObjectURL(blob); const a=h('a',{href:url,download:nombre}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); return true; }
+function blobDeBase64(b64, mime){ const bin=atob(b64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return new Blob([u8],{type:mime||'application/pdf'}); }
+// Abre una dirección (foto o documento) en pestaña nueva; en la APK la baja y la abre con el visor del teléfono.
+async function abrirUrl(url, nombre){
+  if(!esApk()){ window.open(url,'_blank'); return; }
+  try{ const r=await fetch(url); if(!r.ok) throw new Error('No se pudo bajar el archivo ('+r.status+').'); const b=await r.blob(); await apkAbrirArchivo(b, nombre||'archivo', b.type); }
+  catch(e){ aviso(e.message||'No se pudo abrir el archivo.','err',8000,'Archivo'); } }
+window.__archivos={ entregarBlob, abrirUrl, apkPuedeArchivos, nombreDeArchivo, ver:(id,o)=>verArchivo(id,o) };   // gancho para las pruebas
 async function pushIniciar(){
   try{ const C=window.Capacitor; if(!esApk() || !C || typeof C.isPluginAvailable!=='function' || !C.isPluginAvailable('PushNotifications')) return; // navegador o APK anterior
     if(!window.capacitorExports) await cargarScript('vendor/capacitor-6.2.1.js');
@@ -3153,7 +3187,7 @@ async function logForma(){
     else { const delXml=carta.origen==='xml' && Number(carta.subtotal)>0;
       cartaBox.append(h('div',{class:'row between',style:'align-items:center;gap:10px;flex-wrap:wrap'}, h('div',{class:'l'}, h('b',{},carta.nombre||'Carta porte'), h('span',{class:'small muted',style:'display:block'},[carta.receptor, carta.fecha?fmtFecha(carta.fecha):null, carta.uuid?'folio fiscal …'+String(carta.uuid).slice(-8):null].filter(Boolean).join(' · ')||'Archivo anexado')),
         h('div',{class:'row',style:'gap:8px'}, h('button',{class:'btn sm ghost',id:'lv-ver-carta',onclick:async()=>{ if(carta.drive_id){ logVer(carta); return; } // las anexadas con la 1.7.0 siguen en el almacén de la app
-          try{ const {data,error}=await sb.storage.from('logistica').createSignedUrl(carta.ruta,3600); if(error) throw errSrv(error); window.open(data.signedUrl,'_blank'); }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),5000); } }},'Ver'),
+          try{ const {data,error}=await sb.storage.from('logistica').createSignedUrl(carta.ruta,3600); if(error) throw errSrv(error); await abrirUrl(data.signedUrl, carta.nombre||'carta_porte.pdf'); }catch(e){ toast('No se pudo abrir: '+(e.message||e.code),5000); } }},'Ver'),
           cancelado?null:h('button',{class:'btn sm ghost',onclick:()=>inCarta.click()},'Cambiar'))));
       fCobrado.readOnly=delXml||cancelado;
       cartaBox.append(campo(delXml?'Cobrado (flete sin IVA, leído de la carta porte)':'Cobrado (flete sin IVA)', fCobrado)); }
@@ -3280,7 +3314,7 @@ async function logUnidadForma(){
       if(get()!==a || !caja.isConnected) return; caja.innerHTML='';
       const esFoto=/^image\//.test(a._mime||'') || (!a._mime && /\.(jpe?g|png|webp)$/i.test(a.nombre||''));
       if(esFoto) caja.append(h('img',{src:url,alt:'Vista previa del documento'}));
-      else if(navigator.pdfViewerEnabled!==false) caja.append(h('iframe',{src:url+'#toolbar=0&navpanes=0&view=FitH',title:'Vista previa del documento'}));
+      else if(navigator.pdfViewerEnabled!==false && !esApk()) caja.append(h('iframe',{src:url+'#toolbar=0&navpanes=0&view=FitH',title:'Vista previa del documento'}));
       else caja.append(h('span',{class:'small muted'},'En este dispositivo el PDF no se puede mostrar aquí; usa "Ver".')); };
     const pinta=()=>{ box.innerHTML=''; const a=get();
       if(a){ const caja=h('div',{class:'lu-prev'});
@@ -3486,7 +3520,7 @@ async function tareaSheet(t, alTerminar){
   box.append(h('div',{class:'grid2'}, dato('Para', RAMA[t.para_rol]||t.para_rol), dato('La pidió', t.creada_por_nombre||'—'), dato('Fecha límite', v?v.txt:'Sin fecha'), dato('Foto', t.pide_foto?'Sí la pide':'No la pide'), t.hecha_en? dato('La cerró', `${t.hecha_por_nombre||'—'} · ${fmtFecha(fechaMX(t.hecha_en))} ${fmtHora(t.hecha_en)}`):null, t.revisada_en? dato(t.estado==='regresada'?'La regresó':'La revisó', `${t.revisada_por_nombre||'—'} · ${fmtFecha(fechaMX(t.revisada_en))} ${fmtHora(t.revisada_en)}`):null));
   if(t.motivo_regreso && t.estado!=='aprobada') box.append(h('p',{class:'small',style:'margin:0;color:var(--err)'},'Motivo del regreso: '+t.motivo_regreso));
   if(t.estado==='hecha' && t.sin_foto) box.append(h('p',{class:'small',style:'margin:0;color:var(--warn)'},'Pedía foto y se cerró sin ella.'));
-  if(t.foto && t.foto.ruta){ try{ const {data}=await sb.storage.from('fotos').createSignedUrls([t.foto.ruta], 3600); const u=data&&data[0]&&data[0].signedUrl; if(u) box.append(h('img',{src:u,alt:'Foto de la tarea',style:'width:100%;max-height:46vh;object-fit:contain;border-radius:var(--r-sm);background:var(--surface2);cursor:zoom-in',onclick:()=>window.open(u,'_blank')})); }catch(e){} }
+  if(t.foto && t.foto.ruta){ try{ const {data}=await sb.storage.from('fotos').createSignedUrls([t.foto.ruta], 3600); const u=data&&data[0]&&data[0].signedUrl; if(u) box.append(h('img',{src:u,alt:'Foto de la tarea',style:'width:100%;max-height:46vh;object-fit:contain;border-radius:var(--r-sm);background:var(--surface2);cursor:zoom-in',onclick:()=>abrirUrl(u,'foto_de_la_tarea.jpg')})); }catch(e){} }
   const hacer=async(fn,args,msg)=>{ try{ await rpc(fn,args); sheet.remove(); toast(msg); alTerminar&&alTerminar(); }catch(e){ toast('No se pudo: '+(e.message||e.code),6000); } };
   if(reviso && t.estado==='hecha'){ const motivo=h('input',{type:'text',placeholder:'Motivo, si la regresas',id:'tar-motivo'});
     box.append(h('button',{class:'btn primary big block',id:'tar-aprobar',onclick:()=>hacer('revisar_tarea',{p_tarea:t.id,p_aprobar:true,p_motivo:null},'Tarea aprobada.')},'Aprobar'), motivo,
@@ -3707,7 +3741,7 @@ async function adminHoy(){
     const pdfTurnoBtn=(tu)=>{ const completo=S.config.islas.every(i=>cs.some(x=>x.turno===tu.id&&x.isla===i.id&&(x.estado==='enviado'||x.estado==='omitida'))); if(!completo) return null;
       return h('button',{class:'btn sm ghost',style:'margin-top:4px',title:'Reporte del turno en PDF, con fotos',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t0=b.textContent; b.textContent='Generando…';
         try{ const j=await fnOficina({accion:'pdf', estacion_id:S.config.estacionId, fecha, turno:tu.id},'reporte-turno'); if(!j.ok) throw new Error(j.error||'No se pudo');
-          const bin=atob(j.pdf_base64); const u8=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u8[k]=bin.charCodeAt(k); const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); const a=h('a',{href:url,download:j.nombre||'turno.pdf'}); document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); btnHecho(b,''); }
+          if(await entregarBlob(blobDeBase64(j.pdf_base64), j.nombre||'turno.pdf')) btnHecho(b,''); }
         catch(e){ aviso('No se pudo generar el PDF del turno: '+(e.message||e),'err'); } b.disabled=false; b.textContent=t0; }},'PDF'); };
     for(const tu of S.config.turnos){ m.append(h('div',{class:'h',style:'text-align:left'},tu.nombre,h('br'),h('span',{class:'small',style:'font-weight:400'},tu.inicio),pdfTurnoBtn(tu)));
       for(const i of S.config.islas){ const c=cs.find(x=>x.turno===tu.id&&x.isla===i.id&&x.estado!=='abierto')||cs.find(x=>x.turno===tu.id&&x.isla===i.id);
@@ -4167,6 +4201,8 @@ async function traerArchivo(driveId, descargar, fn){
 // Abrir en pestaña nueva (se abre en el clic para que el navegador no la bloquee) o descargar.
 function verArchivo(driveId, o){
   o=o||{}; if(!driveId){ aviso('Este registro no tiene archivo.','err'); return; }
+  if(esApk()){ // en el teléfono se baja y se abre con el lector
+    (async()=>{ try{ if(apkPuedeArchivos()) toast('Abriendo el archivo…'); const a=apkPuedeArchivos()? await traerArchivo(driveId,false,o.fn) : null; await apkAbrirArchivo(a&&a.blob, (a&&a.nombre)||o.nombre||'archivo', a&&a.mime); }catch(e){ aviso(e.message||'No se pudo abrir el archivo.','err',10000,'Archivo'); } })(); return; }
   let win=null;
   if(!o.descargar){ win=window.open('','_blank'); if(win){ try{ win.document.title='OwnManager · abriendo…'; win.document.body.style.cssText='margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font:500 15px system-ui;color:#64748B;background:#F8FAFC'; win.document.body.textContent='Abriendo el archivo…'; }catch(e){} } }
   (async()=>{
@@ -4686,7 +4722,8 @@ async function renderWizardFactura(fijo){
         r.append(h('div',{class:'row between'}, h('div',{}, h('b',{},etiqueta), h('div',{class:'small muted'}, v? v.nombre : 'Sin archivo')),
           h('div',{class:'row'}, h('button',{class:'btn sm '+(v?'ghost':'primary'),onclick:()=>abrirArchivo(inp)}, v?'Cambiar':'Elegir'), v? h('button',{class:'btn sm ghost danger',onclick:()=>{ set(null); pinta(); btnLeer.disabled=!(w.xml||w.pdf); }},'Quitar'):null)));
         if(v && v.url){ if(/^image\//.test(v.mime)) r.append(h('img',{src:v.url,style:'max-height:260px;max-width:100%;border:1px solid var(--line);border-radius:8px;margin-top:8px'}));
-          else r.append(h('iframe',{src:v.url+'#toolbar=0&view=FitH',style:'width:100%;height:320px;border:1px solid var(--line);border-radius:8px;margin-top:8px;background:#fff'})); }
+          else if(navigator.pdfViewerEnabled!==false && !esApk()) r.append(h('iframe',{src:v.url+'#toolbar=0&view=FitH',style:'width:100%;height:320px;border:1px solid var(--line);border-radius:8px;margin-top:8px;background:#fff'}));
+          else r.append(h('div',{class:'small muted',style:'margin-top:8px'},'El PDF quedó elegido. En el teléfono no se muestra aquí.')); }
         if(v && v.texto) r.append(h('pre',{class:'small muted',style:'margin-top:8px;max-height:120px;overflow:auto;white-space:pre-wrap'},v.texto)); };
       inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return; const b64=await archivoABase64(f); const esXml=inp===inXml;
         const val={nombre:f.name, mime:f.type||(esXml?'text/xml':'application/pdf'), b64};
