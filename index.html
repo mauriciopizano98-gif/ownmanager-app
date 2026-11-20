@@ -977,6 +977,29 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .bd-total{margin:0;font:600 16px var(--font-body)}
 .bd-falta{background:var(--warn-soft);border-radius:var(--r-sm);padding:12px 14px}
 .bd-falta input{flex:1;min-width:200px}
+.bd-rev{color:var(--warn);font-weight:600}
+/* Subir movimientos: al lado, la lista de las cuentas que ya se actualizaron hoy. Se marca sola al subir; desmarcar deja subir otra vez. */
+.bs-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-top:12px;align-items:start}
+.bs-col{min-width:0}
+.bs-dia{padding:16px 16px 12px}
+.bs-dia-cab{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.bs-dia-cab h3{margin:0}
+.bs-dia-n{font:600 13.5px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.bs-dia-n.ya{color:var(--ok)}
+.bs-dia-filas{display:flex;flex-direction:column;margin:10px -8px 6px}
+.bs-dia-fila{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:center;min-height:44px;padding:8px;border-radius:var(--r-sm);cursor:pointer}
+.bs-dia-fila:hover{background:var(--surface2)}
+.bs-dia-fila.sin{cursor:default} .bs-dia-fila.sin:hover{background:none}
+.bs-dia-fila input{width:20px;height:20px;margin:0;accent-color:var(--mod-ink);cursor:inherit}
+.bs-dia-fila>span{display:flex;flex-direction:column;min-width:0}
+.bs-dia-fila b{font:600 14.5px/1.3 var(--font-body);overflow-wrap:anywhere}
+.bs-dia-fila.sin b{font-weight:500}
+.bs-ya{background:var(--warn-soft);border-radius:var(--r-sm);padding:12px 14px;margin:6px 0 0}
+@media (min-width:1200px){
+  body[data-om-nav] .om-main.bs-ancho{max-width:1424px}
+  .bs-wrap{grid-template-columns:minmax(0,1080px) 320px;gap:24px}
+  .bs-dia{position:sticky;top:24px}
+}
 .b-det .ln.avisado b{color:var(--muted);font-weight:500}
 .b-det{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding:14px 16px 18px;background:var(--surface2);border-bottom:1px solid var(--line)}
 .b-det h4{font:600 13.5px var(--font-body);color:var(--muted);margin:0 0 6px}
@@ -1226,7 +1249,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 <script src="vendor/jspdf-2.5.1.umd.min.js" defer></script>
 <script>
 // Si algo impide arrancar (librería que no cargó, error inesperado), que nunca se quede en negro: pantalla con el motivo y Reintentar.
-window.addEventListener('error', function(ev){ try{ if(document.querySelector('#om-caida')) return; var app=document.querySelector('#app'); if(app && app.children.length) return;
+window.addEventListener('error', function(ev){ try{ if(document.querySelector('#om-caida')) return; if(ev && ev.target && ev.target.tagName==='IMG') return; /* una imagen que no carga no impide arrancar (20-nov-2026: las del pie nacen sin dirección y a veces daban este aviso en falso) */ var app=document.querySelector('#app'); if(app && app.children.length) return;
   var d=document.createElement('div'); d.id='om-caida'; d.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#0B0F14;color:#F3F4F6;font:15px/1.5 system-ui,sans-serif;text-align:center;z-index:999';
   d.innerHTML='<div style="max-width:380px"><div style="font-size:40px">⚠️</div><h2 style="margin:8px 0">OwnManager no pudo arrancar</h2><p style="color:#9AA3AF">'+(ev&&ev.message?String(ev.message).replace(/</g,'&lt;'):'Error al cargar')+'</p><p style="color:#9AA3AF;font-size:13px">Revisa tu conexión (datos o Wi-Fi) y vuelve a intentar.</p><button onclick="location.reload()" style="margin-top:10px;padding:14px 22px;border:0;border-radius:12px;background:#84FF00;color:#0B0F14;font:600 16px system-ui">Reintentar</button></div>';
   document.body.appendChild(d); }catch(_){ } }, true);
@@ -1244,7 +1267,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.3.1';
+const OM_VERSION='2.4.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4753,9 +4776,12 @@ async function bancoIrAEfectivo(cuenta, fecha){ if(fecha) BAN.mes=fecha.slice(0,
 
 async function bancoSubir(){
   if(!BAN.w || (BAN.w.paso==='listo' && BAN.w.visto)) BAN.w={paso:'archivo'}; else if(BAN.w.paso==='listo') BAN.w.visto=true; // al volver a entrar ya no se queda en el aviso de guardado
-  const w=BAN.w; const card=h('div',{class:'card stack',id:'bs-card',style:'margin-bottom:12px'}); app.append(card);
+  const w=BAN.w; const card=h('div',{class:'card stack',id:'bs-card',style:'margin-bottom:12px'});
+  const col=h('div',{class:'bs-col'}, card); const wrap=h('div',{class:'bs-wrap'}, col); app.classList.add('bs-ancho'); app.append(wrap);
   const deNuevo=()=>{ BAN.w={paso:'archivo'}; render(); };
   let cuentas; try{ cuentas=await bancoCuentas(); }catch(e){ card.append(h('div',{class:'empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
+  const dia=await bancoDiaHoy(); const marcada=id=>bancoMarcada(dia,id); // null: la lista del día todavía no existe en el servidor (falta el SQL 057) y nada se bloquea
+  { const lado=bancoListaDia(cuentas, dia); if(lado) wrap.append(lado); }
   if(w.paso==='archivo'){
     const inp=h('input',{type:'file',id:'bs-archivo',accept:'.txt,.csv,.tsv,text/plain',style:'display:none'});
     inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
@@ -4766,9 +4792,9 @@ async function bancoSubir(){
       const suya=leido.numero? delBanco.find(c=>c.numero===leido.numero) : null;
       BAN.w={ paso:'confirmar', archivo:{nombre:f.name, sha}, leido, cuentaId:suya?suya.id:'', reconocida:!!suya }; render(); });
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Archivo del banco'), null),
-      h('p',{class:'small muted',style:'margin:2px 0 6px;max-width:68ch'},'El archivo de movimientos de Banorte o de BBVA, tal como lo entrega la banca. Puedes subir el mismo día varias veces: lo que ya estaba guardado no se repite.'),
+      h('p',{class:'small muted',style:'margin:2px 0 6px;max-width:68ch'},dia? 'El archivo de movimientos de Banorte o de BBVA, tal como lo entrega la banca. Cada cuenta se marca en la lista de hoy al subirla.' : 'El archivo de movimientos de Banorte o de BBVA, tal como lo entrega la banca. Puedes subir el mismo día varias veces: lo que ya estaba guardado no se repite.'),
       h('button',{class:'btn primary big block',id:'bs-elegir',onclick:()=>abrirArchivo(inp)},'Elegir archivo de movimientos'), inp);
-    await bancoCargas(cuentas);
+    await bancoCargas(cuentas, col);
     return;
   }
   if(w.paso==='guardando'){ const l=omEsperando(['Revisando que el saldo cuadre…','Comparando con lo ya guardado…','Guardando los movimientos nuevos…'],'grande'); l.style.padding='48px 0 40px'; add(card, l); return; }
@@ -4782,9 +4808,13 @@ async function bancoSubir(){
       catch(e){ w.paso='confirmar'; render(); aviso(e.message||e.code,'err',16000,'No se guardó nada'); return; }
       render(); };
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Revisa y guarda'), h('button',{class:'btn sm ghost',onclick:deNuevo},'Empezar de nuevo')));
+    if(w.reconocida && marcada(w.cuentaId)){ // Banorte se reconoce sola: si ya está marcada hoy, no se guarda hasta que la desmarquen en la lista
+      add(card, h('p',{class:'small bs-ya',id:'bs-ya'}, `${cta? cta.alias : 'Esta cuenta'} ya se actualizó hoy. Desmárcala en la lista de cuentas de hoy para volver a subirla.`)); return; }
     if(!w.reconocida){
-      const opciones= L.numero? delBanco.filter(c=>!c.numero) : delBanco;
-      if(!opciones.length){ add(card, h('p',{class:'small',id:'bs-sin-cuenta',style:'color:var(--err);margin:0'}, `No hay una cuenta de ${L.banco} dada de alta para este archivo${L.numero?' (cuenta terminación '+L.numero.slice(-4)+')':''}. Pide al dueño que la agregue.`)); return; }
+      const posibles= L.numero? delBanco.filter(c=>!c.numero) : delBanco; const opciones=posibles.filter(c=>!marcada(c.id));
+      if(w.cuentaId && !opciones.some(c=>c.id===w.cuentaId)) w.cuentaId='';
+      if(!posibles.length){ add(card, h('p',{class:'small',id:'bs-sin-cuenta',style:'color:var(--err);margin:0'}, `No hay una cuenta de ${L.banco} dada de alta para este archivo${L.numero?' (cuenta terminación '+L.numero.slice(-4)+')':''}. Pide al dueño que la agregue.`)); return; }
+      if(!opciones.length){ add(card, h('p',{class:'small bs-ya',id:'bs-ya'}, `Las cuentas de ${L.banco} ya se actualizaron hoy. Desmarca en la lista la que quieras volver a subir.`)); return; }
       const s=h('select',{id:'bs-cuenta'}, h('option',{value:''},'Elige la cuenta'), ...opciones.map(c=>h('option',{value:c.id,selected:c.id===w.cuentaId},bancoCuentaLarga(c))));
       s.addEventListener('change',()=>{ w.cuentaId=s.value; render(); });
       add(card, h('label',{class:'f'}, h('span',{class:'l'},'¿De qué cuenta es este archivo?'), s),
@@ -4806,9 +4836,32 @@ async function bancoSubir(){
       h('button',{class:'btn ghost',id:'bs-otro',onclick:deNuevo},'Subir otro archivo')));
   }
 }
+// Lista de cuentas de hoy (20-nov-2026): cada cuenta se marca sola cuando se suben sus movimientos, para ver de un vistazo cuáles faltan.
+// Una cuenta marcada ya no se ofrece para subir; al desmarcarla se puede subir otra vez. La lista empieza de nuevo a las 12 de la noche (hora de México).
+async function bancoDiaHoy(){ const hoy=nowMX().fecha;
+  try{ const rows=await sel(sb.from('banco_cuentas_dia').select('*').eq('fecha',hoy)); const m=new Map(rows.map(r=>[r.cuenta_id,r])); m.fecha=hoy; return m; }catch(e){ return null; } }
+const bancoMarcada = (dia,id) => { const r=dia&&dia.get(id); return !!(r && !r.reabierta_en); };
+function bancoListaDia(cuentas, dia){
+  if(!dia) return null; const lista=cuentas.filter(c=>/^(bbva|banorte)/i.test(c.banco)); if(!lista.length) return null; // solo las cuentas de los bancos cuyo archivo se puede subir
+  const hechas=lista.filter(c=>bancoMarcada(dia,c.id)).length; const filas=h('div',{class:'bs-dia-filas'});
+  for(const c of lista){ const r=dia.get(c.id); const on=bancoMarcada(dia,c.id);
+    const chk=h('input',{type:'checkbox','data-cuenta':c.id}); chk.checked=on; chk.disabled=!r; // sin archivo de hoy no hay nada que marcar a mano: la marca la pone el archivo
+    chk.addEventListener('change',async()=>{ chk.disabled=true;
+      try{ await rpc('marcar_cuenta_banco',{p_cuenta:c.id, p_marcada:chk.checked}); }catch(e){ aviso(e.message||e.code,'err',10000,'No se cambió la lista'); }
+      render(); });
+    filas.append(h('label',{class:'bs-dia-fila'+(on?' on':'')+(r?'':' sin'), title:r? null : 'Se marca sola al subir su archivo'}, chk, h('span',{}, h('b',{},bancoCuentaTxt(c)),
+      on? h('span',{class:'small muted'}, [fmtHora(r.subida_en), r.subida_por_nombre].filter(Boolean).join(' · ')) : r? h('span',{class:'small muted'},'Desmarcada: se puede volver a subir') : null))); }
+  // a las 12 de la noche la lista empieza de nuevo, aunque la pantalla se haya quedado abierta
+  clearTimeout(BAN.tDia); const ahora=nowMX(); const falta=Math.max(60, (24*60-(ahora.hora*60+ahora.min))*60+5)*1000;
+  BAN.tDia=setTimeout(()=>{ if(document.getElementById('bs-dia') && nowMX().fecha!==dia.fecha) render(); }, Math.min(falta, 2147000000));
+  return h('aside',{class:'card bs-dia',id:'bs-dia','aria-label':'Cuentas de hoy'},
+    h('div',{class:'bs-dia-cab'}, h('h3',{},'Cuentas de hoy'), h('span',{class:'bs-dia-n'+(hechas===lista.length?' ya':''),id:'bs-dia-n'},`${hechas} de ${lista.length}`)),
+    h('p',{class:'small muted',style:'margin:2px 0 0'},fmtFecha(dia.fecha)), filas,
+    h('p',{class:'small muted',style:'margin:0'},'Desmarca una cuenta para volver a subirla hoy.'));
+}
 // Lo último que se subió, con quién y cuándo. Solo el dueño puede eliminar una carga (la más reciente de la cuenta), con motivo.
-async function bancoCargas(cuentas){
-  const caja=h('div',{id:'bs-cargas'}); app.append(caja);
+async function bancoCargas(cuentas, donde){
+  const caja=h('div',{id:'bs-cargas'}); (donde||app).append(caja);
   let rows=[]; try{ rows=await sel(sb.from('banco_cargas').select('*').order('subido_en',{ascending:false}).limit(12)); }catch(e){ return; }
   if(!rows.length) return;
   caja.append(h('h3',{style:'margin:22px 0 10px'},'Últimos archivos subidos'));
@@ -4910,14 +4963,14 @@ async function bancoEfectivo(){
     if(abierto){ const isla=id=>((S.config.islas||[]).find(i=>i.uuid===id)||{}).nombre||'Isla'; const cta=id=>(cuentas.find(c=>c.id===id)||{}).alias||'';
       list.append(h('div',{class:'b-det',id:'be-det'},
         h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,ef})=>h('div',{class:'ln'}, h('span',{}, h('span',{},turnoNombre(c.turno)), h('span',{class:'small muted'}, isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''))), h('b',{},fmtMXN(ef)))) : [h('p',{class:'small muted',style:'margin:0'},'No hay cortes enviados de este día.')])),
-        h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const g=m.aviso; const sub=[cuentas.length>1? cta(m.cuenta_id) : null, m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null, g&&g.ligado_por!=='referencia'? 'ligado por cantidad, sin referencia' : null].filter(Boolean).join(' · '); return h('div',{class:'ln'}, h('span',{}, h('span',{}, g? `Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}` : m.ticket_num? 'Ticket '+m.ticket_num : (BAN_TIPOS[m.tipo]||m.tipo)), sub? h('span',{class:'small muted'},sub) : null), h('b',{},fmtMXN(m.abono))); }) : [h('p',{class:'small muted',style:'margin:0'}, x.pend? 'El archivo del banco de este día todavía no se ha subido.' : 'El banco no registra depósitos en efectivo de este día.')]),
+        h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const g=m.aviso; const sub=[cuentas.length>1? cta(m.cuenta_id) : null, m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null, g&&g.ligado_por==='numero'? 'ligado por número' : g&&g.ligado_por!=='referencia'? 'ligado por cantidad, sin referencia' : null].filter(Boolean).join(' · '); return h('div',{class:'ln'}, h('span',{}, h('span',{}, g? `Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}` : m.ticket_num? 'Ticket '+m.ticket_num : (BAN_TIPOS[m.tipo]||m.tipo)), sub? h('span',{class:'small muted'},sub) : null), h('b',{},fmtMXN(m.abono))); }) : [h('p',{class:'small muted',style:'margin:0'}, x.pend? 'El archivo del banco de este día todavía no se ha subido.' : 'El banco no registra depósitos en efectivo de este día.')]),
           ...d.avisos.map(g=>h('div',{class:'ln avisado'}, h('span',{}, h('span',{},'Avisado, sin caer'), h('span',{class:'small muted'},`Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}`)), h('b',{},fmtMXN(g.importe))))))); } }
   if(!lista.length) list.append(h('div',{class:'card empty'},h('b',{},'Este mes todavía no empieza')));
   cont.append(list);
 }
 
 // ---- BANCOS ▸ Depósito manual (19-nov-2026)
-// Antes de ir al banco, la oficina registra de qué corte es cada cantidad. Cada renglón recibe una referencia de 7 números
+// Antes de ir al banco, la oficina registra de qué corte es cada cantidad. Cada renglón recibe una referencia de 3 letras (el día del corte) y 5 números
 // para pedir en ventanilla que la capturen; la hoja se imprime y se va con quien deposita. La hoja no se edita: solo el dueño la cancela.
 // Al subir los movimientos, el servidor liga cada depósito con su renglón (por referencia o, si no viene, por cantidad).
 const DEP={ vista:'lista', filas:null, cuenta:'', hoja:null };
@@ -4927,11 +4980,13 @@ function depEstado(g, H){
   if(g.movimiento_id){ const dif=Math.round((Number(g.banco_importe)-Number(g.importe))*100)/100;
     if(g.ligado_por==='hoja') return h('span',{class:'bd-est'}, h('span',{class:'chip ok'}, ico('palomita',14), 'Cayó el '+fmtFecha(g.banco_fecha)), h('span',{class:'small muted'},'junto con toda la hoja: '+fmtMXN(g.banco_importe)));
     return h('span',{class:'bd-est'}, h('span',{class:'chip ok'}, ico('palomita',14), 'Cayó el '+fmtFecha(g.banco_fecha)),
+      g.ligado_por==='numero'? h('span',{class:'small'+(g.banco_letras?' bd-rev':' muted')}, g.banco_letras? `ligado por número: el banco trae ${g.banco_letras}, no ${String(g.referencia).slice(0,3)}` : 'ligado por número: el banco no trae las letras') : null,
       (g.ligado_por==='importe' || Math.abs(dif)>0.005)? h('span',{class:'small'+(Math.abs(dif)>om_tol()?' bd-dif':' muted')}, [g.ligado_por==='importe'?'ligado por cantidad, sin referencia':null, Math.abs(dif)>0.005? `cayeron ${fmtMXN(g.banco_importe)} (${dif>0?'+':'−'}${fmtMXN(Math.abs(dif))})`:null].filter(Boolean).join(' · ')) : null); }
   const dias=Math.round((Date.parse(nowMX().fecha)-Date.parse(String(H.creada_en).slice(0,10)))/864e5);
   return h('span',{class:'chip'+(dias>=3?' warn':'')}, dias>=3? ico('alerta',14):null, 'Sin caer');
 }
 const om_tol = () => 50; // misma tolerancia que usa el servidor para ligar por cantidad
+function clabeValida(v){ if(!/^\d{18}$/.test(v||'')) return false; const w=[3,7,1]; let s=0; for(let i=0;i<17;i++) s+=(Number(v[i])*w[i%3])%10; return (10-s%10)%10===Number(v[17]); } // el mismo dígito verificador que revisa el servidor
 function depFilaNueva(prev){ const hoy=nowMX().fecha; let f=addDays(hoy,-1); if(prev && prev.fecha){ const s=addDays(prev.fecha,1); f= s<=hoy? s : ''; } return { fecha:f, importe:null }; }
 async function bancoDeposito(){
   const est=S.config.estacionId; let cuentas; const cont=h('div',{}); 
@@ -4972,7 +5027,13 @@ async function bancoDeposito(){
       try{ const r=await rpc('crear_hoja_deposito',{ p_cuenta:DEP.cuenta, p_renglones:filas.map(x=>({fecha:x.fecha, importe:x.importe})) }); DEP.hoja=r; DEP.vista='hecha'; DEP.filas=null; render(); depDescargar(r, null); }
       catch(e){ btn.disabled=false; btn.textContent='Generar hoja'; aviso(e.message||e.code,'err',14000,'No se generó la hoja'); } };
     pintaTotal();
-    cont.append(h('div',{class:'card stack',style:'margin-top:12px'}, h('label',{class:'f'}, h('span',{class:'l'},'Cuenta donde se va a depositar'), sCta), (cta&&cta.numero)? h('p',{class:'small muted',id:'bd-num',style:'margin:-4px 0 0'},'En la hoja saldrá la cuenta ', h('b',{class:'num'},cta.numero), cta.clabe? ' y la CLABE ' : ' (sin CLABE registrada)', cta.clabe? h('b',{class:'num'},cta.clabe) : null) : faltaNum, lista,
+    let faltaClabe=null;
+    if(cta && cta.numero && !cta.clabe && S.rol==='dueno'){ // igual que el número: la CLABE la registra solo el dueño, y el servidor revisa que sea de esa cuenta
+      const n=h('input',{type:'text',inputmode:'numeric',id:'bd-clabe',placeholder:'CLABE de 18 dígitos',autocomplete:'off',maxlength:'24'}); const b=h('button',{class:'btn',id:'bd-clabe-ok'},'Guardar CLABE');
+      b.addEventListener('click',async()=>{ const v=n.value.replace(/\D/g,''); if(!clabeValida(v)){ aviso(v.length===18? 'Esa CLABE no es válida. Revisa los 18 dígitos.' : 'Escribe la CLABE completa (18 dígitos).','err'); return; } b.disabled=true;
+        try{ await sel(sb.from('cuentas_bancarias').update({clabe:v}).eq('id',cta.id).select('id')); BAN.cuentas=null; toast('CLABE guardada.'); render(); }catch(e){ b.disabled=false; aviso(e.message||e.code,'err',12000,'No se guardó la CLABE'); } });
+      faltaClabe=h('div',{class:'bd-falta',id:'bd-falta-clabe'}, h('p',{class:'small',style:'margin:0 0 8px'},`${cta.alias} no tiene registrada su CLABE. Escríbela una vez y saldrá en todas las hojas.`), h('div',{class:'row'}, n, b)); }
+    cont.append(h('div',{class:'card stack',style:'margin-top:12px'}, h('label',{class:'f'}, h('span',{class:'l'},'Cuenta donde se va a depositar'), sCta), (cta&&cta.numero)? h('p',{class:'small muted',id:'bd-num',style:'margin:-4px 0 0'},'En la hoja saldrá la cuenta ', h('b',{class:'num'},cta.numero), cta.clabe? ' y la CLABE ' : ' (sin CLABE registrada)', cta.clabe? h('b',{class:'num'},cta.clabe) : null) : faltaNum, faltaClabe, lista,
       h('div',{class:'row',style:'justify-content:space-between'}, h('button',{class:'btn ghost',id:'bd-otro',onclick:()=>{ filas.push(depFilaNueva(filas[filas.length-1])); render(); }},'Agregar otro depósito'), total),
       h('p',{class:'small muted',style:'margin:0;max-width:68ch'},'Un renglón por cada depósito que se va a hacer en ventanilla. Al generar la hoja, cada uno recibe su referencia y la hoja ya no se puede cambiar.'),
       h('button',{class:'btn primary big block',id:'bd-generar',onclick:e=>guardar(e.currentTarget)},'Generar hoja')));
@@ -5036,7 +5097,7 @@ function depositoPDF(H){
   y+=1; linea(y-paso*0.48,0.5); txt(X.f,y+1.5,`Total · ${reng.length===1?'1 depósito':reng.length+' depósitos'}`,{s:10.5,b:true}); txt(X.c,y+1.5,fmtMXN(total),{s:14,b:true,a:'right'}); y+=13;
   if(y>ALTO-70){ pie(); doc.addPage(); pag++; y=28; }
   doc.setDrawColor(...N); doc.setLineWidth(0.25); doc.rect(M,y,W-2*M,17);
-  txt(M+5,y+6.6,'En ventanilla',{s:9.5,b:true}); txt(M+5,y+12.2,'Un depósito por renglón, por la cantidad exacta. Pide que capturen la referencia de cada depósito.',{s:9.5,mw:W-2*M-10});
+  txt(M+5,y+6.6,'En ventanilla',{s:9.5,b:true}); txt(M+5,y+12.2,'Un depósito por renglón, por la cantidad exacta. Pide que capturen la referencia completa de cada depósito, con sus letras.',{s:9.5,mw:W-2*M-10});
   const yf=Math.max(y+44, ALTO-44); const ancho=(W-2*M-14)/2;
   doc.line(M,yf,M+ancho,yf); doc.line(W-M-ancho,yf,W-M,yf); txt(M,yf+4.6,'Entregó el efectivo (nombre y firma)',{s:8.5,c:G}); txt(W-M-ancho,yf+4.6,'Lo llevó a depositar (nombre y firma)',{s:8.5,c:G});
   pie(); return doc.output('blob');
