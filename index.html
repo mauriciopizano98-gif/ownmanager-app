@@ -959,6 +959,25 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .bc .b-cab,.bc .item.b-fila{grid-template-columns:minmax(0,1.6fr) minmax(0,1.5fr) minmax(0,.7fr) minmax(0,1.1fr) 92px;column-gap:20px}
 .bc .item.b-fila.ida{color:var(--muted)}
 .bc-motivo{padding:0 16px 10px;border-bottom:1px solid var(--line)}
+/* Depósito manual: cada hoja es un bloque con su encabezado y sus renglones; la referencia va en cifras grandes porque es lo que se teclea en ventanilla. */
+.bd-hoja{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.bd-hoja.ida{color:var(--muted)}
+.bd-cab{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap}
+.bd-cab>div:first-child{display:flex;flex-direction:column;min-width:0}
+.bd-cab b{font:600 17px var(--font-body)}
+.bd-hoja>.list.b-tabla{border:0;border-top:1px solid var(--line);border-radius:0}
+.bd .b-cab,.bd .item.b-fila{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,.9fr) minmax(0,1.7fr);column-gap:22px}
+.bd .b-fila>.chip{justify-self:start}
+.bd-ref{font:700 18px var(--font-mono);font-stretch:80%;letter-spacing:.08em;font-variant-numeric:tabular-nums}
+.bd-est{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.bd-dif{color:var(--err);font-weight:600}
+.bd-filas{display:flex;flex-direction:column;gap:10px}
+.bd-fila{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px;gap:12px;align-items:end}
+.bd-quitar{min-width:44px;min-height:44px;padding:0;justify-content:center}
+.bd-total{margin:0;font:600 16px var(--font-body)}
+.bd-falta{background:var(--warn-soft);border-radius:var(--r-sm);padding:12px 14px}
+.bd-falta input{flex:1;min-width:200px}
+.b-det .ln.avisado b{color:var(--muted);font-weight:500}
 .b-det{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding:14px 16px 18px;background:var(--surface2);border-bottom:1px solid var(--line)}
 .b-det h4{font:600 13.5px var(--font-body);color:var(--muted);margin:0 0 6px}
 .b-det .ln{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;font-size:14.5px;border-bottom:1px dashed var(--line)}
@@ -983,6 +1002,8 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
   .bt .item.b-fila{grid-template-columns:repeat(3,minmax(0,1fr))} .bt .b-fila>b{grid-column:1/4}
   .bc .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .bc-cta{grid-area:1/1} .bc .b-fila>:last-child{grid-area:1/2;justify-self:end} .bc .b-fila>:nth-child(2),.bc .b-fila>:nth-child(3),.bc-quien{grid-column:1/3;font-size:14px}
   .b-det{grid-template-columns:1fr;gap:16px}
+  .bd .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .bd .b-fila>b{grid-area:1/1} .bd .b-fila>.r{grid-area:1/2;text-align:right} .bd .b-fila>.r::before{display:none} .bd-ref{grid-area:2/1} .bd .b-fila>:last-child{grid-area:3/1/4/3}
+  .bd-fila{grid-template-columns:minmax(0,1fr) 44px} .bd-fila>label:first-child{grid-column:1/3} .bd-fila>span{display:none}
 }
 
 /* ---- Kiosko (propuesta D) ---- */
@@ -1223,7 +1244,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.2.0';
+const OM_VERSION='2.3.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2854,22 +2875,22 @@ async function renderAdmin(){
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
-    ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos']]],
+    ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos'],['bdeposito','depositos','Depósito manual']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]]];
-  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
   const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ // Diseño v2: el mismo selector de gasolinera, a la vista en botones (antes lista desplegable).
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:async()=>{ if(e.id===S.config.estacionId) return; S.estacionElegida=e.id; await cargarConfig(); render(); }},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito}))[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -4850,19 +4871,25 @@ async function bancoEfectivo(){
   if(!BAN.mes) BAN.mes=nowMX().fecha.slice(0,7);
   const est=S.config.estacionId; const ini=BAN.mes+'-01', fin=logMesMas(BAN.mes,1)+'-01', hoy=nowMX().fecha;
   const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando cortes y banco…']));
-  let cuentas, cortes=[], movs=[], ultimo=null; try{ cuentas=(await bancoCuentas()).filter(c=>c.estacionId===est); const ids=cuentas.map(c=>c.id);
+  let cuentas, cortes=[], movs=[], reng=[], ultimo=null; try{ cuentas=(await bancoCuentas()).filter(c=>c.estacionId===est); const ids=cuentas.map(c=>c.id);
     cortes=await bancoTodo(()=>sb.from('cortes').select('id, fecha, turno, isla_id, estado, dinero, despachadores(nombre)').eq('estacion_id',est).eq('estado','enviado').gte('fecha',ini).lt('fecha',fin).order('fecha'));
     if(ids.length){ movs=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, cuenta_id, orden, fecha, dia, tipo, abono, ticket_num, descripcion').in('cuenta_id',ids).in('tipo',BAN_EFECTIVO).gte('dia',ini).lt('dia',fin).order('dia').order('orden'));
-      const u=await sel(sb.from('movimientos_bancarios').select('fecha').in('cuenta_id',ids).order('fecha',{ascending:false}).limit(1)); ultimo=u.length? u[0].fecha : null; } }
+      const u=await sel(sb.from('movimientos_bancarios').select('fecha').in('cuenta_id',ids).order('fecha',{ascending:false}).limit(1)); ultimo=u.length? u[0].fecha : null;
+      reng=(await bancoTodo(()=>sb.from('deposito_renglones').select('id, hoja_id, cuenta_id, orden, fecha_corte, importe, referencia, movimiento_id, ligado_por, banco_importe, banco_fecha, deposito_hojas(folio, cancelada_en)').in('cuenta_id',ids).gte('fecha_corte',addDays(ini,-45)).lt('fecha_corte',addDays(fin,45)).order('fecha_corte').order('orden'))).filter(g=>!(g.deposito_hojas&&g.deposito_hojas.cancelada_en)); } }
   catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   cont.innerHTML=''; cont.append(bancoMesNav('be'));
   if(!cuentas.length){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Esta estación no tiene cuentas bancarias','Pide al dueño que dé de alta sus cuentas para poder comparar.'))); return; }
   if(!ultimo){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Todavía no hay movimientos del banco de esta estación','Sube el archivo de movimientos de '+cuentas.map(c=>c.alias).join(' o ')+' y aquí aparece, día por día, lo que cayó al banco junto al efectivo de los cortes.', true))); return; }
-  const dias={}; const D=f=>dias[f]||(dias[f]={cortes:[], deps:[], ef:0, banco:0});
+  const dias={}; const D=f=>dias[f]||(dias[f]={cortes:[], deps:[], avisos:[], ef:0, banco:0});
   for(const c of cortes){ const ef=calcDinero(c.dinero||{}).efectivo; const d=D(c.fecha); d.cortes.push({c, ef}); d.ef+=ef; }
-  for(const m of movs){ const d=D(m.dia||m.fecha); d.deps.push(m); d.banco+=Number(m.abono)||0; }
+  // Depósito manual: un depósito ligado con su hoja cuenta en la fecha de corte de cada renglón, no en el día en que cayó.
+  const porMov={}; for(const g of reng) if(g.movimiento_id) (porMov[g.movimiento_id]||(porMov[g.movimiento_id]=[])).push(g);
+  for(const m of movs){ if(porMov[m.id]) continue; const d=D(m.dia||m.fecha); d.deps.push(m); d.banco+=Number(m.abono)||0; }
+  for(const grupo of Object.values(porMov)){ let resto=Number(grupo[0].banco_importe)||0; grupo.forEach((g,i)=>{ const parte= i===grupo.length-1? Math.round(resto*100)/100 : Number(g.importe); resto-=parte;
+    if(g.fecha_corte>=ini && g.fecha_corte<fin){ const d=D(g.fecha_corte); d.deps.push({aviso:g, abono:parte, fecha:g.banco_fecha, cuenta_id:g.cuenta_id, tipo:'efectivo'}); d.banco+=parte; } }); }
+  for(const g of reng) if(!g.movimiento_id && g.fecha_corte>=ini && g.fecha_corte<fin) D(g.fecha_corte).avisos.push(g);
   const r2=n=>Math.round(n*100)/100; const tope= fin<=hoy? addDays(fin,-1) : hoy<ini? null : hoy; const lista=[]; let acum=0, tEf=0, tBanco=0, nDeps=0, sinDep=0;
-  for(let f=ini; tope && f<=tope; f=addDays(f,1)){ const d=dias[f]||{cortes:[], deps:[], ef:0, banco:0}; const pend= f>ultimo; // el banco de ese día todavía no se ha subido
+  for(let f=ini; tope && f<=tope; f=addDays(f,1)){ const d=dias[f]||{cortes:[], deps:[], avisos:[], ef:0, banco:0}; const pend= f>ultimo; // el banco de ese día todavía no se ha subido
     const dif=r2(d.banco-d.ef); if(!pend){ acum=r2(acum+dif); tEf+=d.ef; tBanco+=d.banco; nDeps+=d.deps.length; }
     const estado= pend? 'pend' : (d.ef>0 && !d.deps.length)? 'sindep' : (!d.cortes.length && d.deps.length)? 'sincorte' : (!d.cortes.length && !d.deps.length)? 'nada' : 'ok';
     if(estado==='sindep') sinDep++; lista.push({f, d, dif, acum, pend, estado}); }
@@ -4873,9 +4900,9 @@ async function bancoEfectivo(){
   const chips={ sindep:()=>h('span',{class:'chip warn'}, ico('alerta',14),'Sin depósito'), sincorte:()=>h('span',{class:'chip'},'Sin corte'), pend:()=>h('span',{class:'chip'},'Falta el banco'), nada:()=>h('span',{class:'small muted'},'Sin datos'), ok:()=>h('span',{}) };
   const pesos=(n,cls,l)=>h('span',{class:'r'+(cls?' '+cls:''),'data-l':l}, n==null? '—' : fmtMXN(n));
   const dif=(n,l)=>h('span',{class:'r'+(n==null||Math.abs(n)<0.005?' nada':n<0?' neg':''),'data-l':l}, n==null? '—' : Math.abs(n)<0.005? fmtMXN(0) : (n<0?'−':'+')+fmtMXN(Math.abs(n))); // lo que cuadra se apaga; lo que no, lleva signo
-  for(const x of lista.slice().reverse()){ const {f,d}=x; const abierto=BAN.dia===f; const puede=d.cortes.length||d.deps.length;
+  for(const x of lista.slice().reverse()){ const {f,d}=x; const abierto=BAN.dia===f; const puede=d.cortes.length||d.deps.length||d.avisos.length;
     const fila=h('div',{class:'item b-fila'+(abierto?' abierta':'')+(puede?'':' fija'),'data-dia':f,'aria-expanded':puede?String(abierto):null,role:puede?'button':null,tabindex:puede?'0':null},
-      h('span',{class:'b-dia'}, h('b',{},fmtFecha(f)), (d.cortes.length||d.deps.length)? h('span',{class:'small muted'}, `${d.cortes.length} ${d.cortes.length===1?'corte':'cortes'} · ${d.deps.length} ${d.deps.length===1?'depósito':'depósitos'}`) : null),
+      h('span',{class:'b-dia'}, h('b',{},fmtFecha(f)), (d.cortes.length||d.deps.length||d.avisos.length)? h('span',{class:'small muted'}, `${d.cortes.length} ${d.cortes.length===1?'corte':'cortes'} · ${d.deps.length} ${d.deps.length===1?'depósito':'depósitos'}`+(d.avisos.length? ` · ${d.avisos.length} avisado${d.avisos.length===1?'':'s'} sin caer` : '')) : null),
       pesos(d.cortes.length? d.ef : null, d.cortes.length?'':'nada','En cortes'), pesos(x.pend&&!d.deps.length? null : d.banco, (x.pend&&!d.deps.length)||!d.banco?'nada':'','Al banco'),
       dif(x.pend||x.estado==='nada'? null : x.dif,'Diferencia'), dif(x.pend? null : x.acum,'Acumulado'), h('span',{class:'b-est'}, chips[x.estado]()));
     if(puede){ const abrir=()=>{ BAN.dia=abierto?null:f; render(); }; fila.addEventListener('click',abrir); fila.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abrir(); } }); }
@@ -4883,12 +4910,138 @@ async function bancoEfectivo(){
     if(abierto){ const isla=id=>((S.config.islas||[]).find(i=>i.uuid===id)||{}).nombre||'Isla'; const cta=id=>(cuentas.find(c=>c.id===id)||{}).alias||'';
       list.append(h('div',{class:'b-det',id:'be-det'},
         h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,ef})=>h('div',{class:'ln'}, h('span',{}, h('span',{},turnoNombre(c.turno)), h('span',{class:'small muted'}, isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''))), h('b',{},fmtMXN(ef)))) : [h('p',{class:'small muted',style:'margin:0'},'No hay cortes enviados de este día.')])),
-        h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const sub=[cuentas.length>1? cta(m.cuenta_id) : null, m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null].filter(Boolean).join(' · '); return h('div',{class:'ln'}, h('span',{}, h('span',{}, m.ticket_num? 'Ticket '+m.ticket_num : (BAN_TIPOS[m.tipo]||m.tipo)), sub? h('span',{class:'small muted'},sub) : null), h('b',{},fmtMXN(m.abono))); }) : [h('p',{class:'small muted',style:'margin:0'}, x.pend? 'El archivo del banco de este día todavía no se ha subido.' : 'El banco no registra depósitos en efectivo de este día.')])))); } }
+        h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const g=m.aviso; const sub=[cuentas.length>1? cta(m.cuenta_id) : null, m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null, g&&g.ligado_por!=='referencia'? 'ligado por cantidad, sin referencia' : null].filter(Boolean).join(' · '); return h('div',{class:'ln'}, h('span',{}, h('span',{}, g? `Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}` : m.ticket_num? 'Ticket '+m.ticket_num : (BAN_TIPOS[m.tipo]||m.tipo)), sub? h('span',{class:'small muted'},sub) : null), h('b',{},fmtMXN(m.abono))); }) : [h('p',{class:'small muted',style:'margin:0'}, x.pend? 'El archivo del banco de este día todavía no se ha subido.' : 'El banco no registra depósitos en efectivo de este día.')]),
+          ...d.avisos.map(g=>h('div',{class:'ln avisado'}, h('span',{}, h('span',{},'Avisado, sin caer'), h('span',{class:'small muted'},`Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}`)), h('b',{},fmtMXN(g.importe))))))); } }
   if(!lista.length) list.append(h('div',{class:'card empty'},h('b',{},'Este mes todavía no empieza')));
   cont.append(list);
 }
 
-window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN };   // gancho para las pruebas
+// ---- BANCOS ▸ Depósito manual (19-nov-2026)
+// Antes de ir al banco, la oficina registra de qué corte es cada cantidad. Cada renglón recibe una referencia de 7 números
+// para pedir en ventanilla que la capturen; la hoja se imprime y se va con quien deposita. La hoja no se edita: solo el dueño la cancela.
+// Al subir los movimientos, el servidor liga cada depósito con su renglón (por referencia o, si no viene, por cantidad).
+const DEP={ vista:'lista', filas:null, cuenta:'', hoja:null };
+const depPuedeCrear = () => S.rol==='dueno' || S.rol==='oficina';
+function depEstado(g, H){
+  if(H.cancelada_en) return h('span',{class:'small muted'},'—');
+  if(g.movimiento_id){ const dif=Math.round((Number(g.banco_importe)-Number(g.importe))*100)/100;
+    if(g.ligado_por==='hoja') return h('span',{class:'bd-est'}, h('span',{class:'chip ok'}, ico('palomita',14), 'Cayó el '+fmtFecha(g.banco_fecha)), h('span',{class:'small muted'},'junto con toda la hoja: '+fmtMXN(g.banco_importe)));
+    return h('span',{class:'bd-est'}, h('span',{class:'chip ok'}, ico('palomita',14), 'Cayó el '+fmtFecha(g.banco_fecha)),
+      (g.ligado_por==='importe' || Math.abs(dif)>0.005)? h('span',{class:'small'+(Math.abs(dif)>om_tol()?' bd-dif':' muted')}, [g.ligado_por==='importe'?'ligado por cantidad, sin referencia':null, Math.abs(dif)>0.005? `cayeron ${fmtMXN(g.banco_importe)} (${dif>0?'+':'−'}${fmtMXN(Math.abs(dif))})`:null].filter(Boolean).join(' · ')) : null); }
+  const dias=Math.round((Date.parse(nowMX().fecha)-Date.parse(String(H.creada_en).slice(0,10)))/864e5);
+  return h('span',{class:'chip'+(dias>=3?' warn':'')}, dias>=3? ico('alerta',14):null, 'Sin caer');
+}
+const om_tol = () => 50; // misma tolerancia que usa el servidor para ligar por cantidad
+function depFilaNueva(prev){ const hoy=nowMX().fecha; let f=addDays(hoy,-1); if(prev && prev.fecha){ const s=addDays(prev.fecha,1); f= s<=hoy? s : ''; } return { fecha:f, importe:null }; }
+async function bancoDeposito(){
+  const est=S.config.estacionId; let cuentas; const cont=h('div',{}); 
+  if(DEP.vista==='forma' && !depPuedeCrear()) DEP.vista='lista';
+  if(DEP.vista==='lista' && depPuedeCrear()) accionTitulo(h('button',{class:'btn primary',id:'bd-nueva',onclick:()=>{ DEP.vista='forma'; DEP.filas=[depFilaNueva()]; render(); }},'Nueva hoja'));
+  app.append(cont); cont.append(omEsperando(['Cargando…']));
+  try{ cuentas=(await bancoCuentas()).filter(c=>c.estacionId===est); }catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  const ctaDe=id=>cuentas.find(c=>c.id===id);
+  if(DEP.vista==='hecha' && DEP.hoja){ cont.innerHTML=''; const H=DEP.hoja; const tot=H.renglones.reduce((s,g)=>s+Number(g.importe),0);
+    const t=h('div',{class:'list b-tabla bd',id:'bd-hecha'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Fecha de corte'), h('span',{},'Referencia'), h('span',{class:'r'},'Cantidad'), h('span',{},'')));
+    for(const g of H.renglones) t.append(h('div',{class:'item b-fila fija'}, h('b',{},fmtFecha(g.fecha_corte)), h('span',{class:'bd-ref'},g.referencia), h('span',{class:'r','data-l':'Cantidad'},fmtMXN(g.importe)), h('span',{})));
+    cont.append(h('div',{class:'card stack',style:'margin-top:14px'}, h('div',{class:'sechead'}, h('h3',{id:'bd-listo'},`Hoja ${H.folio} generada`), null),
+      h('p',{class:'small muted',style:'margin:0;max-width:68ch'},`${H.renglones.length===1?'Un depósito':H.renglones.length+' depósitos'} a ${H.cuenta} por ${fmtMXN(tot)}. Imprime la hoja y entrégala a quien va al banco: en ventanilla se pide que capturen la referencia de cada depósito.`), t,
+      h('div',{class:'row'}, h('button',{class:'btn primary',id:'bd-pdf',onclick:e=>depDescargar(H, e.currentTarget)},'Descargar la hoja en PDF'), h('button',{class:'btn ghost',id:'bd-terminar',onclick:()=>{ DEP.vista='lista'; DEP.hoja=null; render(); }},'Terminar'))));
+    return; }
+  if(DEP.vista==='forma'){ cont.innerHTML=''; const filas=DEP.filas||(DEP.filas=[depFilaNueva()]); if(!ctaDe(DEP.cuenta)) DEP.cuenta= cuentas.length===1? cuentas[0].id : '';
+    cont.append(h('button',{class:'btn sm ghost',id:'bd-volver',style:'margin-top:10px',onclick:()=>{ DEP.vista='lista'; DEP.filas=null; render(); }}, ico('volver',16),' Depósito manual'));
+    if(!cuentas.length){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Esta estación no tiene cuentas bancarias','Pide al dueño que dé de alta la cuenta donde se deposita.'))); return; }
+    const sCta=h('select',{id:'bd-cuenta'}, h('option',{value:''},'Elige la cuenta'), ...cuentas.map(c=>h('option',{value:c.id,selected:c.id===DEP.cuenta},bancoCuentaLarga(c)))); sCta.addEventListener('change',()=>{ DEP.cuenta=sCta.value; render(); });
+    const cta=ctaDe(DEP.cuenta); let faltaNum=null;
+    if(cta && !cta.numero){ // el número lo registra solo el dueño (regla del servidor): es a donde va a parar el dinero
+      if(S.rol==='dueno'){ const n=h('input',{type:'text',inputmode:'numeric',id:'bd-numero',placeholder:'Número de cuenta completo',autocomplete:'off',maxlength:'20'}); const b=h('button',{class:'btn',id:'bd-numero-ok'},'Guardar número');
+        b.addEventListener('click',async()=>{ const v=n.value.replace(/\D/g,''); if(v.length<10){ aviso('Escribe el número de cuenta completo (10 dígitos o más).','err'); return; } b.disabled=true;
+          try{ await sel(sb.from('cuentas_bancarias').update({numero:v}).eq('id',cta.id).select('id')); BAN.cuentas=null; toast('Número de cuenta guardado.'); render(); }catch(e){ b.disabled=false; aviso(e.message||e.code,'err',12000,'No se guardó el número'); } });
+        faltaNum=h('div',{class:'bd-falta',id:'bd-falta'}, h('p',{class:'small',style:'margin:0 0 8px'},`${cta.alias} no tiene registrado su número completo. Escríbelo una vez y saldrá en todas las hojas, para que quien deposita lo lleve anotado.`), h('div',{class:'row'}, n, b)); }
+      else faltaNum=h('div',{class:'bd-falta',id:'bd-falta'}, h('p',{class:'small',style:'margin:0'},`${cta.alias} no tiene registrado su número completo, así que la hoja saldrá sin él. Pídele al dueño que lo registre en esta misma pantalla.`)); }
+    const lista=h('div',{class:'bd-filas',id:'bd-filas'}); const total=h('p',{class:'bd-total',id:'bd-total'});
+    const pintaTotal=()=>{ const n=filas.filter(x=>x.importe>0).length; const t=filas.reduce((s,x)=>s+(Number(x.importe)||0),0); total.textContent= n? `Total: ${fmtMXN(t)} en ${n===1?'1 depósito':n+' depósitos'}` : 'Total: $0.00'; };
+    filas.forEach((x,i)=>{ const f=h('input',{type:'date',id:'bd-fecha-'+i,value:x.fecha||'',max:nowMX().fecha}); f.addEventListener('input',()=>{ x.fecha=f.value; });
+      const m=moneyInput('bd-imp-'+i, x.importe, v=>{ x.importe=v; pintaTotal(); });
+      lista.append(h('div',{class:'bd-fila'}, h('label',{class:'f'}, h('span',{class:'l'}, i? 'Fecha de corte' : 'Fecha de corte (el día que se vendió)'), f), h('label',{class:'f'}, h('span',{class:'l'},'Cantidad a depositar'), m),
+        filas.length>1? h('button',{class:'btn sm ghost bd-quitar',title:'Quitar este depósito','aria-label':'Quitar este depósito',onclick:()=>{ filas.splice(i,1); render(); }}, ico('borrar',18)) : h('span',{}))); });
+    const guardar=async(btn)=>{
+      if(!DEP.cuenta){ aviso('Elige la cuenta donde se va a depositar.','err'); return; }
+      const mal=filas.findIndex(x=>!x.fecha || !(x.importe>0)); if(mal>=0){ aviso(`Al depósito ${mal+1} le falta la fecha de corte o la cantidad.`,'err'); return; }
+      const fut=filas.findIndex(x=>x.fecha>nowMX().fecha); if(fut>=0){ aviso(`La fecha de corte del depósito ${fut+1} todavía no llega.`,'err'); return; }
+      btn.disabled=true; btn.textContent='Generando…';
+      try{ const r=await rpc('crear_hoja_deposito',{ p_cuenta:DEP.cuenta, p_renglones:filas.map(x=>({fecha:x.fecha, importe:x.importe})) }); DEP.hoja=r; DEP.vista='hecha'; DEP.filas=null; render(); depDescargar(r, null); }
+      catch(e){ btn.disabled=false; btn.textContent='Generar hoja'; aviso(e.message||e.code,'err',14000,'No se generó la hoja'); } };
+    pintaTotal();
+    cont.append(h('div',{class:'card stack',style:'margin-top:12px'}, h('label',{class:'f'}, h('span',{class:'l'},'Cuenta donde se va a depositar'), sCta), (cta&&cta.numero)? h('p',{class:'small muted',id:'bd-num',style:'margin:-4px 0 0'},'Número de cuenta que saldrá en la hoja: ', h('b',{class:'num'},cta.numero)) : faltaNum, lista,
+      h('div',{class:'row',style:'justify-content:space-between'}, h('button',{class:'btn ghost',id:'bd-otro',onclick:()=>{ filas.push(depFilaNueva(filas[filas.length-1])); render(); }},'Agregar otro depósito'), total),
+      h('p',{class:'small muted',style:'margin:0;max-width:68ch'},'Un renglón por cada depósito que se va a hacer en ventanilla. Al generar la hoja, cada uno recibe su referencia y la hoja ya no se puede cambiar.'),
+      h('button',{class:'btn primary big block',id:'bd-generar',onclick:e=>guardar(e.currentTarget)},'Generar hoja')));
+    return; }
+  let hojas=[]; try{ const ids=cuentas.map(c=>c.id); if(ids.length) hojas=await sel(sb.from('deposito_hojas').select('*, deposito_renglones(*)').in('cuenta_id',ids).order('creada_en',{ascending:false}).limit(40)); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML='';
+  if(!hojas.length){ cont.append(h('div',{style:'margin-top:14px'}, h('div',{class:'card empty',id:'bd-vacio'}, h('b',{},'Todavía no hay hojas de depósito'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'},'Antes de llevar efectivo al banco, registra aquí de qué corte es cada cantidad. Cada depósito recibe una referencia para pedir en ventanilla que la capturen, y así se sabe de qué día es cuando cae.')))); return; }
+  for(const H of hojas){ const c=ctaDe(H.cuenta_id); const reng=(H.deposito_renglones||[]).slice().sort((a,b)=>a.orden-b.orden); const tot=reng.reduce((s,g)=>s+Number(g.importe),0);
+    const fue=new Date(H.creada_en).toLocaleString('es-MX',{timeZone:'America/Mexico_City',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const paraPdf={ folio:H.folio, cuenta:c?c.alias:'', banco:c?c.banco:'', numero:c?c.numero:null, ultimos4:c?c.ultimos4:null, negocio:c?c.negocio:ESTACION, creada_en:H.creada_en, creada_por_nombre:H.creada_por_nombre, renglones:reng };
+    const caja=h('div',{class:'bd-hoja'+(H.cancelada_en?' ida':''),'data-folio':H.folio},
+      h('div',{class:'bd-cab'}, h('div',{}, h('b',{},`Hoja ${H.folio}`), h('span',{class:'small muted'}, [c?c.alias:null, fmtMXN(tot), `${fue}${H.creada_por_nombre?' · '+H.creada_por_nombre:''}`].filter(Boolean).join(' · '))),
+        h('div',{class:'row'}, H.cancelada_en? h('span',{class:'chip',title:H.cancelada_motivo||''},'Cancelada') : h('button',{class:'btn sm ghost',onclick:e=>depDescargar(paraPdf, e.currentTarget)},'PDF'),
+          (!H.cancelada_en && S.rol==='dueno')? h('button',{class:'btn sm ghost',onclick:()=>depCancelar(H)},'Cancelar') : null)));
+    if(H.cancelada_en && H.cancelada_motivo) caja.append(h('p',{class:'small muted',style:'margin:0 16px 10px'},'Motivo: '+H.cancelada_motivo));
+    const t=h('div',{class:'list b-tabla bd'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Fecha de corte'), h('span',{},'Referencia'), h('span',{class:'r'},'Cantidad'), h('span',{},'En el banco')));
+    for(const g of reng) t.append(h('div',{class:'item b-fila fija'}, h('b',{},fmtFecha(g.fecha_corte)), h('span',{class:'bd-ref'},g.referencia), h('span',{class:'r','data-l':'Cantidad'},fmtMXN(g.importe)), depEstado(g,H)));
+    caja.append(t); cont.append(caja); }
+}
+function depCancelar(H){
+  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
+  const motivo=h('input',{type:'text',id:'bd-motivo',placeholder:'Motivo (obligatorio): p. ej. se registró dos veces'});
+  const btn=h('button',{class:'btn big block',id:'bd-cancelar',style:'background:var(--err);color:var(--neon-fg);border-color:var(--err)',disabled:true},'Cancelar la hoja');
+  motivo.addEventListener('input',()=>{ btn.disabled=motivo.value.trim().length<4; });
+  btn.addEventListener('click',async()=>{ btn.disabled=true; btn.textContent='Cancelando…';
+    try{ await rpc('cancelar_hoja_deposito',{p_hoja:H.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast(`Hoja ${H.folio} cancelada.`,4000); render(); }
+    catch(e){ btn.disabled=false; btn.textContent='Cancelar la hoja'; aviso(e.message||e.code,'err',12000,'No se canceló'); } });
+  sheet.append(h('div',{class:'in stack'}, h('h3',{},`¿Cancelar la hoja ${H.folio}?`),
+    h('p',{class:'small muted',style:'margin:0'},'Sus referencias dejan de valer. Si alguno de sus depósitos ya estaba ligado con el banco, se desliga y vuelve a contar en la fecha en que cayó. Queda anotado en la bitácora con tu usuario y el motivo.'),
+    motivo, btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'No cancelar')));
+  document.body.append(sheet); motivo.focus();
+}
+async function depDescargar(H, btn){
+  if(!window.jspdf||!window.jspdf.jsPDF){ toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return false; }
+  try{ const ok=await entregarBlob(depositoPDF(H), `Deposito_${String(H.negocio||ESTACION).replace(/\s+/g,'')}_Hoja${H.folio}.pdf`); if(ok && btn) btnHecho(btn,'Listo'); return ok; }
+  catch(e){ toast('No se pudo generar el PDF: '+(e.message||e),5000); return false; }
+}
+// La hoja que se va con quien deposita. Tamaño carta, una sola tinta. La referencia va grande: es lo que la cajera tiene que teclear.
+function depositoPDF(H){
+  const { jsPDF } = window.jspdf; const doc=new jsPDF({unit:'mm',format:'letter'}); const W=215.9, ALTO=279.4, M=18; const N=[17,17,17], G=[90,90,90];
+  const txt=(x,y,s,o={})=>{ doc.setFont(o.mono?'courier':'helvetica',o.b?'bold':'normal'); doc.setFontSize(o.s||10); doc.setTextColor(...(o.c||N)); doc.text(String(s??''),x,y,{align:o.a||'left',maxWidth:o.mw,charSpace:o.cs||0}); };
+  const linea=(y,g)=>{ doc.setDrawColor(...N); doc.setLineWidth(g||0.25); doc.line(M,y,W-M,y); };
+  const reng=H.renglones||[]; const total=reng.reduce((s,g)=>s+Number(g.importe),0);
+  const hecha=new Date(H.creada_en).toLocaleString('es-MX',{timeZone:'America/Mexico_City',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const X={n:M, f:M+12, r:M+78, c:W-M}; const paso= reng.length>12? 9 : 11.5; let pag=1; let y;
+  const pie=()=>{ linea(ALTO-17); let px=0; try{ px=pieLogoPdf(doc,M,ALTO-15.4); }catch(e){} txt(M+px,ALTO-12,`Generada por OwnManager · Hoja ${H.folio} · ${hecha}`,{s:7.5,c:G}); txt(W-M,ALTO-12,`Página ${pag}`,{s:7.5,c:G,a:'right'}); };
+  const cabTabla=()=>{ txt(X.n,y,'#',{s:8.5,c:G}); txt(X.f,y,'Fecha de corte',{s:8.5,c:G}); txt(X.r,y,'Referencia',{s:8.5,c:G}); txt(X.c,y,'Cantidad a depositar',{s:8.5,c:G,a:'right'}); y+=2.6; linea(y,0.5); y+=paso*0.72; };
+  txt(M,24,H.negocio||ESTACION,{s:11,c:G}); txt(M,34,'Depósito en efectivo',{s:22,b:true}); txt(W-M,24,`Hoja ${H.folio}`,{s:15,b:true,a:'right'}); txt(W-M,30,hecha,{s:8.5,c:G,a:'right'});
+  linea(40,0.5);
+  // El número de cuenta va completo y grande: quien deposita no se lo sabe de memoria.
+  txt(M,48,'Banco',{s:8.5,c:G}); txt(M,54.5,H.banco||'',{s:13,b:true});
+  txt(M+34,48,'Número de cuenta',{s:8.5,c:G}); txt(M+34,54.8,H.numero||'Sin registrar',{s:H.numero?18:12,b:true,cs:H.numero?0.5:0});
+  txt(W-M,48,'A nombre de',{s:8.5,c:G,a:'right'}); txt(W-M,54.5,H.negocio||'',{s:12,b:true,a:'right'});
+  txt(M,62.5,`${H.cuenta||''} · Elaboró: ${H.creada_por_nombre||''}`,{s:8.5,c:G});
+  y=75; cabTabla();
+  reng.forEach((g,i)=>{ if(y>ALTO-62){ pie(); doc.addPage(); pag++; y=24; cabTabla(); }
+    txt(X.n,y,String(i+1),{s:10,c:G}); txt(X.f,y,fmtFechaLarga(g.fecha_corte),{s:11.5}); txt(X.f,y+4.2,fmtFecha(g.fecha_corte).split(' ')[0],{s:8,c:G});
+    txt(X.r,y+0.6,g.referencia,{s:reng.length>12?15:17,b:true,mono:true,cs:1.1}); txt(X.c,y,fmtMXN(g.importe),{s:12.5,b:true,a:'right'});
+    doc.setDrawColor(...G); doc.setLineWidth(0.12); doc.line(M,y+paso*0.52,W-M,y+paso*0.52); y+=paso; });
+  y+=1; linea(y-paso*0.48,0.5); txt(X.f,y+1.5,`Total · ${reng.length===1?'1 depósito':reng.length+' depósitos'}`,{s:10.5,b:true}); txt(X.c,y+1.5,fmtMXN(total),{s:14,b:true,a:'right'}); y+=13;
+  if(y>ALTO-70){ pie(); doc.addPage(); pag++; y=28; }
+  doc.setDrawColor(...N); doc.setLineWidth(0.25); doc.rect(M,y,W-2*M,17);
+  txt(M+5,y+6.6,'En ventanilla',{s:9.5,b:true}); txt(M+5,y+12.2,'Un depósito por renglón, por la cantidad exacta. Pide que capturen la referencia de cada depósito.',{s:9.5,mw:W-2*M-10});
+  const yf=Math.max(y+44, ALTO-44); const ancho=(W-2*M-14)/2;
+  doc.line(M,yf,M+ancho,yf); doc.line(W-M-ancho,yf,W-M,yf); txt(M,yf+4.6,'Entregó el efectivo (nombre y firma)',{s:8.5,c:G}); txt(W-M-ancho,yf+4.6,'Lo llevó a depositar (nombre y firma)',{s:8.5,c:G});
+  pie(); return doc.output('blob');
+}
+window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN, deposito:DEP, depositoPDF };   // gancho para las pruebas
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
@@ -4897,14 +5050,15 @@ async function renderOficina(){
     navTareas(),
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
-    ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]]]; // los estados de cuenta los sube Central (regla del servidor)
-  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores'};
+    ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]], // los estados de cuenta los sube Central (regla del servidor)
+    ['gbancos','banco','Bancos',[['bdeposito','depositos','Depósito manual']]]]; // 19-nov-2026: la oficina registra la hoja antes de ir al banco; los movimientos del banco no los ve
+  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', bdeposito:'Depósito manual'};
   if(!titulos[oficinaTab]) oficinaTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'oficina'), main); app.append(shell);
+  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } render(); }, 'oficina'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, (oficinaTab==='hoy'||oficinaTab==='tareas'||oficinaTab==='elaborar'||oficinaTab==='avisos')? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main;
-  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores})[oficinaTab](); } finally{ app=prev; }
+  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
