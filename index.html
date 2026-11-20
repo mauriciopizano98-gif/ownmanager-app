@@ -927,6 +927,64 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
   .lv-fecha{grid-area:2/2;color:var(--muted);font-size:14px} .lv-uni{grid-area:3/2/4/4;flex-direction:row;gap:6px;font-size:14px} .lv-carga{grid-area:2/3;justify-self:end}
 }
 
+/* ---- Bancos (19-nov-2026). Misma familia que Logística › Viajes: periodo con flechas, franja de totales y tabla.
+   Los importes van en la tipografía de cifras, alineados a la derecha; el rojo solo marca lo que falta. ---- */
+.tot.b-tot{grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.b-tot div{background:none;border:0;border-right:1px solid var(--line);border-radius:0;padding:14px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.b-tot div:last-child{border-right:0}
+.b-tot b{font:700 22px/1.1 var(--font-mono);font-stretch:80%;white-space:nowrap}
+.b-tot b.neg{color:var(--err)}
+.list.b-tabla{gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.b-cab,.item.b-fila{display:grid;align-items:center;column-gap:14px;padding:10px 16px}
+.b-cab{font-size:13.5px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line)}
+.b-cab .r,.b-fila .r{text-align:right}
+.item.b-fila{border:0;border-bottom:1px solid var(--line);border-radius:0;min-height:54px;justify-content:initial}
+.list.b-tabla>:last-child{border-bottom:0}
+.item.b-fila:hover{background:var(--surface2);box-shadow:none}
+.item.b-fila.fija{cursor:default}
+.item.b-fila.fija:hover{background:none}
+.item.b-fila.abierta{background:var(--surface2)}
+.item.b-fila:focus-visible{outline:2px solid var(--mod-ink,var(--fg));outline-offset:-2px}
+.b-fila .r{font:600 15.5px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.b-fila .r.neg{color:var(--err)}
+.b-fila .r.nada{color:var(--muted);font-weight:500}
+.b-dia,.bm-desc,.bc-cta,.bc-quien{display:flex;flex-direction:column;min-width:0}
+.b-dia b,.bm-desc b,.bc-cta b{font-weight:600}
+.bm-desc .small,.bc-cta .small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b-est{justify-self:end}
+.be .b-cab,.be .item.b-fila{grid-template-columns:minmax(0,1.3fr) repeat(4,minmax(0,1fr)) 132px}
+.bm .b-cab,.bm .item.b-fila{grid-template-columns:128px minmax(0,3fr) repeat(3,minmax(0,1fr))}
+.bm-fecha{white-space:nowrap}
+.bt .b-cab,.bt .item.b-fila{grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr))}
+.bc .b-cab,.bc .item.b-fila{grid-template-columns:minmax(0,1.6fr) minmax(0,1.5fr) minmax(0,.7fr) minmax(0,1.1fr) 92px;column-gap:20px}
+.bc .item.b-fila.ida{color:var(--muted)}
+.bc-motivo{padding:0 16px 10px;border-bottom:1px solid var(--line)}
+.b-det{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding:14px 16px 18px;background:var(--surface2);border-bottom:1px solid var(--line)}
+.b-det h4{font:600 13.5px var(--font-body);color:var(--muted);margin:0 0 6px}
+.b-det .ln{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;font-size:14.5px;border-bottom:1px dashed var(--line)}
+.b-det .ln>span{display:flex;flex-direction:column;min-width:0}
+.b-det .ln:last-child{border-bottom:0}
+.b-det .ln b{font:600 14.5px var(--font-mono);font-stretch:80%;white-space:nowrap}
+@media (max-width:760px){
+  .tot.b-tot{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .b-tot div{border-bottom:1px solid var(--line)} .b-tot b{font-size:19px}
+  .b-cab{display:none}
+  .item.b-fila{padding:12px 14px;row-gap:6px}
+  .b-fila .r[data-l]{text-align:left;font-size:14.5px}
+  .b-fila .r[data-l]::before{content:attr(data-l);display:block;font:500 12.5px var(--font-body);color:var(--muted)}
+  .be .item.b-fila{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .be .b-dia{grid-area:1/1} .be .b-est{grid-area:1/2}
+  .bm .item.b-fila{grid-template-columns:minmax(0,1fr) auto}
+  .bm-fecha{grid-area:1/1;font-size:13.5px;color:var(--muted)} .bm-desc{grid-area:2/1/3/3} .bm-dep,.bm-ret{grid-area:1/2} .bm .r.nada{display:none}
+  .bm-dep::before{content:'+'} .bm-ret::before{content:'−'}
+  .bm .b-fila .bm-saldo{grid-area:3/1/4/3;text-align:left;color:var(--muted);font-weight:500;font-size:13.5px}
+  .bm-saldo::before{content:'Saldo ';font:500 13.5px var(--font-body)}
+  .bm-desc .small{white-space:normal}
+  .bt .item.b-fila{grid-template-columns:repeat(3,minmax(0,1fr))} .bt .b-fila>b{grid-column:1/4}
+  .bc .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .bc-cta{grid-area:1/1} .bc .b-fila>:last-child{grid-area:1/2;justify-self:end} .bc .b-fila>:nth-child(2),.bc .b-fila>:nth-child(3),.bc-quien{grid-column:1/3;font-size:14px}
+  .b-det{grid-template-columns:1fr;gap:16px}
+}
+
 /* ---- Kiosko (propuesta D) ---- */
 .btn .ic{line-height:0;display:inline-flex}
 .modo button .ic{color:var(--fg);line-height:0}
@@ -1165,7 +1223,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.1.1';
+const OM_VERSION='2.2.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2796,13 +2854,14 @@ async function renderAdmin(){
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
     ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
+    ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]]];
-  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', anulados:'Cortes anulados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','satcert','satconsulta','satnuevas','sathist'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
@@ -2810,7 +2869,7 @@ async function renderAdmin(){
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:async()=>{ if(e.id===S.config.estacionId) return; S.estacionElegida=e.id; await cargarConfig(); render(); }},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), anulados:adminAnulados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs}))[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -4611,6 +4670,225 @@ async function adminProveedores(){
 
 // ===== OFICINA · pantalla propia (rol oficina): Chat · Facturas · Pagos =====
 let oficinaTab='chat';
+// ---- BANCOS: movimientos del día (19-nov-2026)
+// Contabilidad (o el dueño) sube el archivo de movimientos que entrega la banca. La app solo lo lee y lo manda completo:
+// el servidor revisa que el saldo cuadre, que continúe lo ya guardado, quita los repetidos y clasifica cada renglón.
+// "Efectivo por día" pone lado a lado el efectivo de los cortes y lo que cayó al banco.
+const BAN={ mes:null, cuenta:'', tipo:'', w:null, cuentas:null, dia:null };
+const BAN_TIPOS={ efectivo_cajero:'Efectivo del cajero', efectivo:'Depósito en efectivo', tarjetas:'Tarjetas', transf_recibida:'Transferencia recibida', traspaso:'Traspaso entre cuentas propias', otro_abono:'Otro depósito',
+  transf_enviada:'Transferencia enviada', nomina:'Nómina', impuestos:'Impuestos', comision:'Comisiones e IVA', compra_tarjeta:'Compra con tarjeta', credito:'Crédito', domiciliado:'Cobro domiciliado', otro_cargo:'Otro retiro' };
+const BAN_EFECTIVO=['efectivo_cajero','efectivo'];
+function bancoNum(s){ s=String(s==null?'':s).replace(/[$\s,]/g,''); if(!s) return 0; const neg=/^\(.*\)$/.test(s)||/^-/.test(s); const n=Number(s.replace(/[()\-]/g,'')); return isFinite(n)? Math.round((neg?-n:n)*100)/100 : NaN; }
+function bancoFecha(s){ const m=/^\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s*$/.exec(s||''); if(!m) return null; const d=+m[1], mo=+m[2]; if(mo<1||mo>12||d<1||d>31) return null; return `${m[3]}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function bancoClave(s){ return String(s||'').normalize('NFD').replace(/[^\x00-\x7F]/g,'').toLowerCase().replace(/[^a-z]/g,''); } // encabezado sin acentos ni signos (aguanta acentos rotos)
+function bancoDecodificar(buf){ try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ return new TextDecoder('windows-1252').decode(buf); } }
+const bancoDia = f => { const [y,m,d]=f.split('-'); return `${d}/${m}/${y}`; };
+// Lee el archivo del banco. Devuelve los renglones del más antiguo al más nuevo, o lanza un error que dice qué pasó y qué hacer.
+function bancoLeer(texto){
+  const lineas=String(texto||'').replace(/^\uFEFF/,'').split(/\r?\n/).filter(l=>l.trim());
+  const noEs='No reconozco este archivo. Sube el de movimientos de Banorte o de BBVA tal como lo entrega la banca, sin abrirlo ni guardarlo en Excel.';
+  if(!lineas.length) throw new Error('El archivo está vacío.');
+  const cab=lineas[0]; const sepr= cab.split('|').length>=8 ? '|' : cab.split('\t').length>=4 ? '\t' : null; if(!sepr) throw new Error(noEs);
+  const cols=cab.split(sepr).map(bancoClave); const col=re=>cols.findIndex(c=>re.test(c)); const txt=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+  let formato, numero=null, filas=[];
+  const mal=i=>new Error(`No pude leer el renglón ${i+1} del archivo (fecha o importe). `+noEs);
+  if(sepr==='|' && col(/^movimiento$/)>=0 && col(/^cuenta$/)>=0){
+    formato='banorte'; const C={cta:col(/^cuenta$/), fo:col(/^fechadeoperaci/), f:col(/^fecha$/), ref:col(/^referencia$/), d:col(/^descripci.?n$/), k:col(/^codtransac/), u:col(/^sucursal$/), dep:col(/^dep.?sitos$/), ret:col(/^retiros$/), s:col(/^saldo$/), n:col(/^movimiento$/), t:col(/^descripci.?ndetallada$/)};
+    if([C.f,C.d,C.dep,C.ret,C.s].some(x=>x<0)) throw new Error(noEs);
+    for(let i=1;i<lineas.length;i++){ const p=lineas[i].split('|'); const f=bancoFecha(p[C.f]), a=bancoNum(p[C.dep]), c=bancoNum(p[C.ret]), s=bancoNum(p[C.s]);
+      if(!f || isNaN(a) || isNaN(c) || isNaN(s) || txt(p[C.s])==='') throw mal(i);
+      const cta=txt(p[C.cta]).replace(/\D/g,''); if(numero===null) numero=cta; else if(cta!==numero) throw new Error('El archivo trae movimientos de más de una cuenta. Bájalo de una sola cuenta a la vez.');
+      const ref=txt(p[C.ref]); filas.push({ f, fo:(C.fo>=0&&bancoFecha(p[C.fo]))||f, d:txt(p[C.d]), r:/^0*$/.test(ref)?'':ref, t:C.t>=0?txt(p[C.t]):'', k:C.k>=0?txt(p[C.k]):'', u:C.u>=0?txt(p[C.u]):'', n:C.n>=0?txt(p[C.n]).replace(/\D/g,''):'', c, a, s }); }
+    if(!/^\d{6,20}$/.test(numero||'')) numero=null;
+  } else if(sepr==='\t' && col(/^concepto/)>=0 && col(/^cargo$/)>=0 && col(/^abono$/)>=0 && col(/^saldo$/)>=0){
+    formato='bbva'; const C={f:Math.max(0,col(/^d.?a$/)), d:col(/^concepto/), c:col(/^cargo$/), a:col(/^abono$/), s:col(/^saldo$/)};
+    for(let i=1;i<lineas.length;i++){ const p=lineas[i].split('\t'); const f=bancoFecha(p[C.f]), a=bancoNum(p[C.a]), c=bancoNum(p[C.c]), s=bancoNum(p[C.s]);
+      if(!f || isNaN(a) || isNaN(c) || isNaN(s) || txt(p[C.s])==='') throw mal(i);
+      filas.push({ f, fo:f, d:txt(p[C.d]), r:'', t:'', k:'', u:'', n:'', c, a, s }); }
+  } else throw new Error(noEs);
+  if(!filas.length) throw new Error('El archivo no trae movimientos.');
+  // El saldo dice en qué orden van: Banorte los entrega del más antiguo al más nuevo y BBVA al revés.
+  const quiebre=l=>{ for(let i=1;i<l.length;i++) if(Math.abs(l[i-1].s+l[i].a-l[i].c-l[i].s)>0.005) return l[i]; return null; };
+  let q=quiebre(filas); if(q){ const alReves=filas.slice().reverse(); if(!quiebre(alReves)){ filas=alReves; q=null; } }
+  if(q) throw new Error(`El saldo no cuadra en el movimiento del ${bancoDia(q.f)} por ${fmtMXN(q.a||q.c)}. Baja el archivo otra vez del banco con todos los movimientos del periodo, sin filtros.`);
+  let dep=0, ret=0, nDep=0, nRet=0, desde=filas[0].f, hasta=filas[0].f;
+  for(const m of filas){ if(m.a>0){ dep+=m.a; nDep++; } if(m.c>0){ ret+=m.c; nRet++; } if(m.f<desde) desde=m.f; if(m.f>hasta) hasta=m.f; }
+  const r2=n=>Math.round(n*100)/100; const p=filas[0], u=filas[filas.length-1];
+  return { formato, banco:formato==='bbva'?'BBVA':'Banorte', numero, filas, desde, hasta, depositos:r2(dep), retiros:r2(ret), nDep, nRet, saldoInicial:r2(p.s-p.a+p.c), saldoFinal:u.s };
+}
+async function bancoCuentas(force){
+  if(BAN.cuentas && !force) return BAN.cuentas;
+  const rows=await sel(sb.from('cuentas_bancarias').select('id, banco, alias, numero, ultimos4, negocio_id, negocios(id, nombre, estacion_id)').eq('activa',true).order('alias'));
+  BAN.cuentas=rows.map(c=>({ id:c.id, banco:c.banco, alias:c.alias, numero:c.numero||null, ultimos4:c.ultimos4, negocioId:c.negocio_id, negocio:c.negocios?c.negocios.nombre:'', estacionId:c.negocios?c.negocios.estacion_id:null }));
+  return BAN.cuentas;
+}
+const bancoCuentaTxt = c => c? `${c.alias}${c.ultimos4?' ···'+c.ultimos4:''}` : '';
+const bancoCuentaLarga = c => (c.negocio && !c.alias.includes(c.negocio))? `${c.negocio} · ${bancoCuentaTxt(c)}` : bancoCuentaTxt(c); // el alias casi siempre ya trae la empresa
+const bancoPeriodo = (a,b) => !a? '' : (a===b||!b)? fmtFecha(a) : `${fmtFecha(a)} a ${fmtFecha(b)}`;
+async function bancoTodo(armar){ const out=[]; for(let i=0;i<30;i++){ const r=await sel(armar().range(i*1000,i*1000+999)); out.push(...r); if(r.length<1000) break; } return out; } // el servidor entrega de mil en mil
+async function bancoIrAEfectivo(cuenta, fecha){ if(fecha) BAN.mes=fecha.slice(0,7); BAN.dia=null; BAN.w=null;
+  if(cuenta && cuenta.estacionId && cuenta.estacionId!==S.config.estacionId && (S.estaciones||[]).some(e=>e.id===cuenta.estacionId)){ S.estacionElegida=cuenta.estacionId; await cargarConfig(); }
+  adminTab='befectivo'; render(); }
+
+async function bancoSubir(){
+  if(!BAN.w || (BAN.w.paso==='listo' && BAN.w.visto)) BAN.w={paso:'archivo'}; else if(BAN.w.paso==='listo') BAN.w.visto=true; // al volver a entrar ya no se queda en el aviso de guardado
+  const w=BAN.w; const card=h('div',{class:'card stack',id:'bs-card',style:'margin-bottom:12px'}); app.append(card);
+  const deNuevo=()=>{ BAN.w={paso:'archivo'}; render(); };
+  let cuentas; try{ cuentas=await bancoCuentas(); }catch(e){ card.append(h('div',{class:'empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
+  if(w.paso==='archivo'){
+    const inp=h('input',{type:'file',id:'bs-archivo',accept:'.txt,.csv,.tsv,text/plain',style:'display:none'});
+    inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
+      if(f.size>6*1024*1024){ aviso('El archivo pasa de 6 MB. Bájalo por un periodo más corto.','err'); return; }
+      let leido, sha; try{ const buf=await f.arrayBuffer(); leido=bancoLeer(bancoDecodificar(buf)); sha=[...new Uint8Array(await crypto.subtle.digest('SHA-256',buf))].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+      catch(e){ inp.value=''; aviso(e.message||String(e),'err',14000,'No se puede leer el archivo'); return; }
+      const delBanco=cuentas.filter(c=>c.banco.toLowerCase().startsWith(leido.formato));
+      const suya=leido.numero? delBanco.find(c=>c.numero===leido.numero) : null;
+      BAN.w={ paso:'confirmar', archivo:{nombre:f.name, sha}, leido, cuentaId:suya?suya.id:'', reconocida:!!suya }; render(); });
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Archivo del banco'), null),
+      h('p',{class:'small muted',style:'margin:2px 0 6px;max-width:68ch'},'El archivo de movimientos de Banorte o de BBVA, tal como lo entrega la banca. Puedes subir el mismo día varias veces: lo que ya estaba guardado no se repite.'),
+      h('button',{class:'btn primary big block',id:'bs-elegir',onclick:()=>abrirArchivo(inp)},'Elegir archivo de movimientos'), inp);
+    await bancoCargas(cuentas);
+    return;
+  }
+  if(w.paso==='guardando'){ const l=omEsperando(['Revisando que el saldo cuadre…','Comparando con lo ya guardado…','Guardando los movimientos nuevos…'],'grande'); l.style.padding='48px 0 40px'; add(card, l); return; }
+  const L=w.leido; const delBanco=cuentas.filter(c=>c.banco.toLowerCase().startsWith(L.formato));
+  if(w.paso==='confirmar'){
+    const cta=cuentas.find(c=>c.id===w.cuentaId);
+    const guardar=async()=>{
+      if(!w.cuentaId){ aviso('Elige de qué cuenta es el archivo.','err'); return; }
+      w.paso='guardando'; render();
+      try{ w.resultado=await rpc('registrar_movimientos_banco',{ p_cuenta:w.cuentaId, p_formato:L.formato, p_filas:L.filas, p_archivo:w.archivo.nombre, p_sha256:w.archivo.sha, p_numero:L.numero||null }); w.paso='listo'; BAN.cuentas=null; }
+      catch(e){ w.paso='confirmar'; render(); aviso(e.message||e.code,'err',16000,'No se guardó nada'); return; }
+      render(); };
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Revisa y guarda'), h('button',{class:'btn sm ghost',onclick:deNuevo},'Empezar de nuevo')));
+    if(!w.reconocida){
+      const opciones= L.numero? delBanco.filter(c=>!c.numero) : delBanco;
+      if(!opciones.length){ add(card, h('p',{class:'small',id:'bs-sin-cuenta',style:'color:var(--err);margin:0'}, `No hay una cuenta de ${L.banco} dada de alta para este archivo${L.numero?' (cuenta terminación '+L.numero.slice(-4)+')':''}. Pide al dueño que la agregue.`)); return; }
+      const s=h('select',{id:'bs-cuenta'}, h('option',{value:''},'Elige la cuenta'), ...opciones.map(c=>h('option',{value:c.id,selected:c.id===w.cuentaId},bancoCuentaLarga(c))));
+      s.addEventListener('change',()=>{ w.cuentaId=s.value; render(); });
+      add(card, h('label',{class:'f'}, h('span',{class:'l'},'¿De qué cuenta es este archivo?'), s),
+        h('p',{class:'small muted',style:'margin:0;max-width:68ch'}, L.numero? `Es la primera vez que se sube un archivo de la cuenta terminación ${L.numero.slice(-4)}. Después de hoy se reconoce sola.` : 'El archivo de BBVA no trae el número de cuenta. Si eliges otra cuenta, el saldo no va a coincidir y no se guarda.'));
+    }
+    add(card, resumenEstado([['EMPRESA',cta&&cta.negocio],['CUENTA',cta? bancoCuentaTxt(cta) : (L.numero? L.banco+' ···'+L.numero.slice(-4) : L.banco)],['PERIODO',bancoPeriodo(L.desde,L.hasta)],['MOVIMIENTOS',fmtInt(L.filas.length)],
+        ['DEPÓSITOS',`${fmtMonto(L.depositos)} en ${fmtInt(L.nDep)}`],['RETIROS',`${fmtMonto(L.retiros)} en ${fmtInt(L.nRet)}`],['SALDO FINAL',fmtMonto(L.saldoFinal)]]),
+      h('button',{class:'btn primary big block',id:'bs-guardar',onclick:guardar},'Guardar movimientos'));
+    return;
+  }
+  if(w.paso==='listo'){ const r=w.resultado; const cta=cuentas.find(c=>c.id===w.cuentaId);
+    add(card, h('div',{class:'sechead'}, h('h3',{id:'bs-listo'}, r.nuevas>0? 'Movimientos guardados' : 'Estos movimientos ya estaban guardados'), null),
+      resumenEstado([['CUENTA',r.cuenta],['PERIODO', r.nuevas>0? bancoPeriodo(r.desde,r.hasta) : null],['NUEVOS',fmtInt(r.nuevas)],['YA ESTABAN',fmtInt(r.repetidas)],['SALDO FINAL', r.saldo_final!=null? fmtMonto(r.saldo_final) : null]]));
+    if((r.tipos||[]).length){ const t=h('div',{class:'list b-tabla bt',id:'bs-tipos'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Lo nuevo, por tipo'), h('span',{class:'r'},'Movimientos'), h('span',{class:'r'},'Depósitos'), h('span',{class:'r'},'Retiros')));
+      for(const x of r.tipos) t.append(h('div',{class:'item b-fila fija'}, h('b',{},BAN_TIPOS[x.tipo]||x.tipo), h('span',{class:'r','data-l':'Movimientos'},fmtInt(x.n)), h('span',{class:'r'+(Number(x.abonos)?'':' nada'),'data-l':'Depósitos'},Number(x.abonos)?fmtMonto(x.abonos):'—'), h('span',{class:'r'+(Number(x.cargos)?'':' nada'),'data-l':'Retiros'},Number(x.cargos)?fmtMonto(x.cargos):'—')));
+      card.append(t); }
+    add(card, h('div',{class:'row'}, (cta&&cta.estacionId)? h('button',{class:'btn primary',id:'bs-ver',onclick:()=>bancoIrAEfectivo(cta, r.hasta||L.hasta)},'Ver efectivo por día') : null,
+      h('button',{class:'btn ghost',id:'bs-movs',onclick:()=>{ BAN.cuenta=w.cuentaId; BAN.mes=(r.hasta||L.hasta).slice(0,7); BAN.tipo=''; BAN.w=null; adminTab='bmovs'; render(); }},'Ver los movimientos'),
+      h('button',{class:'btn ghost',id:'bs-otro',onclick:deNuevo},'Subir otro archivo')));
+  }
+}
+// Lo último que se subió, con quién y cuándo. Solo el dueño puede eliminar una carga (la más reciente de la cuenta), con motivo.
+async function bancoCargas(cuentas){
+  const caja=h('div',{id:'bs-cargas'}); app.append(caja);
+  let rows=[]; try{ rows=await sel(sb.from('banco_cargas').select('*').order('subido_en',{ascending:false}).limit(12)); }catch(e){ return; }
+  if(!rows.length) return;
+  caja.append(h('h3',{style:'margin:22px 0 10px'},'Últimos archivos subidos'));
+  const list=h('div',{class:'list b-tabla bc'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Cuenta'), h('span',{},'Periodo'), h('span',{},'Nuevos'), h('span',{},'Subido'), h('span',{},'')));
+  for(const g of rows){ const c=cuentas.find(x=>x.id===g.cuenta_id); const fue=new Date(g.subido_en).toLocaleString('es-MX',{timeZone:'America/Mexico_City',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    list.append(h('div',{class:'item b-fila fija'+(g.eliminada_en?' ida':'')},
+      h('span',{class:'bc-cta'}, h('b',{},c? c.alias : 'Cuenta'), g.archivo_nombre? h('span',{class:'small muted'},g.archivo_nombre):null),
+      h('span',{}, bancoPeriodo(g.desde,g.hasta)), h('span',{class:'bc-n'}, `${fmtInt(g.nuevas)} de ${fmtInt(g.filas)}`),
+      h('span',{class:'bc-quien'}, h('span',{},fue), g.subido_por_nombre? h('span',{class:'small muted'},g.subido_por_nombre):null),
+      g.eliminada_en? h('span',{class:'chip',title:g.eliminada_motivo||''},'Eliminada') : S.rol==='dueno'? h('button',{class:'btn sm ghost',onclick:()=>bancoEliminarCarga(g, c)},'Eliminar') : h('span',{})));
+    if(g.eliminada_en && g.eliminada_motivo) list.append(h('div',{class:'bc-motivo small muted'},'Motivo: '+g.eliminada_motivo)); }
+  caja.append(list);
+}
+function bancoEliminarCarga(g, c){
+  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
+  const motivo=h('input',{type:'text',id:'bs-motivo',placeholder:'Motivo (obligatorio): p. ej. se subió a la cuenta equivocada'});
+  const btn=h('button',{class:'btn big block',id:'bs-eliminar',style:'background:var(--err);color:var(--neon-fg);border-color:var(--err)',disabled:true},'Eliminar estos movimientos');
+  motivo.addEventListener('input',()=>{ btn.disabled=motivo.value.trim().length<4; });
+  btn.addEventListener('click',async()=>{ btn.disabled=true; btn.textContent='Eliminando…';
+    try{ const r=await rpc('eliminar_carga_banco',{p_carga:g.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast(`Se eliminaron ${fmtInt(r.movimientos)} movimientos de ${r.cuenta}.`,5000); render(); }
+    catch(e){ btn.disabled=false; btn.textContent='Eliminar estos movimientos'; aviso(e.message||e.code,'err',12000,'No se eliminó'); } });
+  sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Eliminar este archivo subido?'),
+    h('p',{class:'small muted',style:'margin:0'},`Se quitan los ${fmtInt(g.nuevas)} movimientos que entraron con este archivo${c?' en '+c.alias:''} (${bancoPeriodo(g.desde,g.hasta)}). El archivo se puede volver a subir después. Queda anotado en la bitácora con tu usuario y el motivo.`),
+    motivo, btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'Cancelar')));
+  document.body.append(sheet); motivo.focus();
+}
+function bancoMesNav(id){ const ir=d=>()=>{ BAN.mes=logMesMas(BAN.mes,d); BAN.dia=null; render(); };
+  return h('div',{class:'per-nav'}, h('button',{class:'btn sm',id:id+'-ant',title:'Mes anterior','aria-label':'Mes anterior',onclick:ir(-1)},'‹'), h('b',{id:id+'-mes'},logMes(BAN.mes)), h('button',{class:'btn sm',id:id+'-sig',title:'Mes siguiente','aria-label':'Mes siguiente',onclick:ir(1)},'›')); }
+const bancoDato = (k,val,cls) => h('div',{}, h('span',{class:'small muted'},k), h('b',{class:cls||''},val));
+function bancoVacio(titulo, texto, conBoton){ return h('div',{class:'card empty'}, h('b',{},titulo), h('p',{class:'small',style:'margin:6px auto 0;max-width:52ch'},texto), conBoton? h('button',{class:'btn primary',style:'margin-top:14px',onclick:()=>{ BAN.w=null; adminTab='bsubir'; render(); }},'Subir movimientos') : null); }
+
+async function bancoMovs(){
+  if(!BAN.mes) BAN.mes=nowMX().fecha.slice(0,7);
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando movimientos…']));
+  let cuentas, rows=[]; try{ cuentas=await bancoCuentas();
+    if(!cuentas.some(c=>c.id===BAN.cuenta)){ const g=await sel(sb.from('banco_cargas').select('cuenta_id').is('eliminada_en',null).order('subido_en',{ascending:false}).limit(1)); BAN.cuenta=(cuentas.find(c=>g.length&&c.id===g[0].cuenta_id)||cuentas[0]||{}).id||''; } // la del último archivo subido
+    if(BAN.cuenta) rows=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, orden, fecha, dia, descripcion, referencia, detalle, tipo, cargo, abono, saldo, ticket_num').eq('cuenta_id',BAN.cuenta).gte('fecha',BAN.mes+'-01').lt('fecha',logMesMas(BAN.mes,1)+'-01').order('orden',{ascending:false})); }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; rows=rows.filter(m=>m.tipo); // solo lo que llegó de un archivo del banco
+  const sCta=h('select',{id:'bm-cuenta',class:'on',title:'Cuenta'}, ...cuentas.map(c=>h('option',{value:c.id,selected:c.id===BAN.cuenta},bancoCuentaLarga(c)))); sCta.addEventListener('change',()=>{ BAN.cuenta=sCta.value; BAN.tipo=''; render(); });
+  const hay=[...new Set(rows.map(m=>m.tipo))]; if(BAN.tipo && !hay.includes(BAN.tipo)) BAN.tipo='';
+  const sTipo=h('select',{id:'bm-tipo',class:BAN.tipo?'on':'',title:'Tipo de movimiento'}, h('option',{value:''},'Todos los tipos'), ...Object.keys(BAN_TIPOS).filter(k=>hay.includes(k)).map(k=>h('option',{value:k,selected:k===BAN.tipo},BAN_TIPOS[k]))); sTipo.addEventListener('change',()=>{ BAN.tipo=sTipo.value; render(); });
+  cont.append(bancoMesNav('bm'), h('div',{class:'filtros',style:'margin:14px 0 0'}, sCta, sTipo));
+  if(!cuentas.length){ cont.append(bancoVacio('Sin cuentas bancarias','Todavía no hay cuentas dadas de alta.')); return; }
+  const ver=BAN.tipo? rows.filter(m=>m.tipo===BAN.tipo) : rows; let dep=0, ret=0; for(const m of ver){ dep+=Number(m.abono)||0; ret+=Number(m.cargo)||0; }
+  if(!rows.length){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio(`Sin movimientos en ${logMes(BAN.mes).toLowerCase()}`,'De esta cuenta no se ha subido ningún archivo del banco con movimientos de este mes.', true))); return; }
+  cont.append(h('div',{class:'tot b-tot',id:'bm-tot',style:'margin-top:12px;--n:4'}, bancoDato('Movimientos',fmtInt(ver.length)), bancoDato('Depósitos',fmtMXN(dep)), bancoDato('Retiros',fmtMXN(ret)), bancoDato(BAN.tipo?'Saldo del último del mes':'Saldo al último movimiento', fmtMXN(rows[0].saldo))));
+  const list=h('div',{class:'list b-tabla bm',id:'bm-lista',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Fecha'), h('span',{},'Movimiento'), h('span',{class:'r'},'Depósito'), h('span',{class:'r'},'Retiro'), h('span',{class:'r'},'Saldo')));
+  for(const m of ver.slice(0,600)){ const a=Number(m.abono)||0, c=Number(m.cargo)||0; const extra= m.ticket_num? 'Ticket '+m.ticket_num+(m.dia&&m.dia!==m.fecha? ' del '+fmtFecha(m.dia) : '') : [m.referencia||null, m.detalle||null].filter(Boolean).join(' · ');
+    list.append(h('div',{class:'item b-fila fija'}, h('span',{class:'bm-fecha'},fmtFecha(m.fecha)),
+      h('span',{class:'bm-desc'}, h('b',{},BAN_TIPOS[m.tipo]||m.tipo), h('span',{class:'small muted',title:extra}, [m.descripcion, extra].filter(Boolean).join(' · '))),
+      h('span',{class:'r bm-dep'+(a?'':' nada')}, a? fmtMXN(a) : '—'), h('span',{class:'r bm-ret'+(c?'':' nada')}, c? fmtMXN(c) : '—'), h('span',{class:'r bm-saldo'}, m.saldo!=null? fmtMXN(m.saldo) : '—'))); }
+  cont.append(list);
+  if(ver.length>600) cont.append(h('p',{class:'small muted',style:'margin:10px 0 0'},`Se muestran los 600 más recientes de ${fmtInt(ver.length)}. Filtra por tipo para ver menos.`));
+}
+
+// Efectivo por día: lo que los cortes dicen que hubo en efectivo contra lo que cayó al banco, día por día y acumulado.
+// El día del banco es el del ticket del cajero (o el de la operación), no el día en que el banco lo acreditó.
+async function bancoEfectivo(){
+  if(!BAN.mes) BAN.mes=nowMX().fecha.slice(0,7);
+  const est=S.config.estacionId; const ini=BAN.mes+'-01', fin=logMesMas(BAN.mes,1)+'-01', hoy=nowMX().fecha;
+  const cont=h('div',{}); app.append(cont); cont.append(omEsperando(['Cargando cortes y banco…']));
+  let cuentas, cortes=[], movs=[], ultimo=null; try{ cuentas=(await bancoCuentas()).filter(c=>c.estacionId===est); const ids=cuentas.map(c=>c.id);
+    cortes=await bancoTodo(()=>sb.from('cortes').select('id, fecha, turno, isla_id, estado, dinero, despachadores(nombre)').eq('estacion_id',est).eq('estado','enviado').gte('fecha',ini).lt('fecha',fin).order('fecha'));
+    if(ids.length){ movs=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, cuenta_id, orden, fecha, dia, tipo, abono, ticket_num, descripcion').in('cuenta_id',ids).in('tipo',BAN_EFECTIVO).gte('dia',ini).lt('dia',fin).order('dia').order('orden'));
+      const u=await sel(sb.from('movimientos_bancarios').select('fecha').in('cuenta_id',ids).order('fecha',{ascending:false}).limit(1)); ultimo=u.length? u[0].fecha : null; } }
+  catch(e){ cont.innerHTML=''; cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
+  cont.innerHTML=''; cont.append(bancoMesNav('be'));
+  if(!cuentas.length){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Esta estación no tiene cuentas bancarias','Pide al dueño que dé de alta sus cuentas para poder comparar.'))); return; }
+  if(!ultimo){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Todavía no hay movimientos del banco de esta estación','Sube el archivo de movimientos de '+cuentas.map(c=>c.alias).join(' o ')+' y aquí aparece, día por día, lo que cayó al banco junto al efectivo de los cortes.', true))); return; }
+  const dias={}; const D=f=>dias[f]||(dias[f]={cortes:[], deps:[], ef:0, banco:0});
+  for(const c of cortes){ const ef=calcDinero(c.dinero||{}).efectivo; const d=D(c.fecha); d.cortes.push({c, ef}); d.ef+=ef; }
+  for(const m of movs){ const d=D(m.dia||m.fecha); d.deps.push(m); d.banco+=Number(m.abono)||0; }
+  const r2=n=>Math.round(n*100)/100; const tope= fin<=hoy? addDays(fin,-1) : hoy<ini? null : hoy; const lista=[]; let acum=0, tEf=0, tBanco=0, nDeps=0, sinDep=0;
+  for(let f=ini; tope && f<=tope; f=addDays(f,1)){ const d=dias[f]||{cortes:[], deps:[], ef:0, banco:0}; const pend= f>ultimo; // el banco de ese día todavía no se ha subido
+    const dif=r2(d.banco-d.ef); if(!pend){ acum=r2(acum+dif); tEf+=d.ef; tBanco+=d.banco; nDeps+=d.deps.length; }
+    const estado= pend? 'pend' : (d.ef>0 && !d.deps.length)? 'sindep' : (!d.cortes.length && d.deps.length)? 'sincorte' : (!d.cortes.length && !d.deps.length)? 'nada' : 'ok';
+    if(estado==='sindep') sinDep++; lista.push({f, d, dif, acum, pend, estado}); }
+  const tDif=r2(tBanco-tEf);
+  cont.append(h('div',{class:'tot b-tot',id:'be-tot',style:'margin-top:12px;--n:5'}, bancoDato('Efectivo en cortes',fmtMXN(tEf)), bancoDato('Cayó al banco',fmtMXN(tBanco)), bancoDato(tDif<-0.005?'Falta por caer':tDif>0.005?'Cayó de más':'Diferencia', fmtMXN(Math.abs(tDif)), tDif<-0.005?'neg':''), bancoDato('Depósitos',fmtInt(nDeps)), bancoDato('Días sin depósito',fmtInt(sinDep), sinDep?'neg':'')));
+  cont.append(h('p',{class:'small muted',id:'be-hasta',style:'margin:10px 0 0'}, `Banco subido hasta el ${fmtFecha(ultimo)}. `+(ultimo<(tope||ultimo)? 'Los días siguientes quedan en espera hasta que se suba su archivo.' : 'El día del banco es el del ticket del depósito, aunque el banco lo acredite después.')));
+  const list=h('div',{class:'list b-tabla be',id:'be-lista',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Día'), h('span',{class:'r'},'Efectivo en cortes'), h('span',{class:'r'},'Cayó al banco'), h('span',{class:'r'},'Diferencia'), h('span',{class:'r'},'Acumulado'), h('span',{},'')));
+  const chips={ sindep:()=>h('span',{class:'chip warn'}, ico('alerta',14),'Sin depósito'), sincorte:()=>h('span',{class:'chip'},'Sin corte'), pend:()=>h('span',{class:'chip'},'Falta el banco'), nada:()=>h('span',{class:'small muted'},'Sin datos'), ok:()=>h('span',{}) };
+  const pesos=(n,cls,l)=>h('span',{class:'r'+(cls?' '+cls:''),'data-l':l}, n==null? '—' : fmtMXN(n));
+  const dif=(n,l)=>h('span',{class:'r'+(n==null||Math.abs(n)<0.005?' nada':n<0?' neg':''),'data-l':l}, n==null? '—' : Math.abs(n)<0.005? fmtMXN(0) : (n<0?'−':'+')+fmtMXN(Math.abs(n))); // lo que cuadra se apaga; lo que no, lleva signo
+  for(const x of lista.slice().reverse()){ const {f,d}=x; const abierto=BAN.dia===f; const puede=d.cortes.length||d.deps.length;
+    const fila=h('div',{class:'item b-fila'+(abierto?' abierta':'')+(puede?'':' fija'),'data-dia':f,'aria-expanded':puede?String(abierto):null,role:puede?'button':null,tabindex:puede?'0':null},
+      h('span',{class:'b-dia'}, h('b',{},fmtFecha(f)), (d.cortes.length||d.deps.length)? h('span',{class:'small muted'}, `${d.cortes.length} ${d.cortes.length===1?'corte':'cortes'} · ${d.deps.length} ${d.deps.length===1?'depósito':'depósitos'}`) : null),
+      pesos(d.cortes.length? d.ef : null, d.cortes.length?'':'nada','En cortes'), pesos(x.pend&&!d.deps.length? null : d.banco, (x.pend&&!d.deps.length)||!d.banco?'nada':'','Al banco'),
+      dif(x.pend||x.estado==='nada'? null : x.dif,'Diferencia'), dif(x.pend? null : x.acum,'Acumulado'), h('span',{class:'b-est'}, chips[x.estado]()));
+    if(puede){ const abrir=()=>{ BAN.dia=abierto?null:f; render(); }; fila.addEventListener('click',abrir); fila.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abrir(); } }); }
+    list.append(fila);
+    if(abierto){ const isla=id=>((S.config.islas||[]).find(i=>i.uuid===id)||{}).nombre||'Isla'; const cta=id=>(cuentas.find(c=>c.id===id)||{}).alias||'';
+      list.append(h('div',{class:'b-det',id:'be-det'},
+        h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,ef})=>h('div',{class:'ln'}, h('span',{}, h('span',{},turnoNombre(c.turno)), h('span',{class:'small muted'}, isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''))), h('b',{},fmtMXN(ef)))) : [h('p',{class:'small muted',style:'margin:0'},'No hay cortes enviados de este día.')])),
+        h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const sub=[cuentas.length>1? cta(m.cuenta_id) : null, m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null].filter(Boolean).join(' · '); return h('div',{class:'ln'}, h('span',{}, h('span',{}, m.ticket_num? 'Ticket '+m.ticket_num : (BAN_TIPOS[m.tipo]||m.tipo)), sub? h('span',{class:'small muted'},sub) : null), h('b',{},fmtMXN(m.abono))); }) : [h('p',{class:'small muted',style:'margin:0'}, x.pend? 'El archivo del banco de este día todavía no se ha subido.' : 'El banco no registra depósitos en efectivo de este día.')])))); } }
+  if(!lista.length) list.append(h('div',{class:'card empty'},h('b',{},'Este mes todavía no empieza')));
+  cont.append(list);
+}
+
+window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN };   // gancho para las pruebas
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
