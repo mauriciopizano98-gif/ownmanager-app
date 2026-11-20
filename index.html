@@ -1267,7 +1267,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.4.0';
+const OM_VERSION='2.4.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4779,9 +4779,17 @@ async function bancoSubir(){
   const w=BAN.w; const card=h('div',{class:'card stack',id:'bs-card',style:'margin-bottom:12px'});
   const col=h('div',{class:'bs-col'}, card); const wrap=h('div',{class:'bs-wrap'}, col); app.classList.add('bs-ancho'); app.append(wrap);
   const deNuevo=()=>{ BAN.w={paso:'archivo'}; render(); };
-  let cuentas; try{ cuentas=await bancoCuentas(); }catch(e){ card.append(h('div',{class:'empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
-  const dia=await bancoDiaHoy(); const marcada=id=>bancoMarcada(dia,id); // null: la lista del día todavía no existe en el servidor (falta el SQL 057) y nada se bloquea
-  { const lado=bancoListaDia(cuentas, dia); if(lado) wrap.append(lado); }
+  // Sin parpadeo (20-nov-2026): la pantalla se pinta de una vez con lo que ya está en memoria. Al servidor solo se le espera la primera vez del día
+  // (con el símbolo de carga); después la lista se pone al día en segundo plano y la pantalla solo cambia si de verdad cambió algo.
+  const hoy=nowMX().fecha; const sabida= BAN.hoy===null || !!(BAN.hoy && BAN.hoy.fecha===hoy);
+  const espera= (!BAN.cuentas || !sabida)? omEsperando(['Cargando…']) : null; if(espera) card.append(espera);
+  let cuentas; try{ cuentas=await bancoCuentas(); }catch(e){ if(espera) espera.remove(); card.append(h('div',{class:'empty'},'No se pudieron cargar las cuentas: '+(e.message||e.code))); return; }
+  const dia= sabida? BAN.hoy : await bancoDiaHoy(); if(espera) espera.remove(); // null: la lista del día todavía no existe en el servidor (falta el SQL 057) y nada se bloquea
+  const marcada=id=>bancoMarcada(dia,id);
+  { let lado=null; const alCambiar=()=>{ if(!card.isConnected) return; if(BAN.w && BAN.w.paso==='confirmar'){ render(); return; } // en el paso 2 la tarjeta depende de la lista
+      const nuevo=bancoListaDia(cuentas, BAN.hoy, alCambiar); if(lado && nuevo) lado.replaceWith(nuevo); else if(nuevo) wrap.append(nuevo); else if(lado) lado.remove(); lado=nuevo; };
+    lado=bancoListaDia(cuentas, dia, alCambiar); if(lado) wrap.append(lado);
+    if(sabida && Date.now()-(BAN.hoyT||0)>15000){ const antes=bancoDiaFirma(dia); bancoDiaHoy(true).then(n=>{ if(bancoDiaFirma(n)!==antes && card.isConnected) render(); }); } }
   if(w.paso==='archivo'){
     const inp=h('input',{type:'file',id:'bs-archivo',accept:'.txt,.csv,.tsv,text/plain',style:'display:none'});
     inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
@@ -4804,8 +4812,10 @@ async function bancoSubir(){
     const guardar=async()=>{
       if(!w.cuentaId){ aviso('Elige de qué cuenta es el archivo.','err'); return; }
       w.paso='guardando'; render();
-      try{ w.resultado=await rpc('registrar_movimientos_banco',{ p_cuenta:w.cuentaId, p_formato:L.formato, p_filas:L.filas, p_archivo:w.archivo.nombre, p_sha256:w.archivo.sha, p_numero:L.numero||null }); w.paso='listo'; BAN.cuentas=null; }
-      catch(e){ w.paso='confirmar'; render(); aviso(e.message||e.code,'err',16000,'No se guardó nada'); return; }
+      // mientras sigue el símbolo de carga se pone al día lo que cambia al guardar (la cuenta de Banorte queda ligada, la marca de hoy, los últimos archivos)
+      try{ w.resultado=await rpc('registrar_movimientos_banco',{ p_cuenta:w.cuentaId, p_formato:L.formato, p_filas:L.filas, p_archivo:w.archivo.nombre, p_sha256:w.archivo.sha, p_numero:L.numero||null }); w.paso='listo'; BAN.cargas=null;
+        await Promise.all([bancoCuentas(true).catch(()=>{}), bancoDiaHoy(true)]); }
+      catch(e){ w.paso='confirmar'; await bancoDiaHoy(true); render(); aviso(e.message||e.code,'err',16000,'No se guardó nada'); return; }
       render(); };
     add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Revisa y guarda'), h('button',{class:'btn sm ghost',onclick:deNuevo},'Empezar de nuevo')));
     if(w.reconocida && marcada(w.cuentaId)){ // Banorte se reconoce sola: si ya está marcada hoy, no se guarda hasta que la desmarquen en la lista
@@ -4838,17 +4848,22 @@ async function bancoSubir(){
 }
 // Lista de cuentas de hoy (20-nov-2026): cada cuenta se marca sola cuando se suben sus movimientos, para ver de un vistazo cuáles faltan.
 // Una cuenta marcada ya no se ofrece para subir; al desmarcarla se puede subir otra vez. La lista empieza de nuevo a las 12 de la noche (hora de México).
-async function bancoDiaHoy(){ const hoy=nowMX().fecha;
-  try{ const rows=await sel(sb.from('banco_cuentas_dia').select('*').eq('fecha',hoy)); const m=new Map(rows.map(r=>[r.cuenta_id,r])); m.fecha=hoy; return m; }catch(e){ return null; } }
+// Queda en memoria (BAN.hoy) para pintar sin esperar. "callado": consulta en segundo plano, sin la barra de carga de arriba.
+async function bancoDiaHoy(callado){ const hoy=nowMX().fecha;
+  try{ const q=sb.from('banco_cuentas_dia').select('*').eq('fecha',hoy); let rows; if(callado){ const {data,error}=await q; if(error) throw errSrv(error); rows=data; } else rows=await sel(q);
+    const m=new Map(rows.map(r=>[r.cuenta_id,r])); m.fecha=hoy; BAN.hoy=m; }
+  catch(e){ if(!(BAN.hoy && BAN.hoy.fecha===hoy)) BAN.hoy=null; } // si falla una consulta de paso, se queda con lo que ya se sabía de hoy
+  BAN.hoyT=Date.now(); return BAN.hoy; }
+const bancoDiaFirma = m => m? [...m.values()].map(r=>[r.cuenta_id,r.subida_en,r.reabierta_en||''].join('|')).sort().join(';') : 'sin';
 const bancoMarcada = (dia,id) => { const r=dia&&dia.get(id); return !!(r && !r.reabierta_en); };
-function bancoListaDia(cuentas, dia){
+function bancoListaDia(cuentas, dia, alCambiar){
   if(!dia) return null; const lista=cuentas.filter(c=>/^(bbva|banorte)/i.test(c.banco)); if(!lista.length) return null; // solo las cuentas de los bancos cuyo archivo se puede subir
   const hechas=lista.filter(c=>bancoMarcada(dia,c.id)).length; const filas=h('div',{class:'bs-dia-filas'});
   for(const c of lista){ const r=dia.get(c.id); const on=bancoMarcada(dia,c.id);
     const chk=h('input',{type:'checkbox','data-cuenta':c.id}); chk.checked=on; chk.disabled=!r; // sin archivo de hoy no hay nada que marcar a mano: la marca la pone el archivo
     chk.addEventListener('change',async()=>{ chk.disabled=true;
       try{ await rpc('marcar_cuenta_banco',{p_cuenta:c.id, p_marcada:chk.checked}); }catch(e){ aviso(e.message||e.code,'err',10000,'No se cambió la lista'); }
-      render(); });
+      await bancoDiaHoy(true); if(alCambiar) alCambiar(); else render(); }); // solo se vuelve a pintar la lista, no toda la pantalla
     filas.append(h('label',{class:'bs-dia-fila'+(on?' on':'')+(r?'':' sin'), title:r? null : 'Se marca sola al subir su archivo'}, chk, h('span',{}, h('b',{},bancoCuentaTxt(c)),
       on? h('span',{class:'small muted'}, [fmtHora(r.subida_en), r.subida_por_nombre].filter(Boolean).join(' · ')) : r? h('span',{class:'small muted'},'Desmarcada: se puede volver a subir') : null))); }
   // a las 12 de la noche la lista empieza de nuevo, aunque la pantalla se haya quedado abierta
@@ -4862,8 +4877,11 @@ function bancoListaDia(cuentas, dia){
 // Lo último que se subió, con quién y cuándo. Solo el dueño puede eliminar una carga (la más reciente de la cuenta), con motivo.
 async function bancoCargas(cuentas, donde){
   const caja=h('div',{id:'bs-cargas'}); (donde||app).append(caja);
-  let rows=[]; try{ rows=await sel(sb.from('banco_cargas').select('*').order('subido_en',{ascending:false}).limit(12)); }catch(e){ return; }
-  if(!rows.length) return;
+  // se pinta con lo último que se vio y se pone al día en segundo plano; solo se vuelve a pintar si cambió
+  const firma=r=>r.map(g=>g.id+'|'+(g.eliminada_en||'')).join(';'); const vistas=BAN.cargas; if(vistas) pinta(vistas);
+  let rows; try{ const {data,error}=await sb.from('banco_cargas').select('*').order('subido_en',{ascending:false}).limit(12); if(error) throw errSrv(error); rows=data||[]; }catch(e){ return; }
+  BAN.cargas=rows; if(!vistas || firma(rows)!==firma(vistas)) pinta(rows);
+ function pinta(rows){ caja.innerHTML=''; if(!rows.length) return;
   caja.append(h('h3',{style:'margin:22px 0 10px'},'Últimos archivos subidos'));
   const list=h('div',{class:'list b-tabla bc'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Cuenta'), h('span',{},'Periodo'), h('span',{},'Nuevos'), h('span',{},'Subido'), h('span',{},'')));
   for(const g of rows){ const c=cuentas.find(x=>x.id===g.cuenta_id); const fue=new Date(g.subido_en).toLocaleString('es-MX',{timeZone:'America/Mexico_City',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -4873,7 +4891,7 @@ async function bancoCargas(cuentas, donde){
       h('span',{class:'bc-quien'}, h('span',{},fue), g.subido_por_nombre? h('span',{class:'small muted'},g.subido_por_nombre):null),
       g.eliminada_en? h('span',{class:'chip',title:g.eliminada_motivo||''},'Eliminada') : S.rol==='dueno'? h('button',{class:'btn sm ghost',onclick:()=>bancoEliminarCarga(g, c)},'Eliminar') : h('span',{})));
     if(g.eliminada_en && g.eliminada_motivo) list.append(h('div',{class:'bc-motivo small muted'},'Motivo: '+g.eliminada_motivo)); }
-  caja.append(list);
+  caja.append(list); }
 }
 function bancoEliminarCarga(g, c){
   const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
@@ -4881,7 +4899,7 @@ function bancoEliminarCarga(g, c){
   const btn=h('button',{class:'btn big block',id:'bs-eliminar',style:'background:var(--err);color:var(--neon-fg);border-color:var(--err)',disabled:true},'Eliminar estos movimientos');
   motivo.addEventListener('input',()=>{ btn.disabled=motivo.value.trim().length<4; });
   btn.addEventListener('click',async()=>{ btn.disabled=true; btn.textContent='Eliminando…';
-    try{ const r=await rpc('eliminar_carga_banco',{p_carga:g.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast(`Se eliminaron ${fmtInt(r.movimientos)} movimientos de ${r.cuenta}.`,5000); render(); }
+    try{ const r=await rpc('eliminar_carga_banco',{p_carga:g.id, p_motivo:motivo.value.trim()}); sheet.remove(); toast(`Se eliminaron ${fmtInt(r.movimientos)} movimientos de ${r.cuenta}.`,5000); BAN.cargas=null; render(); }
     catch(e){ btn.disabled=false; btn.textContent='Eliminar estos movimientos'; aviso(e.message||e.code,'err',12000,'No se eliminó'); } });
   sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Eliminar este archivo subido?'),
     h('p',{class:'small muted',style:'margin:0'},`Se quitan los ${fmtInt(g.nuevas)} movimientos que entraron con este archivo${c?' en '+c.alias:''} (${bancoPeriodo(g.desde,g.hasta)}). El archivo se puede volver a subir después. Queda anotado en la bitácora con tu usuario y el motivo.`),
