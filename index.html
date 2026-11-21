@@ -984,6 +984,10 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .esc-vista canvas{display:block;max-width:100%;max-height:62vh;width:auto;height:auto}
 .esc-vista .esc-apagada{padding:28px 18px;text-align:center}
 .esc-res{font:500 12px var(--font-mono);color:var(--muted)}
+.esc-guia{margin:0;min-height:26px;font:700 17px/1.5 var(--font-body);color:var(--fg)}
+.esc-guia[data-estado="ajustar"]{color:var(--warn)}
+.esc-guia[data-estado="tomar"],.esc-guia[data-estado="listo"]{color:var(--ok)}
+.esc-guia:empty{display:none}
 .esc-tramos{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
 .esc-tramos img{height:150px;width:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
 .esc-datos{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0}
@@ -1299,7 +1303,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.9.0';
+const OM_VERSION='2.10.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4048,7 +4052,7 @@ async function adminDepositos(){
 // con una cámara de documentos USB. Antes de tocar el corte hay que saber dos cosas: que el navegador use la cámara directo y que la IA lea bien.
 // Esta pantalla solo existe para el dueño y solo en una estación con el interruptor "escáner de tickets" encendido (migración 058): hoy, la
 // Estación de Pruebas. No guarda nada: ni la imagen ni la lectura. La lectura la hace el servidor (función leer-ticket).
-const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[] };
+const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[], auto:true };
 function escCerrar(){ if(ESC.stream){ try{ ESC.stream.getTracks().forEach(t=>t.stop()); }catch(e){} ESC.stream=null; } }
 // Busca el papel del ticket (lo más claro) sobre la mesa. Devuelve su rectángulo en la imagen, o null si no se distingue (mesa clara, poco contraste).
 function escCajaPapel(cv){
@@ -4104,6 +4108,37 @@ async function escLeeQR(cv, caja){ // busca un QR en la imagen (o en el recorte 
     if(r && r.data) return { texto:r.data, via:'jsqr' };
     await new Promise(z=>setTimeout(z,0)); } // deja respirar a la pantalla entre intentos
   return null; }
+// ---- Lector automático (20-nov-2026). Pedido de Mauricio: al poner el ticket, un cuadro lo sigue en pantalla, la app va diciendo qué falta
+// acomodar y, cuando la imagen es buena, toma la foto sola. Todo esto lo calcula la computadora en el momento (no es la IA): dónde está el
+// papel, si se sale del cuadro, si está quieto y si está nítido. La IA solo lee la foto final.
+const ESC_GUIA={ QUIETO:4, NITIDEZ_MIN:18, ESPERA_CORTADO:2200, ESPERA_BORROSO:3200 };
+// Nitidez de un recuadro: varianza del laplaciano de la luminancia (más alto = bordes más marcados = mejor enfocado).
+function escNitidez(px, w, hh){ const n=w*hh, L=new Float32Array(n); for(let i=0;i<n;i++) L[i]=px[i*4]*0.299+px[i*4+1]*0.587+px[i*4+2]*0.114;
+  let s=0, s2=0, m=0; for(let y=1;y<hh-1;y++) for(let x=1;x<w-1;x++){ const i=y*w+x, v=4*L[i]-L[i-1]-L[i+1]-L[i-w]-L[i+w]; s+=v; s2+=v*v; m++; }
+  if(!m) return 0; const med=s/m; return s2/m-med*med; }
+// Decide qué decirle a quien pone el ticket. e: lo que se lleva visto de este ticket; lectura: lo medido en este cuadro.
+//   lectura = { caja:{x,y,w,h}|null, W, H, nitidez, t }   →   { estado, texto, tomar }
+function escGuia(e, lec){
+  const c=lec.caja, t=lec.t;
+  if(!c){ e.sin=(e.sin||0)+1; if(e.sin>=3){ e.hist=[]; e.tomado=false; e.desde=0; e.mejor=0; e.nitPrev=0; e.cortadoDesde=0; e.borrosoDesde=0; e.reenfoque=false; } return { estado:'buscando', texto:e.sin>=3? 'Pon un ticket bajo la cámara.' : (e.ultimo||'Pon un ticket bajo la cámara.'), tomar:false }; }
+  e.sin=0; if(!e.desde) e.desde=t;
+  if(e.tomado) return { estado:'listo', texto:'Listo. Retira el ticket para leer el siguiente.', tomar:false };
+  e.hist=(e.hist||[]).concat([c]).slice(-ESC_GUIA.QUIETO); const d=Math.hypot(lec.W,lec.H);
+  const quieto=e.hist.length>=ESC_GUIA.QUIETO && e.hist.every(b=>Math.abs(b.x-c.x)+Math.abs(b.y-c.y)+Math.abs(b.w-c.w)+Math.abs(b.h-c.h) < d*0.025);
+  const mx=lec.W*0.012, my=lec.H*0.012, lados=[]; if(c.y<=my) lados.push('arriba'); if(c.y+c.h>=lec.H-my) lados.push('abajo'); if(c.x<=mx) lados.push('la izquierda'); if(c.x+c.w>=lec.W-mx) lados.push('la derecha');
+  const chico=c.w*c.h < lec.W*lec.H*0.02;
+  // nítido: pasa del mínimo, no está muy por debajo de lo mejor que se ha visto de este ticket y ya dejó de subir (la cámara terminó de enfocar)
+  const nv=lec.nitidez||0, previa=e.nitPrev||0; e.nitPrev=nv; e.mejor=Math.max(e.mejor||0, nv); const nitido= nv>=ESC_GUIA.NITIDEZ_MIN && nv>=e.mejor*0.75 && nv<=previa*1.15;
+  const di=(estado,texto,tomar)=>{ e.ultimo=texto; return { estado, texto, tomar:!!tomar }; };
+  if(chico) return di('ajustar','El ticket se ve muy chico: acércalo a la cámara.');
+  if(!quieto){ e.cortadoDesde=0; e.borrosoDesde=0; return di('ajustar','No lo muevas…'); }
+  if(!nitido){ e.borrosoDesde=e.borrosoDesde||t; const mucho=t-e.borrosoDesde>ESC_GUIA.ESPERA_BORROSO; const r=di('ajustar', mucho? 'Se ve borroso: revisa que el lente esté limpio y que haya buena luz.' : 'Enfocando…'); r.reenfocar= mucho && !e.reenfoque; if(r.reenfocar) e.reenfoque=true; return r; }
+  e.borrosoDesde=0;
+  if(lados.length){ e.cortadoDesde=e.cortadoDesde||t; // un ticket largo puede no caber: se avisa y, si no lo acomodan, se toma lo que se ve
+    if(t-e.cortadoDesde<ESC_GUIA.ESPERA_CORTADO) return di('ajustar',`El ticket se sale por ${lados.join(' y por ')}: muévelo hacia el centro.`);
+    e.tomado=true; return di('tomar','Tomando la foto de lo que se alcanza a ver…',true); }
+  e.cortadoDesde=0; e.tomado=true; return di('tomar','Bien. Tomando la foto…',true);
+}
 const escPesos = v => v==null||v===''||isNaN(Number(v))? '—' : fmtMXN(Number(v));
 const ESC_TIPOS={deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', cliente_marcado:'Ticket de cliente', otro:'Otro ticket'};
 function escResultado(L){ // lo que leyó la IA de un ticket
@@ -4176,11 +4211,37 @@ async function adminEscaner(){
   const selCam=h('select',{id:'esc-cam','aria-label':'Cámara',style:'flex:1;min-width:200px'}); const res=h('span',{class:'esc-res',id:'esc-res'});
   const bLeer=h('button',{class:'btn primary',id:'esc-leer',disabled:''}, ico('camara',18), 'Leer ticket'); const bGirar=h('button',{class:'btn',id:'esc-girar',disabled:''},'Girar');
   const chk=h('input',{type:'checkbox',id:'esc-recorte'}); chk.checked=ESC.recorte; chk.addEventListener('change',()=>{ ESC.recorte=chk.checked; });
+  const chkAuto=h('input',{type:'checkbox',id:'esc-auto'}); chkAuto.checked=ESC.auto; chkAuto.addEventListener('change',()=>{ ESC.auto=chkAuto.checked; G.e={}; guia.textContent=''; guia.dataset.estado=''; });
+  const guia=h('p',{class:'esc-guia',id:'esc-guia','aria-live':'polite'}); const diag=h('p',{class:'small muted',id:'esc-diag',style:'margin:0'}); const bEnfocar=h('button',{class:'btn sm',id:'esc-enfocar',style:'display:none'},'Enfocar');
+  const G={ e:{}, caja:null, estado:'', nit:0 }; ESC.guia=G;
+  // Enfoque: el navegador solo puede pedirlo si la cámara ofrece ese control. Aquí se ve qué ofrece esta cámara.
+  const enfoque={ modos:[], distancia:null };
+  const leerControles=()=>{ enfoque.modos=[]; enfoque.distancia=null; let cap={}, aj={}; try{ const tr=ESC.stream.getVideoTracks()[0]; cap=(tr.getCapabilities&&tr.getCapabilities())||{}; aj=(tr.getSettings&&tr.getSettings())||{}; }catch(e){}
+    enfoque.modos=Array.isArray(cap.focusMode)? cap.focusMode : []; enfoque.distancia=cap.focusDistance||null; const nom={continuous:'continuo', manual:'manual', 'single-shot':'un toque', none:'ninguno'};
+    const partes=[ enfoque.modos.length? 'Enfoque que deja controlar: '+enfoque.modos.map(m=>nom[m]||m).join(', ')+(aj.focusMode? ' (ahora: '+(nom[aj.focusMode]||aj.focusMode)+')' : '') : 'Esta cámara no deja controlar el enfoque desde el navegador: usa su propio autoenfoque.' ];
+    if(cap.zoom) partes.push('zoom '+cap.zoom.min+' a '+cap.zoom.max); diag.textContent=partes.join(' · '); bEnfocar.style.display= enfoque.modos.some(m=>m==='single-shot'||m==='continuous')? '' : 'none'; };
+  const enfocar=async()=>{ try{ const tr=ESC.stream.getVideoTracks()[0]; if(enfoque.modos.includes('single-shot')) await tr.applyConstraints({advanced:[{focusMode:'single-shot'}]});
+      else if(enfoque.modos.includes('continuous')){ if(enfoque.modos.includes('manual')){ await tr.applyConstraints({advanced:[{focusMode:'manual'}]}); await new Promise(z=>setTimeout(z,180)); } await tr.applyConstraints({advanced:[{focusMode:'continuous'}]}); }
+      return true; }catch(e){ return false; } };
+  bEnfocar.addEventListener('click',async()=>{ const okE=await enfocar(); toast(okE? 'Se le pidió a la cámara que enfoque.' : 'La cámara no aceptó la orden de enfocar.'); });
+  // Mide el cuadro que se está viendo y decide qué decir. cv: la vista ya girada y reducida; k: su escala contra el video.
+  const medir=(cv,k,w,hh)=>{ const caja=escCajaPapel(cv); let nit=0;
+    if(caja){ // nitidez a tamaño real: tres recuadros a lo largo del ticket (el centro puede ser papel en blanco); se toma el mejor
+      const largoV=caja.h>=caja.w, T=Math.min(320, w, hh); const pc=document.createElement('canvas'); pc.width=T; pc.height=T; const pg=pc.getContext('2d',{willReadFrequently:true});
+      for(const f of [0.3,0.5,0.7]){ const px=caja.x+caja.w*(largoV?0.5:f), py=caja.y+caja.h*(largoV?f:0.5); let vx, vy; const g=ESC.giro%360;
+        if(g===0){ vx=px/k; vy=py/k; } else if(g===90){ vx=py/k; vy=hh-px/k; } else if(g===180){ vx=w-px/k; vy=hh-py/k; } else { vx=w-py/k; vy=px/k; }
+        const sx=Math.max(0,Math.min(w-T,Math.round(vx-T/2))), sy=Math.max(0,Math.min(hh-T,Math.round(vy-T/2))); try{ pg.drawImage(video,sx,sy,T,T,0,0,T,T); nit=Math.max(nit, escNitidez(pg.getImageData(0,0,T,T).data,T,T)); }catch(e){} } }
+    G.caja=caja; G.nit=nit; return escGuia(G.e, { caja, W:cv.width, H:cv.height, nitidez:nit, t:performance.now() }); };
+  const marco=(g2,caja,estado)=>{ if(!caja) return; const col= estado==='tomar'||estado==='listo'? '#84FF00' : '#FBBF24'; g2.save(); g2.lineWidth=Math.max(3,Math.round(g2.canvas.width/260)); g2.strokeStyle=col; g2.shadowColor='rgba(0,0,0,.55)'; g2.shadowBlur=6; g2.strokeRect(caja.x,caja.y,caja.w,caja.h); g2.restore(); };
   const inp=h('input',{type:'file',accept:'image/*',id:'esc-archivo',style:'display:none'}); const bFoto=h('button',{class:'btn',id:'esc-foto'},'Elegir una foto');
-  const apagada=()=>{ vivo=false; vista.innerHTML=''; vista.append(h('div',{class:'esc-apagada'}, h('p',{class:'small muted',style:'margin:0 0 12px'},'Pon un ticket bajo la cámara de documentos.'), h('button',{class:'btn primary',id:'esc-encender',onclick:()=>encender()},'Encender la cámara'))); bLeer.disabled=true; bGirar.disabled=true; res.textContent=''; };
+  const apagada=()=>{ vivo=false; guia.textContent=''; guia.dataset.estado=''; diag.textContent=''; bEnfocar.style.display='none'; vista.innerHTML=''; vista.append(h('div',{class:'esc-apagada'}, h('p',{class:'small muted',style:'margin:0 0 12px'},'Pon un ticket bajo la cámara de documentos.'), h('button',{class:'btn primary',id:'esc-encender',onclick:()=>encender()},'Encender la cámara'))); bLeer.disabled=true; bGirar.disabled=true; res.textContent=''; };
   const pinta=()=>{ if(!vivo || !lienzo.isConnected){ if(!lienzo.isConnected && !vista.isConnected) escCerrar(); return; } // al salir de la pantalla la cámara se apaga sola
     if(video.videoWidth){ const w=video.videoWidth, hh=video.videoHeight, k=Math.min(1, 1100/Math.max(w,hh)); const cv=escGirar(video, Math.round(w*k), Math.round(hh*k), ESC.giro);
-      if(lienzo.width!==cv.width||lienzo.height!==cv.height){ lienzo.width=cv.width; lienzo.height=cv.height; } lienzo.getContext('2d').drawImage(cv,0,0); res.textContent=`${w} × ${hh}`; }
+      if(lienzo.width!==cv.width||lienzo.height!==cv.height){ lienzo.width=cv.width; lienzo.height=cv.height; } const g2=lienzo.getContext('2d'); g2.drawImage(cv,0,0); res.textContent=`${w} × ${hh}`;
+      if(ESC.auto && !ESC.ocupado){ let r=null; try{ r=medir(cv,k,w,hh); }catch(e){ r=null; }
+        if(r){ marco(g2,G.caja,r.estado); if(G.caja) res.textContent=`${w} × ${hh} · nitidez ${Math.round(G.nit)}`; if(guia.textContent!==r.texto) guia.textContent=r.texto; guia.dataset.estado=r.estado; G.estado=r.estado; if(r.reenfocar) enfocar();
+          if(r.tomar){ setTimeout(()=>{ if(vivo && video.videoWidth && !ESC.ocupado) leer(escGirar(video, video.videoWidth, video.videoHeight, ESC.giro)); }, 60); } } }
+      else if(ESC.ocupado && ESC.auto){ marco(g2,G.caja,'tomar'); } }
     setTimeout(pinta, 120); };
   async function encender(id){
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ aviso('Este navegador no deja usar la cámara desde la página. Prueba con Chrome o Edge en la computadora.','err',12000,'Sin cámara'); return; }
@@ -4195,7 +4256,7 @@ async function adminEscaner(){
     if(!id){ let guardada=null; try{ guardada=localStorage.getItem('om_esc_cam'); }catch(e){} const quiero=cams.find(c=>c.deviceId===guardada) || cams.find(c=>/ipevo|v4k|document|visualiz/i.test(c.label||''));
       if(quiero && quiero.deviceId && quiero.deviceId!==actual) return encender(quiero.deviceId); }
     selCam.innerHTML=''; cams.forEach((c,i)=>selCam.append(h('option',{value:c.deviceId}, c.label||('Cámara '+(i+1))))); selCam.value=actual;
-    vista.innerHTML=''; vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; pinta();
+    vista.innerHTML=''; vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; G.e={}; leerControles(); pinta();
   }
   selCam.addEventListener('change',()=>{ try{ localStorage.setItem('om_esc_cam', selCam.value); }catch(e){} encender(selCam.value); });
   bGirar.addEventListener('click',()=>{ ESC.giro=(ESC.giro+90)%360; });
@@ -4222,11 +4283,13 @@ async function adminEscaner(){
       const k=Math.min(1, 6000/Math.max(img.naturalWidth,img.naturalHeight)); leer(escGirar(img, Math.round(img.naturalWidth*k), Math.round(img.naturalHeight*k), 0)); }
     catch(e){ aviso(e.message||String(e),'err'); } });
   app.append(h('div',{class:'esc-wrap',id:'esc'},
-    h('div',{class:'card stack',id:'esc-camara'}, vista, h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, selCam, res),
+    h('div',{class:'card stack',id:'esc-camara'}, vista, guia, h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, selCam, res),
       h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, bLeer, bGirar, bFoto, inp),
-      h('label',{class:'nouso'}, chk, h('span',{},'Recortar solo el ticket'))),
+      h('label',{class:'nouso'}, chkAuto, h('span',{},'Automático: sigue el ticket y toma la foto sola')),
+      h('label',{class:'nouso'}, chk, h('span',{},'Recortar solo el ticket')),
+      h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, diag, bEnfocar)),
     lado));
-  if(ESC.stream && ESC.stream.active){ video.srcObject=ESC.stream; try{ await video.play(); }catch(e){} vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false;
+  if(ESC.stream && ESC.stream.active){ video.srcObject=ESC.stream; try{ await video.play(); }catch(e){} vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; leerControles();
     try{ const cams=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput'); cams.forEach((c,i)=>selCam.append(h('option',{value:c.deviceId}, c.label||('Cámara '+(i+1))))); selCam.value=(ESC.stream.getVideoTracks()[0].getSettings()||{}).deviceId||''; }catch(e){} pinta(); }
   else apagada();
   pintaLado();
@@ -5439,7 +5502,7 @@ function depositoPDF(H){
   pie(); return doc.output('blob');
 }
 window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN, deposito:DEP, depositoPDF };   // gancho para las pruebas
-window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos, leeQR:escLeeQR };   // gancho para las pruebas
+window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos, leeQR:escLeeQR, guia:escGuia, nitidez:escNitidez, GUIA:ESC_GUIA };   // gancho para las pruebas
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
