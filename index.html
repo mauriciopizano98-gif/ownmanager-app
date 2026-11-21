@@ -1303,7 +1303,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.10.1';
+const OM_VERSION='2.11.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4052,7 +4052,7 @@ async function adminDepositos(){
 // con una cámara de documentos USB. Antes de tocar el corte hay que saber dos cosas: que el navegador use la cámara directo y que la IA lea bien.
 // Esta pantalla solo existe para el dueño y solo en una estación con el interruptor "escáner de tickets" encendido (migración 058): hoy, la
 // Estación de Pruebas. No guarda nada: ni la imagen ni la lectura. La lectura la hace el servidor (función leer-ticket).
-const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[], auto:true };
+const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[], auto:true, modelo:'' };
 function escCerrar(){ if(ESC.stream){ try{ ESC.stream.getTracks().forEach(t=>t.stop()); }catch(e){} ESC.stream=null; } }
 // Busca el papel del ticket (lo más claro) sobre la mesa. Devuelve su rectángulo en la imagen, o null si no se distingue (mesa clara, poco contraste).
 function escCajaPapel(cv){
@@ -4218,6 +4218,8 @@ function escResultado(L){ // lo que leyó la IA de un ticket
     else { if(c2 && c2.diferencias===0 && c2.comparados>0) linea(`El QR y lo impreso coinciden en ${c2.comparados===1? '1 dato' : c2.comparados+' datos'}.`,'ok');
       else if(c2 && c2.comparados===0) linea('Se leyó el QR, pero de lo impreso no se pudo leer nada para compararlo.','warn');
       if(c2 && c2.sin_leer>0 && c2.comparados>0) caja.append(h('p',{class:'small muted esc-sinleer',style:'margin:0'},`De lo impreso no se leyó: ${c2.renglones.filter(x=>x.coincide===null).map(x=>x.dato).join(', ')}.`)); } }
+  const u=r.uso, gasto= u && (u.entrada||u.salida)? [u.modelo_nombre||r.modelo||null, `${fmtInt(u.entrada)} + ${fmtInt(u.salida)} tokens`, u.costo_usd!=null? 'US$'+Number(u.costo_usd).toFixed(3) : null].filter(Boolean).join(' · ') : null;
+  if(gasto) caja.append(h('p',{class:'small muted esc-gasto',style:'margin:0'}, gasto));
   caja.append(h('p',{class:'small muted',style:'margin:0',title:r.modelo||''}, [`Tardó ${Number(r.segundos||0).toFixed(1)} s`, L.tramos.length===1? '1 imagen' : L.tramos.length+' tramos', L.caja? 'recortado al papel' : 'imagen completa', L.qr? 'QR leído' : null, 'no se guardó nada'].filter(Boolean).join(' · ')));
   return caja;
 }
@@ -4229,6 +4231,7 @@ async function adminEscaner(){
   const bLeer=h('button',{class:'btn primary',id:'esc-leer',disabled:''}, ico('camara',18), 'Leer ticket'); const bGirar=h('button',{class:'btn',id:'esc-girar',disabled:''},'Girar');
   const chk=h('input',{type:'checkbox',id:'esc-recorte'}); chk.checked=ESC.recorte; chk.addEventListener('change',()=>{ ESC.recorte=chk.checked; });
   const chkAuto=h('input',{type:'checkbox',id:'esc-auto'}); chkAuto.checked=ESC.auto; chkAuto.addEventListener('change',()=>{ ESC.auto=chkAuto.checked; G.e={}; guia.textContent=''; guia.dataset.estado=''; });
+  const selMod=h('select',{id:'esc-modelo','aria-label':'Modelo que lee',style:'min-width:200px'}, h('option',{value:''},'Modelo: el de siempre'), h('option',{value:'claude-opus-5-5'},'Probar con Opus 5.5'), h('option',{value:'claude-sonnet-5-5'},'Probar con Sonnet 5.5')); selMod.value=ESC.modelo||''; selMod.addEventListener('change',()=>{ ESC.modelo=selMod.value; });
   const guia=h('p',{class:'esc-guia',id:'esc-guia','aria-live':'polite'}); const diag=h('p',{class:'small muted',id:'esc-diag',style:'margin:0'}); const bEnfocar=h('button',{class:'btn sm',id:'esc-enfocar',style:'display:none'},'Enfocar');
   const G={ e:{}, caja:null, estado:'', nit:0 }; ESC.guia=G;
   // Enfoque: el navegador solo puede pedirlo si la cámara ofrece ese control. Aquí se ve qué ofrece esta cámara.
@@ -4282,13 +4285,13 @@ async function adminEscaner(){
     if(!ESC.lecturas.length){ lado.append(h('div',{class:'card empty',id:'esc-vacio'}, h('b',{},'Aquí sale lo que lea la IA'), h('p',{class:'small',style:'margin:6px auto 0;max-width:52ch'},'Es una prueba: no se guarda la imagen ni la lectura.'))); return; }
     const [ult,...antes]=ESC.lecturas;
     lado.append(ult.error? h('div',{class:'card stack esc-lectura'}, h('h3',{style:'margin:0'},'No se pudo leer'), h('p',{class:'small',style:'margin:0;color:var(--err)'},ult.error)) : escResultado(ult), h('div',{class:'esc-tramos',id:'esc-tramos'}, ...ult.tramos.map(u=>h('img',{src:u,alt:'Lo que se le mandó a la IA'}))));
-    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : (ESC_TIPOS[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&(r.datos.total_importe!=null||r.datos.total!=null)? escPesos(r.datos.total_importe!=null? r.datos.total_importe : r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, (r.comprobacion&&r.comprobacion.que==='lote'&&r.comprobacion.fallas>0)? 'los totales no cuadran' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
+    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : (ESC_TIPOS[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&(r.datos.total_importe!=null||r.datos.total!=null)? escPesos(r.datos.total_importe!=null? r.datos.total_importe : r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, (r.comprobacion&&r.comprobacion.que==='lote'&&r.comprobacion.fallas>0)? 'los totales no cuadran' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`, (r.uso&&r.uso.costo_usd!=null)? (r.uso.modelo_nombre||'')+' US$'+Number(r.uso.costo_usd).toFixed(3) : null].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
       lado.append(h('div',{class:'esc-antes'}, h('h3',{style:'margin:0 0 10px'},'Lecturas anteriores de esta sesión'), lista)); } };
   async function leer(fuente){ // fuente: el cuadro de la cámara o la foto elegida, ya con el giro aplicado
     if(ESC.ocupado) return; const caja= ESC.recorte? escCajaPapel(fuente) : null; const tramos=escTramos(fuente, caja);
     ESC.ocupado={tramos}; bLeer.disabled=true; bFoto.disabled=true; pintaLado(); const L={ tramos, caja, hora:fmtHora(new Date().toISOString()) };
     await new Promise(z=>setTimeout(z,30)); try{ L.qr=await escLeeQR(fuente, caja); }catch(e){ L.qr=null; }
-    try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:{ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]), qr:L.qr? L.qr.texto : null } });
+    try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:Object.assign({ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]), qr:L.qr? L.qr.texto : null }, ESC.modelo? { modelo:ESC.modelo } : {}) });
       if(error){ let m=error.message||'No respondió el servidor'; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} throw new Error(/not found|404/i.test(m)? 'Falta instalar la función leer-ticket en Supabase.' : m); }
       if(!data || !data.ok) throw new Error((data&&data.error)||'La lectura falló'); L.res=data; }
     catch(e){ L.error=e.message||String(e); }
@@ -4304,6 +4307,7 @@ async function adminEscaner(){
       h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, bLeer, bGirar, bFoto, inp),
       h('label',{class:'nouso'}, chkAuto, h('span',{},'Automático: sigue el ticket y toma la foto sola')),
       h('label',{class:'nouso'}, chk, h('span',{},'Recortar solo el ticket')),
+      h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, selMod, h('span',{class:'small muted'},'Para comparar lectura, tiempo y costo.')),
       h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, diag, bEnfocar)),
     lado));
   if(ESC.stream && ESC.stream.active){ video.srcObject=ESC.stream; try{ await video.play(); }catch(e){} vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; leerControles();
