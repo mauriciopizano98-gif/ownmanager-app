@@ -978,6 +978,23 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .bd-falta{background:var(--warn-soft);border-radius:var(--r-sm);padding:12px 14px}
 .bd-falta input{flex:1;min-width:200px}
 .bd-rev{color:var(--warn);font-weight:600}
+/* Prueba del escáner (etapa 1): a la izquierda la cámara, a la derecha lo que leyó la IA. */
+.esc-wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-top:12px;align-items:start}
+.esc-vista{position:relative;background:var(--surface2);border:1px solid var(--line);border-radius:var(--r-sm);min-height:220px;display:grid;place-items:center;overflow:hidden}
+.esc-vista canvas{display:block;max-width:100%;max-height:62vh;width:auto;height:auto}
+.esc-vista .esc-apagada{padding:28px 18px;text-align:center}
+.esc-res{font:500 12px var(--font-mono);color:var(--muted)}
+.esc-tramos{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.esc-tramos img{height:150px;width:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+.esc-datos{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0}
+.esc-datos dt{font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.esc-datos dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.esc-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.esc-tabla th{font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.esc-tabla td{padding:6px 8px;border-bottom:1px solid var(--line)}
+.esc-tabla .n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.esc-antes{margin-top:18px}
+@media (min-width:1100px){ body[data-om-nav] .om-main.esc-ancho{max-width:1424px} .esc-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
 /* Eliminados y cancelados: un filtro por tipo y, por cada tipo, su lista. A la derecha de cada renglón: qué le pasó, cuándo y quién. */
 .el-filtro{flex-wrap:wrap;margin-top:12px}
 .el-n{font:500 12px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--muted);margin-left:7px}
@@ -1277,7 +1294,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.5.0';
+const OM_VERSION='2.6.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1519,7 +1536,7 @@ async function cargarConfig(){
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
     sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta,velador').eq('estacion_id',estId).order('nombre')) ]);
   S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id, codigo:m.codigo_pantalla||null};
-  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[], cierraProductoDescarga:est.cierra_producto_descarga!==false, direccion:est.direccion||'',
+  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[], cierraProductoDescarga:est.cierra_producto_descarga!==false, direccion:est.direccion||'', escanerTickets:est.escaner_tickets===true,
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
   for(const i of S.config.islas) for(const m of i.mangueras) m.producto=m.producto;
@@ -2910,9 +2927,10 @@ async function renderAdmin(){
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
     ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos'],['bdeposito','depositos','Depósito manual']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
-    ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados']]],
+    ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados'],...(dueno&&S.config.escanerTickets?[['escaner','camara','Prueba del escáner']]:[])]],
     ['eliminados','anulados','Eliminados y cancelados']]; // 20-nov-2026: todo lo eliminado, cancelado o anulado vive aquí (dueño y Contabilidad), no en las listas de trabajo
   const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  if(dueno && S.config.escanerTickets) titulos.escaner='Prueba del escáner'; // escáner de tickets, etapa 1: con el interruptor apagado esta pantalla no existe
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
@@ -2924,7 +2942,7 @@ async function renderAdmin(){
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:async()=>{ if(e.id===S.config.estacionId) return; S.estacionElegida=e.id; await cargarConfig(); render(); }},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito}))[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -4019,6 +4037,133 @@ async function adminDepositos(){
       for(const x of xs.sort((a,b)=>a.en<b.en?-1:1)) card.append(h('div',{class:'money'},h('span',{},`${x.hora} · ${x.despachadorNombre}`,h('span',{class:'small muted'},' · '+resumenDen(x))),h('b',{},fmtMXN(x.total)))); }
     app.append(card);
   }
+}
+// ---- ESCÁNER DE TICKETS · etapa 1: prueba de la cámara y de la lectura (20-nov-2026)
+// Mauricio quiere que cada despachador escanee sus tickets (depósitos del cajero, cierre de lote de las terminales) en la computadora del corte,
+// con una cámara de documentos USB. Antes de tocar el corte hay que saber dos cosas: que el navegador use la cámara directo y que la IA lea bien.
+// Esta pantalla solo existe para el dueño y solo en una estación con el interruptor "escáner de tickets" encendido (migración 058): hoy, la
+// Estación de Pruebas. No guarda nada: ni la imagen ni la lectura. La lectura la hace el servidor (función leer-ticket).
+const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[] };
+function escCerrar(){ if(ESC.stream){ try{ ESC.stream.getTracks().forEach(t=>t.stop()); }catch(e){} ESC.stream=null; } }
+// Busca el papel del ticket (lo más claro) sobre la mesa. Devuelve su rectángulo en la imagen, o null si no se distingue (mesa clara, poco contraste).
+function escCajaPapel(cv){
+  const W=240, H=Math.max(1,Math.round(cv.height*W/cv.width)); const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(cv,0,0,W,H); const px=g.getImageData(0,0,W,H).data;
+  const tot=W*H, lum=new Uint8Array(tot), hist=new Array(256).fill(0);
+  for(let i=0;i<tot;i++){ const v=((px[i*4]*299+px[i*4+1]*587+px[i*4+2]*114)/1000)|0; lum[i]=v; hist[v]++; }
+  let sum=0; for(let t=0;t<256;t++) sum+=t*hist[t];
+  let sumB=0, wB=0, max=0, thr=127, mOsc=0, mCla=0; // umbral de Otsu: separa lo oscuro (mesa) de lo claro (papel)
+  for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=tot-wB; if(!wF) break; sumB+=t*hist[t]; const mB=sumB/wB, mF=(sum-sumB)/wF, v=wB*wF*(mB-mF)*(mB-mF); if(v>max){ max=v; thr=t; mOsc=mB; mCla=mF; } }
+  if(mCla-mOsc<45) return null; // no hay contraste entre papel y mesa
+  const cols=new Float32Array(W), rows=new Float32Array(H); let n=0;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(lum[y*W+x]>thr){ cols[x]++; rows[y]++; n++; }
+  if(n<tot*0.02 || n>tot*0.85) return null;
+  const lim=arr=>{ let m=0; for(const v of arr) if(v>m) m=v; let a=0, b=arr.length-1; while(a<b && arr[a]<m*0.3) a++; while(b>a && arr[b]<m*0.3) b--; return [a,b]; };
+  const [x0,x1]=lim(cols), [y0,y1]=lim(rows), mg=Math.round(W*0.02);
+  const bx=Math.max(0,x0-mg), by=Math.max(0,y0-mg), bw=Math.min(W,x1+mg+1)-bx, bh=Math.min(H,y1+mg+1)-by;
+  if(bw<8 || bh<8 || bw*bh>tot*0.92) return null;
+  const k=cv.width/W; return { x:Math.round(bx*k), y:Math.round(by*k), w:Math.min(cv.width-Math.round(bx*k), Math.round(bw*k)), h:Math.min(cv.height-Math.round(by*k), Math.round(bh*k)) };
+}
+// Parte la imagen en tramos a lo largo de su lado largo (un cierre de lote es muy largo): cada tramo a buen tamaño para leer, encimados un poco.
+function escTramos(cv, caja){
+  const src=caja||{x:0,y:0,w:cv.width,h:cv.height}; const vertical=src.h>=src.w; const corto=vertical?src.w:src.h, largo=vertical?src.h:src.w;
+  const TR=1500, EMP=140, MAXT=6; let esc=Math.min(1, 1200/corto);
+  let n=Math.max(1, Math.ceil((largo*esc-EMP)/(TR-EMP)));
+  if(n>MAXT){ esc*=(MAXT*(TR-EMP)+EMP)/(largo*esc); n=MAXT; }
+  const L=largo*esc, C=Math.max(1,Math.round(corto*esc)), out=[];
+  for(let i=0;i<n;i++){ const len= n===1? Math.max(1,Math.round(L)) : TR; const ini= n===1? 0 : Math.round(i*(L-TR)/(n-1));
+    const t=document.createElement('canvas'); t.width=vertical?C:len; t.height=vertical?len:C; const g=t.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,t.width,t.height);
+    if(vertical) g.drawImage(cv, src.x, src.y+ini/esc, src.w, len/esc, 0, 0, C, len); else g.drawImage(cv, src.x+ini/esc, src.y, len/esc, src.h, 0, 0, len, C);
+    out.push(t.toDataURL('image/jpeg',0.85)); }
+  return out;
+}
+function escGirar(fuente, w, h, giro){ // dibuja la fuente (video o imagen) girada 0, 90, 180 o 270 grados
+  const cv=document.createElement('canvas'); const lado=giro%180!==0; cv.width=lado?h:w; cv.height=lado?w:h; const g=cv.getContext('2d');
+  g.translate(cv.width/2, cv.height/2); g.rotate(giro*Math.PI/180); g.drawImage(fuente, -w/2, -h/2, w, h); return cv; }
+const escPesos = v => v==null||v===''||isNaN(Number(v))? '—' : fmtMXN(Number(v));
+function escResultado(L){ // lo que leyó la IA de un ticket
+  const r=L.res, d=(r&&r.datos)||{}; const caja=h('div',{class:'card stack esc-lectura'});
+  const tipo={deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', otro:'Otro ticket'}[r.tipo]||'Ticket';
+  caja.append(h('div',{class:'row',style:'justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap'}, h('h3',{style:'margin:0'},tipo), h('span',{class:'chip '+(r.legible?'ok':'warn')}, r.legible? ico('palomita',14) : ico('alerta',14), r.legible?'Se lee bien':'No se lee bien')));
+  if(r.observaciones) caja.append(h('p',{class:'small',style:'margin:0'},r.observaciones));
+  const dl=h('dl',{class:'esc-datos'}); const dato=(k,v)=>{ if(v==null||v==='') return; dl.append(h('dt',{},k), h('dd',{},String(v))); };
+  const cuando=(f,hh)=>[f? fmtFecha(f) : null, hh||null].filter(Boolean).join(' · ')||null;
+  if(r.tipo==='deposito_cajero'){
+    dato('Fecha',cuando(d.fecha,d.hora)); dato('Transacción',d.transaccion); dato('Usuario',d.usuario); dato('Equipo',d.equipo); dato('Banco',[d.banco, d.cuenta_terminacion? '···'+d.cuenta_terminacion : null].filter(Boolean).join(' ')||null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl);
+    if((d.billetes||[]).length){ const t=h('table',{class:'esc-tabla'}, h('thead',{}, h('tr',{}, h('th',{},'Denominación'), h('th',{class:'n'},'Piezas'), h('th',{class:'n'},'Importe'))));
+      const tb=h('tbody',{}); for(const b of d.billetes) tb.append(h('tr',{}, h('td',{},escPesos(b.denominacion)), h('td',{class:'n'},b.piezas!=null? fmtInt(b.piezas) : '—'), h('td',{class:'n'},escPesos(b.importe!=null? b.importe : Number(b.denominacion||0)*Number(b.piezas||0))))); t.append(tb); caja.append(t); }
+  } else if(r.tipo==='cierre_lote'){
+    dato('Banco',d.banco); dato('Comercio',d.comercio); dato('Afiliación',d.afiliacion); dato('Terminal',d.terminal); dato('Lote',d.lote); dato('Fecha',cuando(d.fecha,d.hora));
+    dato('Ventas',d.total_ventas!=null? `${d.num_ventas!=null? fmtInt(d.num_ventas)+' · ' : ''}${escPesos(d.total_ventas)}` : null); dato('Devoluciones',d.total_devoluciones!=null? `${d.num_devoluciones!=null? fmtInt(d.num_devoluciones)+' · ' : ''}${escPesos(d.total_devoluciones)}` : null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl);
+    if((d.transacciones||[]).length){ const t=h('table',{class:'esc-tabla'}, h('thead',{}, h('tr',{}, h('th',{},'Hora'), h('th',{},'Tarjeta'), h('th',{},'Tipo'), h('th',{class:'n'},'Importe'))));
+      const tb=h('tbody',{}); for(const x of d.transacciones) tb.append(h('tr',{}, h('td',{},x.hora||'—'), h('td',{},[x.tarjeta? '···'+x.tarjeta : null, x.marca||null].filter(Boolean).join(' ')||'—'), h('td',{},x.tipo||'venta'), h('td',{class:'n'},escPesos(x.importe)))); t.append(tb); caja.append(t); }
+  } else { dato('Qué es',d.descripcion); dato('Fecha',d.fecha? fmtFecha(d.fecha) : null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl); }
+  const c=r.comprobacion; // la cuenta la hace el servidor: lo que suma el detalle contra el total impreso
+  if(c && c.coincide===true) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--ok);font-weight:600'}, c.que==='billetes'? `Los billetes suman el total: ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman el total: ${escPesos(c.total)}.`));
+  else if(c && c.coincide===false) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--warn);font-weight:600'}, c.que==='billetes'? `Los billetes suman ${escPesos(c.suma)} y el total dice ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman ${escPesos(c.suma)} y el total dice ${escPesos(c.total)}.`));
+  caja.append(h('p',{class:'small muted',style:'margin:0',title:r.modelo||''}, [`Tardó ${Number(r.segundos||0).toFixed(1)} s`, L.tramos.length===1? '1 imagen' : L.tramos.length+' tramos', L.caja? 'recortado al papel' : 'imagen completa', 'no se guardó nada'].join(' · ')));
+  return caja;
+}
+async function adminEscaner(){
+  app.classList.add('esc-ancho'); const estId=S.config.estacionId;
+  const vista=h('div',{class:'esc-vista',id:'esc-vista'}); const lado=h('div',{class:'stack',id:'esc-lado'});
+  const video=document.createElement('video'); video.muted=true; video.playsInline=true; const lienzo=h('canvas',{id:'esc-lienzo'}); let vivo=false;
+  const selCam=h('select',{id:'esc-cam','aria-label':'Cámara',style:'flex:1;min-width:200px'}); const res=h('span',{class:'esc-res',id:'esc-res'});
+  const bLeer=h('button',{class:'btn primary',id:'esc-leer',disabled:''}, ico('camara',18), 'Leer ticket'); const bGirar=h('button',{class:'btn',id:'esc-girar',disabled:''},'Girar');
+  const chk=h('input',{type:'checkbox',id:'esc-recorte'}); chk.checked=ESC.recorte; chk.addEventListener('change',()=>{ ESC.recorte=chk.checked; });
+  const inp=h('input',{type:'file',accept:'image/*',id:'esc-archivo',style:'display:none'}); const bFoto=h('button',{class:'btn',id:'esc-foto'},'Elegir una foto');
+  const apagada=()=>{ vivo=false; vista.innerHTML=''; vista.append(h('div',{class:'esc-apagada'}, h('p',{class:'small muted',style:'margin:0 0 12px'},'Pon un ticket bajo la cámara de documentos.'), h('button',{class:'btn primary',id:'esc-encender',onclick:()=>encender()},'Encender la cámara'))); bLeer.disabled=true; bGirar.disabled=true; res.textContent=''; };
+  const pinta=()=>{ if(!vivo || !lienzo.isConnected){ if(!lienzo.isConnected && !vista.isConnected) escCerrar(); return; } // al salir de la pantalla la cámara se apaga sola
+    if(video.videoWidth){ const w=video.videoWidth, hh=video.videoHeight, k=Math.min(1, 1100/Math.max(w,hh)); const cv=escGirar(video, Math.round(w*k), Math.round(hh*k), ESC.giro);
+      if(lienzo.width!==cv.width||lienzo.height!==cv.height){ lienzo.width=cv.width; lienzo.height=cv.height; } lienzo.getContext('2d').drawImage(cv,0,0); res.textContent=`${w} × ${hh}`; }
+    setTimeout(pinta, 120); };
+  async function encender(id){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ aviso('Este navegador no deja usar la cámara desde la página. Prueba con Chrome o Edge en la computadora.','err',12000,'Sin cámara'); return; }
+    vista.innerHTML=''; vista.append(omEsperando(['Encendiendo la cámara…'],'chico')); escCerrar();
+    const base={ width:{ideal:3840}, height:{ideal:2160} };
+    try{ ESC.stream=await navigator.mediaDevices.getUserMedia({ video: id? Object.assign({deviceId:{exact:id}}, base) : base, audio:false }); }
+    catch(e){ apagada(); aviso(e && e.name==='NotAllowedError'? 'El navegador no dio permiso para usar la cámara. Permítela en el candado de la barra de direcciones y vuelve a intentar.' : e && e.name==='NotFoundError'? 'No se encontró ninguna cámara conectada.' : 'No se pudo encender la cámara: '+((e&&e.message)||e),'err',14000,'Sin cámara'); return; }
+    video.srcObject=ESC.stream; try{ await video.play(); }catch(e){}
+    let cams=[]; try{ cams=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput'); }catch(e){}
+    const actual=(ESC.stream.getVideoTracks()[0].getSettings()||{}).deviceId||id||'';
+    // la primera vez se prefiere la cámara de documentos si se reconoce por su nombre; después, la que se eligió la última vez
+    if(!id){ let guardada=null; try{ guardada=localStorage.getItem('om_esc_cam'); }catch(e){} const quiero=cams.find(c=>c.deviceId===guardada) || cams.find(c=>/ipevo|v4k|document|visualiz/i.test(c.label||''));
+      if(quiero && quiero.deviceId && quiero.deviceId!==actual) return encender(quiero.deviceId); }
+    selCam.innerHTML=''; cams.forEach((c,i)=>selCam.append(h('option',{value:c.deviceId}, c.label||('Cámara '+(i+1))))); selCam.value=actual;
+    vista.innerHTML=''; vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; pinta();
+  }
+  selCam.addEventListener('change',()=>{ try{ localStorage.setItem('om_esc_cam', selCam.value); }catch(e){} encender(selCam.value); });
+  bGirar.addEventListener('click',()=>{ ESC.giro=(ESC.giro+90)%360; });
+  const pintaLado=()=>{ lado.innerHTML='';
+    if(ESC.ocupado){ lado.append(h('div',{class:'card'}, omEsperando(['Leyendo el ticket…']))); if(ESC.ocupado.tramos) lado.append(h('div',{class:'esc-tramos'}, ...ESC.ocupado.tramos.map(u=>h('img',{src:u,alt:'Tramo enviado'})))); return; }
+    if(!ESC.lecturas.length){ lado.append(h('div',{class:'card empty',id:'esc-vacio'}, h('b',{},'Aquí sale lo que lea la IA'), h('p',{class:'small',style:'margin:6px auto 0;max-width:52ch'},'Es una prueba: no se guarda la imagen ni la lectura.'))); return; }
+    const [ult,...antes]=ESC.lecturas;
+    lado.append(ult.error? h('div',{class:'card stack esc-lectura'}, h('h3',{style:'margin:0'},'No se pudo leer'), h('p',{class:'small',style:'margin:0;color:var(--err)'},ult.error)) : escResultado(ult), h('div',{class:'esc-tramos',id:'esc-tramos'}, ...ult.tramos.map(u=>h('img',{src:u,alt:'Lo que se le mandó a la IA'}))));
+    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : ({deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', otro:'Otro ticket'}[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [r.datos&&r.datos.total!=null? escPesos(r.datos.total) : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
+      lado.append(h('div',{class:'esc-antes'}, h('h3',{style:'margin:0 0 10px'},'Lecturas anteriores de esta sesión'), lista)); } };
+  async function leer(fuente){ // fuente: el cuadro de la cámara o la foto elegida, ya con el giro aplicado
+    if(ESC.ocupado) return; const caja= ESC.recorte? escCajaPapel(fuente) : null; const tramos=escTramos(fuente, caja);
+    ESC.ocupado={tramos}; bLeer.disabled=true; bFoto.disabled=true; pintaLado(); const L={ tramos, caja, hora:fmtHora(new Date().toISOString()) };
+    try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:{ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]) } });
+      if(error){ let m=error.message||'No respondió el servidor'; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} throw new Error(/not found|404/i.test(m)? 'Falta instalar la función leer-ticket en Supabase.' : m); }
+      if(!data || !data.ok) throw new Error((data&&data.error)||'La lectura falló'); L.res=data; }
+    catch(e){ L.error=e.message||String(e); }
+    ESC.lecturas.unshift(L); if(ESC.lecturas.length>12) ESC.lecturas.length=12; ESC.ocupado=false; bLeer.disabled=!vivo; bFoto.disabled=false; if(lado.isConnected) pintaLado(); }
+  bLeer.addEventListener('click',()=>{ if(!vivo || !video.videoWidth) return; leer(escGirar(video, video.videoWidth, video.videoHeight, ESC.giro)); });
+  bFoto.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
+    try{ const img=await new Promise((ok,no)=>{ const im=new Image(); im.onload=()=>ok(im); im.onerror=()=>no(new Error('No se pudo abrir esa imagen.')); im.src=URL.createObjectURL(f); });
+      const k=Math.min(1, 6000/Math.max(img.naturalWidth,img.naturalHeight)); leer(escGirar(img, Math.round(img.naturalWidth*k), Math.round(img.naturalHeight*k), 0)); }
+    catch(e){ aviso(e.message||String(e),'err'); } });
+  app.append(h('div',{class:'esc-wrap',id:'esc'},
+    h('div',{class:'card stack',id:'esc-camara'}, vista, h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, selCam, res),
+      h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, bLeer, bGirar, bFoto, inp),
+      h('label',{class:'nouso'}, chk, h('span',{},'Recortar solo el ticket'))),
+    lado));
+  if(ESC.stream && ESC.stream.active){ video.srcObject=ESC.stream; try{ await video.play(); }catch(e){} vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false;
+    try{ const cams=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput'); cams.forEach((c,i)=>selCam.append(h('option',{value:c.deviceId}, c.label||('Cámara '+(i+1))))); selCam.value=(ESC.stream.getVideoTracks()[0].getSettings()||{}).deviceId||''; }catch(e){} pinta(); }
+  else apagada();
+  pintaLado();
 }
 // ---- ELIMINADOS Y CANCELADOS (20-nov-2026; dueño y Contabilidad)
 // Pedido de Mauricio: lo que se elimina, cancela o anula ya no aparece en su lista de trabajo; vive aquí, dividido por tipo y con lo más
@@ -5200,6 +5345,7 @@ function depositoPDF(H){
   pie(); return doc.output('blob');
 }
 window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN, deposito:DEP, depositoPDF };   // gancho para las pruebas
+window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos };   // gancho para las pruebas
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
