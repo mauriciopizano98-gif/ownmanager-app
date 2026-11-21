@@ -993,6 +993,10 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .esc-tabla th{font:600 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
 .esc-tabla td{padding:6px 8px;border-bottom:1px solid var(--line)}
 .esc-tabla .n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.esc-tabla tfoot td{font-weight:700;border-bottom:0}
+.esc-marca{border:1px solid color-mix(in srgb,var(--err) 45%,var(--line));background:var(--err-soft);color:var(--err);border-radius:var(--r-sm);padding:10px 12px}
+.esc-marca b{display:flex;align-items:center;gap:8px}
+.esc-marca ul{margin:6px 0 0;padding-left:20px;color:var(--fg);font-size:14px}
 .esc-antes{margin-top:18px}
 @media (min-width:1100px){ body[data-om-nav] .om-main.esc-ancho{max-width:1424px} .esc-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
 /* Eliminados y cancelados: un filtro por tipo y, por cada tipo, su lista. A la derecha de cada renglón: qué le pasó, cuándo y quién. */
@@ -1294,7 +1298,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.6.0';
+const OM_VERSION='2.7.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4080,6 +4084,25 @@ function escTramos(cv, caja){
 function escGirar(fuente, w, h, giro){ // dibuja la fuente (video o imagen) girada 0, 90, 180 o 270 grados
   const cv=document.createElement('canvas'); const lado=giro%180!==0; cv.width=lado?h:w; cv.height=lado?w:h; const g=cv.getContext('2d');
   g.translate(cv.width/2, cv.height/2); g.rotate(giro*Math.PI/180); g.drawImage(fuente, -w/2, -h/2, w, h); return cv; }
+// Lector del código QR (20-nov-2026). Regla de Mauricio: primero el código, después la letra. El QR del cajero trae la transacción, el importe y
+// las piezas exactas; la computadora lo lee aquí y el servidor lo compara con lo que la IA leyó impreso. El lector se carga solo al abrir esta pantalla.
+let ESC_QR=null;
+function escCargaQR(){ if(ESC_QR) return ESC_QR;
+  ESC_QR=new Promise(ok=>{ if(window.jsQR) return ok(true); const sc=document.createElement('script'); sc.src='vendor/jsqr-1.4.0.min.js'; sc.onload=()=>ok(!!window.jsQR); sc.onerror=()=>{ ESC_QR=null; ok(false); }; document.head.append(sc); });
+  return ESC_QR; }
+async function escLeeQR(cv, caja){ // busca un QR en la imagen (o en el recorte del papel); devuelve { texto, via } o null
+  const src=caja||{x:0,y:0,w:cv.width,h:cv.height}; if(src.w<40||src.h<40) return null;
+  const pedazo=(x,y,w,hh,corto)=>{ let k=Math.min(2.4, corto/Math.min(w,hh)); if(w*k*hh*k>6e6) k=Math.sqrt(6e6/(w*hh)); const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w*k)); c.height=Math.max(1,Math.round(hh*k));
+    const g=c.getContext('2d',{willReadFrequently:true}); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(cv,x,y,w,hh,0,0,c.width,c.height); return c; };
+  if('BarcodeDetector' in window){ try{ const det=new BarcodeDetector({formats:['qr_code']}); const r=await det.detect(pedazo(src.x,src.y,src.w,src.h,1400)); const t=r && r[0] && r[0].rawValue; if(t) return { texto:String(t), via:'navegador' }; }catch(e){} }
+  if(!(await escCargaQR())) return null; const lee=typeof window.jsQR==='function'? window.jsQR : (window.jsQR&&window.jsQR.default); if(!lee) return null;
+  const vertical=src.h>=src.w, largo=vertical?src.h:src.w; const intentos=[[0,1,1100],[0,1,700],[0,1,1600],[0,1,440]];
+  if(largo>Math.min(src.w,src.h)*1.3) for(const ini of [0.5,0.25,0]) intentos.push([ini,0.5,1000]); // un ticket largo: por mitades, empezando por abajo (ahí va el QR)
+  for(const [ini,parte,corto] of intentos){ const c= vertical? pedazo(src.x, src.y+src.h*ini, src.w, src.h*parte, corto) : pedazo(src.x+src.w*ini, src.y, src.w*parte, src.h, corto);
+    let r=null; try{ r=lee(c.getContext('2d').getImageData(0,0,c.width,c.height).data, c.width, c.height, {inversionAttempts:'dontInvert'}); }catch(e){}
+    if(r && r.data) return { texto:r.data, via:'jsqr' };
+    await new Promise(z=>setTimeout(z,0)); } // deja respirar a la pantalla entre intentos
+  return null; }
 const escPesos = v => v==null||v===''||isNaN(Number(v))? '—' : fmtMXN(Number(v));
 function escResultado(L){ // lo que leyó la IA de un ticket
   const r=L.res, d=(r&&r.datos)||{}; const caja=h('div',{class:'card stack esc-lectura'});
@@ -4089,23 +4112,43 @@ function escResultado(L){ // lo que leyó la IA de un ticket
   const dl=h('dl',{class:'esc-datos'}); const dato=(k,v)=>{ if(v==null||v==='') return; dl.append(h('dt',{},k), h('dd',{},String(v))); };
   const cuando=(f,hh)=>[f? fmtFecha(f) : null, hh||null].filter(Boolean).join(' · ')||null;
   if(r.tipo==='deposito_cajero'){
-    dato('Fecha',cuando(d.fecha,d.hora)); dato('Transacción',d.transaccion); dato('Usuario',d.usuario); dato('Equipo',d.equipo); dato('Banco',[d.banco, d.cuenta_terminacion? '···'+d.cuenta_terminacion : null].filter(Boolean).join(' ')||null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl);
-    if((d.billetes||[]).length){ const t=h('table',{class:'esc-tabla'}, h('thead',{}, h('tr',{}, h('th',{},'Denominación'), h('th',{class:'n'},'Piezas'), h('th',{class:'n'},'Importe'))));
-      const tb=h('tbody',{}); for(const b of d.billetes) tb.append(h('tr',{}, h('td',{},escPesos(b.denominacion)), h('td',{class:'n'},b.piezas!=null? fmtInt(b.piezas) : '—'), h('td',{class:'n'},escPesos(b.importe!=null? b.importe : Number(b.denominacion||0)*Number(b.piezas||0))))); t.append(tb); caja.append(t); }
+    // Regla del depósito: los números salen del QR; lo impreso completa lo que el QR no trae. Si no coinciden, el ticket queda marcado.
+    const q=(r.qr&&r.qr.reconocido)? r.qr : null, c=r.cotejo||null; const pri=(a,b)=> a!=null&&a!==''? a : (b!=null&&b!==''? b : null);
+    if(d.es_copia) caja.firstChild.lastChild.before(h('span',{class:'chip',id:'esc-copia',style:'margin-left:auto'},'Copia'));
+    if(c && c.diferencias>0){ const val=x=>v=> v==null||v===''? 'no se leyó' : (x.dato==='Importe'? escPesos(v) : String(v));
+      caja.append(h('div',{class:'esc-marca',id:'esc-marca'}, h('b',{}, ico('alerta',16), 'Ticket marcado: lo impreso y el QR no coinciden'), h('ul',{}, ...c.renglones.filter(x=>x.coincide===false).map(x=>h('li',{}, `${x.dato}: impreso ${val(x)(x.impreso)} · QR ${val(x)(x.qr)}`))))); }
+    dato('Fecha',cuando(pri(q&&q.fecha,d.fecha), pri(q&&q.hora,d.hora))); dato('Transacción',pri(q&&q.transaccion,d.transaccion));
+    const nu=pri(q&&q.no_usuario,d.no_usuario); dato(nu? 'No. de usuario' : 'Usuario',[nu, d.usuario].filter(Boolean).join(' · ')||null); dato('Cajero',pri(q&&q.id_cajero, pri(d.id_cajero,d.equipo)));
+    dato('Cuenta',d.cuenta_terminacion? '···'+d.cuenta_terminacion : null); dato('Cliente',d.cliente); dato('Sucursal',d.sucursal);
+    dato('Folio',pri(q&&q.folio,d.folio)); dato('Referencia',pri(q&&q.referencia_deposito,d.referencia_deposito));
+    const total=pri(q&&q.importe,d.total); dato('Total',total!=null? escPesos(total) : null); caja.append(dl);
+    const bil=q? q.billetes : (d.billetes||[]);
+    if(bil.length){ const t=h('table',{class:'esc-tabla'}, h('thead',{}, h('tr',{}, h('th',{},'Denominación'), h('th',{class:'n'},'Piezas'), h('th',{class:'n'},'Importe'))));
+      const tb=h('tbody',{}); let np=0, ni=0; for(const b of bil){ const imp=b.importe!=null? Number(b.importe) : Number(b.denominacion||0)*Number(b.piezas||0); np+=Number(b.piezas||0); ni+=imp;
+        tb.append(h('tr',{}, h('td',{},escPesos(b.denominacion)), h('td',{class:'n'},b.piezas!=null? fmtInt(b.piezas) : '—'), h('td',{class:'n'},escPesos(imp)))); }
+      t.append(tb, h('tfoot',{}, h('tr',{}, h('td',{},'Total'), h('td',{class:'n'},fmtInt(np)), h('td',{class:'n'},escPesos(ni))))); caja.append(t); }
   } else if(r.tipo==='cierre_lote'){
     dato('Banco',d.banco); dato('Comercio',d.comercio); dato('Afiliación',d.afiliacion); dato('Terminal',d.terminal); dato('Lote',d.lote); dato('Fecha',cuando(d.fecha,d.hora));
     dato('Ventas',d.total_ventas!=null? `${d.num_ventas!=null? fmtInt(d.num_ventas)+' · ' : ''}${escPesos(d.total_ventas)}` : null); dato('Devoluciones',d.total_devoluciones!=null? `${d.num_devoluciones!=null? fmtInt(d.num_devoluciones)+' · ' : ''}${escPesos(d.total_devoluciones)}` : null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl);
     if((d.transacciones||[]).length){ const t=h('table',{class:'esc-tabla'}, h('thead',{}, h('tr',{}, h('th',{},'Hora'), h('th',{},'Tarjeta'), h('th',{},'Tipo'), h('th',{class:'n'},'Importe'))));
       const tb=h('tbody',{}); for(const x of d.transacciones) tb.append(h('tr',{}, h('td',{},x.hora||'—'), h('td',{},[x.tarjeta? '···'+x.tarjeta : null, x.marca||null].filter(Boolean).join(' ')||'—'), h('td',{},x.tipo||'venta'), h('td',{class:'n'},escPesos(x.importe)))); t.append(tb); caja.append(t); }
   } else { dato('Qué es',d.descripcion); dato('Fecha',d.fecha? fmtFecha(d.fecha) : null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl); }
-  const c=r.comprobacion; // la cuenta la hace el servidor: lo que suma el detalle contra el total impreso
+  let c=r.comprobacion; // la cuenta la hace el servidor: lo que suma el detalle contra el total impreso
+  if(r.tipo==='deposito_cajero' && r.qr && r.qr.reconocido) c={ que:'billetes', coincide:r.qr.suma_coincide, suma:r.qr.suma, total:r.qr.importe }; // con QR, la cuenta que vale es la de sus piezas contra su importe
   if(c && c.coincide===true) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--ok);font-weight:600'}, c.que==='billetes'? `Los billetes suman el total: ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman el total: ${escPesos(c.total)}.`));
   else if(c && c.coincide===false) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--warn);font-weight:600'}, c.que==='billetes'? `Los billetes suman ${escPesos(c.suma)} y el total dice ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman ${escPesos(c.suma)} y el total dice ${escPesos(c.total)}.`));
-  caja.append(h('p',{class:'small muted',style:'margin:0',title:r.modelo||''}, [`Tardó ${Number(r.segundos||0).toFixed(1)} s`, L.tramos.length===1? '1 imagen' : L.tramos.length+' tramos', L.caja? 'recortado al papel' : 'imagen completa', 'no se guardó nada'].join(' · ')));
+  if(r.tipo==='deposito_cajero'){ const c2=r.cotejo, linea=(t,color)=>caja.append(h('p',{class:'small esc-qr',style:`margin:0;color:var(--${color});font-weight:600`},t));
+    if(!L.qr) linea('No se encontró el código QR en la imagen: solo se leyó lo impreso.','warn');
+    else if(r.v==null) linea('Se leyó el QR, pero la función leer-ticket de Supabase es la anterior: actualízala para compararlo con lo impreso.','warn');
+    else if(!r.qr || !r.qr.reconocido) linea('Se leyó un código QR, pero no tiene el formato del cajero.','warn');
+    else { if(c2 && c2.diferencias===0 && c2.comparados>0) linea(`El QR y lo impreso coinciden en ${c2.comparados===1? '1 dato' : c2.comparados+' datos'}.`,'ok');
+      else if(c2 && c2.comparados===0) linea('Se leyó el QR, pero de lo impreso no se pudo leer nada para compararlo.','warn');
+      if(c2 && c2.sin_leer>0 && c2.comparados>0) caja.append(h('p',{class:'small muted esc-sinleer',style:'margin:0'},`De lo impreso no se leyó: ${c2.renglones.filter(x=>x.coincide===null).map(x=>x.dato).join(', ')}.`)); } }
+  caja.append(h('p',{class:'small muted',style:'margin:0',title:r.modelo||''}, [`Tardó ${Number(r.segundos||0).toFixed(1)} s`, L.tramos.length===1? '1 imagen' : L.tramos.length+' tramos', L.caja? 'recortado al papel' : 'imagen completa', L.qr? 'QR leído' : null, 'no se guardó nada'].filter(Boolean).join(' · ')));
   return caja;
 }
 async function adminEscaner(){
-  app.classList.add('esc-ancho'); const estId=S.config.estacionId;
+  app.classList.add('esc-ancho'); const estId=S.config.estacionId; escCargaQR();
   const vista=h('div',{class:'esc-vista',id:'esc-vista'}); const lado=h('div',{class:'stack',id:'esc-lado'});
   const video=document.createElement('video'); video.muted=true; video.playsInline=true; const lienzo=h('canvas',{id:'esc-lienzo'}); let vivo=false;
   const selCam=h('select',{id:'esc-cam','aria-label':'Cámara',style:'flex:1;min-width:200px'}); const res=h('span',{class:'esc-res',id:'esc-res'});
@@ -4139,12 +4182,13 @@ async function adminEscaner(){
     if(!ESC.lecturas.length){ lado.append(h('div',{class:'card empty',id:'esc-vacio'}, h('b',{},'Aquí sale lo que lea la IA'), h('p',{class:'small',style:'margin:6px auto 0;max-width:52ch'},'Es una prueba: no se guarda la imagen ni la lectura.'))); return; }
     const [ult,...antes]=ESC.lecturas;
     lado.append(ult.error? h('div',{class:'card stack esc-lectura'}, h('h3',{style:'margin:0'},'No se pudo leer'), h('p',{class:'small',style:'margin:0;color:var(--err)'},ult.error)) : escResultado(ult), h('div',{class:'esc-tramos',id:'esc-tramos'}, ...ult.tramos.map(u=>h('img',{src:u,alt:'Lo que se le mandó a la IA'}))));
-    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : ({deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', otro:'Otro ticket'}[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [r.datos&&r.datos.total!=null? escPesos(r.datos.total) : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
+    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : ({deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', otro:'Otro ticket'}[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&r.datos.total!=null? escPesos(r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
       lado.append(h('div',{class:'esc-antes'}, h('h3',{style:'margin:0 0 10px'},'Lecturas anteriores de esta sesión'), lista)); } };
   async function leer(fuente){ // fuente: el cuadro de la cámara o la foto elegida, ya con el giro aplicado
     if(ESC.ocupado) return; const caja= ESC.recorte? escCajaPapel(fuente) : null; const tramos=escTramos(fuente, caja);
     ESC.ocupado={tramos}; bLeer.disabled=true; bFoto.disabled=true; pintaLado(); const L={ tramos, caja, hora:fmtHora(new Date().toISOString()) };
-    try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:{ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]) } });
+    await new Promise(z=>setTimeout(z,30)); try{ L.qr=await escLeeQR(fuente, caja); }catch(e){ L.qr=null; }
+    try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:{ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]), qr:L.qr? L.qr.texto : null } });
       if(error){ let m=error.message||'No respondió el servidor'; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} throw new Error(/not found|404/i.test(m)? 'Falta instalar la función leer-ticket en Supabase.' : m); }
       if(!data || !data.ok) throw new Error((data&&data.error)||'La lectura falló'); L.res=data; }
     catch(e){ L.error=e.message||String(e); }
@@ -5345,7 +5389,7 @@ function depositoPDF(H){
   pie(); return doc.output('blob');
 }
 window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN, deposito:DEP, depositoPDF };   // gancho para las pruebas
-window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos };   // gancho para las pruebas
+window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos, leeQR:escLeeQR };   // gancho para las pruebas
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
