@@ -994,6 +994,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .esc-tabla td{padding:6px 8px;border-bottom:1px solid var(--line)}
 .esc-tabla .n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 .esc-tabla tfoot td{font-weight:700;border-bottom:0}
+.esc-secciones{font-size:13px;color:var(--muted)}
 .esc-marca{border:1px solid color-mix(in srgb,var(--err) 45%,var(--line));background:var(--err-soft);color:var(--err);border-radius:var(--r-sm);padding:10px 12px}
 .esc-marca b{display:flex;align-items:center;gap:8px}
 .esc-marca ul{margin:6px 0 0;padding-left:20px;color:var(--fg);font-size:14px}
@@ -1298,7 +1299,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.7.0';
+const OM_VERSION='2.8.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4128,14 +4129,24 @@ function escResultado(L){ // lo que leyó la IA de un ticket
         tb.append(h('tr',{}, h('td',{},escPesos(b.denominacion)), h('td',{class:'n'},b.piezas!=null? fmtInt(b.piezas) : '—'), h('td',{class:'n'},escPesos(imp)))); }
       t.append(tb, h('tfoot',{}, h('tr',{}, h('td',{},'Total'), h('td',{class:'n'},fmtInt(np)), h('td',{class:'n'},escPesos(ni))))); caja.append(t); }
   } else if(r.tipo==='cierre_lote'){
-    dato('Banco',d.banco); dato('Comercio',d.comercio); dato('Afiliación',d.afiliacion); dato('Terminal',d.terminal); dato('Lote',d.lote); dato('Fecha',cuando(d.fecha,d.hora));
-    dato('Ventas',d.total_ventas!=null? `${d.num_ventas!=null? fmtInt(d.num_ventas)+' · ' : ''}${escPesos(d.total_ventas)}` : null); dato('Devoluciones',d.total_devoluciones!=null? `${d.num_devoluciones!=null? fmtInt(d.num_devoluciones)+' · ' : ''}${escPesos(d.total_devoluciones)}` : null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl);
-    if((d.transacciones||[]).length){ const t=h('table',{class:'esc-tabla'}, h('thead',{}, h('tr',{}, h('th',{},'Hora'), h('th',{},'Tarjeta'), h('th',{},'Tipo'), h('th',{class:'n'},'Importe'))));
-      const tb=h('tbody',{}); for(const x of d.transacciones) tb.append(h('tr',{}, h('td',{},x.hora||'—'), h('td',{},[x.tarjeta? '···'+x.tarjeta : null, x.marca||null].filter(Boolean).join(' ')||'—'), h('td',{},x.tipo||'venta'), h('td',{class:'n'},escPesos(x.importe)))); t.append(tb); caja.append(t); }
+    // Regla del cierre de lote (20-nov-2026): aquí no se concilian operaciones ni tarjetas; solo los totales (crédito, débito, puntos y total)
+    // y lo que amarra con el banco. Las cuentas las hace el servidor.
+    const tot=d.total_importe!=null? d.total_importe : d.total;
+    if(d.cierre_exitoso===true) caja.firstChild.lastChild.before(h('span',{class:'chip ok',id:'esc-cierre',style:'margin-left:auto'},'Cierre exitoso'));
+    dato('Banco',d.banco); dato('Comercio',d.comercio); dato('Afiliación',d.afiliacion); dato('Lote',d.lote); dato('Fecha',cuando(d.fecha,d.hora));
+    dato('Operaciones',d.operacion_inicial&&d.operacion_final? `de la ${d.operacion_inicial} a la ${d.operacion_final}` : null); dato('Total',tot!=null? escPesos(tot) : null); caja.append(dl);
+    if(r.v>=3){ const fila=(n,num,imp)=>h('tr',{}, h('td',{},n), h('td',{class:'n'},num!=null? fmtInt(num) : '—'), h('td',{class:'n'},escPesos(imp))); const bbva=/bbva/i.test(d.banco||'');
+      const tb=h('tbody',{}, fila('Crédito',d.credito_num,d.credito_importe), fila('Débito',d.debito_num,d.debito_importe)); if(d.puntos_importe!=null) tb.append(fila(bbva?'Puntos BBVA':'Puntos',d.puntos_num,d.puntos_importe)); if(d.devoluciones_importe!=null) tb.append(fila('Devoluciones',d.devoluciones_num,d.devoluciones_importe));
+      caja.append(h('table',{class:'esc-tabla',id:'esc-totales'}, h('thead',{}, h('tr',{}, h('th',{},'Tipo'), h('th',{class:'n'},'Operaciones'), h('th',{class:'n'},'Importe'))), tb, h('tfoot',{}, fila('Total',d.total_num,tot))));
+      if((d.secciones||[]).length){ const ts=h('tbody',{}); for(const x of d.secciones){ ts.append(fila(x.nombre, x.ventas_num, x.ventas_importe)); if(x.puntos_importe!=null) ts.append(fila('· puntos', x.puntos_num, x.puntos_importe)); }
+        caja.append(h('table',{class:'esc-tabla esc-secciones',id:'esc-secciones'}, h('thead',{}, h('tr',{}, h('th',{},'Por tipo de tarjeta'), h('th',{class:'n'},'Operaciones'), h('th',{class:'n'},'Importe'))), ts)); } }
+    else caja.append(h('p',{class:'small esc-qr',style:'margin:0;color:var(--warn);font-weight:600'},'La función leer-ticket de Supabase es la anterior: actualízala para leer el cierre de lote con la regla nueva (solo totales).'));
   } else { dato('Qué es',d.descripcion); dato('Fecha',d.fecha? fmtFecha(d.fecha) : null); dato('Total',d.total!=null? escPesos(d.total) : null); caja.append(dl); }
   let c=r.comprobacion; // la cuenta la hace el servidor: lo que suma el detalle contra el total impreso
   if(r.tipo==='deposito_cajero' && r.qr && r.qr.reconocido) c={ que:'billetes', coincide:r.qr.suma_coincide, suma:r.qr.suma, total:r.qr.importe }; // con QR, la cuenta que vale es la de sus piezas contra su importe
-  if(c && c.coincide===true) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--ok);font-weight:600'}, c.que==='billetes'? `Los billetes suman el total: ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman el total: ${escPesos(c.total)}.`));
+  if(c && c.que==='lote'){ for(const x of (c.pruebas||[])) caja.append(h('p',{class:'small esc-cuenta',style:`margin:0;color:var(--${x.coincide===true?'ok':x.coincide===false?'err':'warn'});font-weight:600`}, x.detalle));
+    if(r.banco) caja.append(h('p',{class:'small',id:'esc-banco',style:'margin:0'}, `En el banco deben caer, con la afiliación ${r.banco.afiliacion}: VENTAS DEBITO por ${escPesos(r.banco.ventas_debito)} y VENTAS CREDITO por ${escPesos(r.banco.ventas_credito)}${Number(d.puntos_importe)>0? ' (crédito más puntos)' : ''}.`)); }
+  else if(c && c.coincide===true) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--ok);font-weight:600'}, c.que==='billetes'? `Los billetes suman el total: ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman el total: ${escPesos(c.total)}.`));
   else if(c && c.coincide===false) caja.append(h('p',{class:'small esc-cuenta',style:'margin:0;color:var(--warn);font-weight:600'}, c.que==='billetes'? `Los billetes suman ${escPesos(c.suma)} y el total dice ${escPesos(c.total)}.` : `Las ${fmtInt(c.renglones)} transacciones suman ${escPesos(c.suma)} y el total dice ${escPesos(c.total)}.`));
   if(r.tipo==='deposito_cajero'){ const c2=r.cotejo, linea=(t,color)=>caja.append(h('p',{class:'small esc-qr',style:`margin:0;color:var(--${color});font-weight:600`},t));
     if(!L.qr) linea('No se encontró el código QR en la imagen: solo se leyó lo impreso.','warn');
@@ -4182,7 +4193,7 @@ async function adminEscaner(){
     if(!ESC.lecturas.length){ lado.append(h('div',{class:'card empty',id:'esc-vacio'}, h('b',{},'Aquí sale lo que lea la IA'), h('p',{class:'small',style:'margin:6px auto 0;max-width:52ch'},'Es una prueba: no se guarda la imagen ni la lectura.'))); return; }
     const [ult,...antes]=ESC.lecturas;
     lado.append(ult.error? h('div',{class:'card stack esc-lectura'}, h('h3',{style:'margin:0'},'No se pudo leer'), h('p',{class:'small',style:'margin:0;color:var(--err)'},ult.error)) : escResultado(ult), h('div',{class:'esc-tramos',id:'esc-tramos'}, ...ult.tramos.map(u=>h('img',{src:u,alt:'Lo que se le mandó a la IA'}))));
-    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : ({deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', otro:'Otro ticket'}[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&r.datos.total!=null? escPesos(r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
+    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : ({deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', otro:'Otro ticket'}[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&(r.datos.total_importe!=null||r.datos.total!=null)? escPesos(r.datos.total_importe!=null? r.datos.total_importe : r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, (r.comprobacion&&r.comprobacion.que==='lote'&&r.comprobacion.fallas>0)? 'los totales no cuadran' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
       lado.append(h('div',{class:'esc-antes'}, h('h3',{style:'margin:0 0 10px'},'Lecturas anteriores de esta sesión'), lista)); } };
   async function leer(fuente){ // fuente: el cuadro de la cámara o la foto elegida, ya con el giro aplicado
     if(ESC.ocupado) return; const caja= ESC.recorte? escCajaPapel(fuente) : null; const tramos=escTramos(fuente, caja);
