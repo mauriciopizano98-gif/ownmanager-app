@@ -985,7 +985,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .esc-vista .esc-apagada{padding:28px 18px;text-align:center}
 .esc-res{font:500 12px var(--font-mono);color:var(--muted)}
 .esc-guia{margin:0;min-height:26px;font:700 17px/1.5 var(--font-body);color:var(--fg)}
-.esc-guia[data-estado="ajustar"],.esc-guia[data-estado="espera"]{color:var(--warn)}
+.esc-guia[data-estado="ajustar"],.esc-guia[data-estado="espera"],.esc-guia[data-estado="repetido"]{color:var(--warn)}
 .esc-guia[data-estado="tomar"],.esc-guia[data-estado="listo"]{color:var(--ok)}
 .esc-guia:empty{display:none}
 .esc-tramos{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
@@ -1303,7 +1303,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.11.0';
+const OM_VERSION='2.12.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4052,7 +4052,7 @@ async function adminDepositos(){
 // con una cámara de documentos USB. Antes de tocar el corte hay que saber dos cosas: que el navegador use la cámara directo y que la IA lea bien.
 // Esta pantalla solo existe para el dueño y solo en una estación con el interruptor "escáner de tickets" encendido (migración 058): hoy, la
 // Estación de Pruebas. No guarda nada: ni la imagen ni la lectura. La lectura la hace el servidor (función leer-ticket).
-const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[], auto:true, modelo:'' };
+const ESC={ stream:null, giro:0, recorte:true, ocupado:false, lecturas:[], auto:true, modelo:'', vistos:[], repetidos:0 };
 function escCerrar(){ if(ESC.stream){ try{ ESC.stream.getTracks().forEach(t=>t.stop()); }catch(e){} ESC.stream=null; } }
 // Busca el papel del ticket (lo más claro) sobre la mesa. Devuelve su rectángulo en la imagen, o null si no se distingue (mesa clara, poco contraste).
 function escCajaPapel(cv){
@@ -4111,7 +4111,7 @@ async function escLeeQR(cv, caja){ // busca un QR en la imagen (o en el recorte 
 // ---- Lector automático (20-nov-2026). Pedido de Mauricio: al poner el ticket, un cuadro lo sigue en pantalla, la app va diciendo qué falta
 // acomodar y, cuando la imagen es buena, toma la foto sola. Todo esto lo calcula la computadora en el momento (no es la IA): dónde está el
 // papel, si se sale del cuadro, si está quieto y si está nítido. La IA solo lee la foto final.
-const ESC_GUIA={ QUIETO:4, NITIDEZ_MIN:18, ESPERA_CORTADO:2200, ESPERA_BORROSO:3200, MISMO:0.78 };
+const ESC_GUIA={ QUIETO:4, NITIDEZ_MIN:18, ESPERA_CORTADO:2200, ESPERA_BORROSO:3200, MISMO:0.78, YA_LEIDO:0.82, SIN_USO:120000 };
 // Nitidez de un recuadro: varianza del laplaciano de la luminancia (más alto = bordes más marcados = mejor enfocado).
 function escNitidez(px, w, hh){ const n=w*hh, L=new Float32Array(n); for(let i=0;i<n;i++) L[i]=px[i*4]*0.299+px[i*4+1]*0.587+px[i*4+2]*0.114;
   let s=0, s2=0, m=0; for(let y=1;y<hh-1;y++) for(let x=1;x<w-1;x++){ const i=y*w+x, v=4*L[i]-L[i-1]-L[i+1]-L[i-w]-L[i+w]; s+=v; s2+=v*v; m++; }
@@ -4156,8 +4156,22 @@ function escFirma(cv, caja){ const N=128, M=16, q=N/M, c=document.createElement(
   g.drawImage(cv,caja.x+ix,caja.y+iy,Math.max(1,caja.w-2*ix),Math.max(1,caja.h-2*iy),0,0,N,N); const px=g.getImageData(0,0,N,N).data, L=new Float32Array(N*N); for(let i=0;i<N*N;i++) L[i]=px[i*4]*0.299+px[i*4+1]*0.587+px[i*4+2]*0.114;
   const f=new Float32Array(M*M); for(let y=1;y<N-1;y++) for(let x=1;x<N-1;x++){ const i=y*N+x; f[Math.floor(y/q)*M+Math.floor(x/q)]+=Math.abs(L[i+1]-L[i-1])+Math.abs(L[i+N]-L[i-N]); }
   let m=0; for(const v of f) m+=v; m/=f.length; let n2=0; for(let i=0;i<f.length;i++){ f[i]-=m; n2+=f[i]*f[i]; } n2=Math.sqrt(n2)||1; for(let i=0;i<f.length;i++) f[i]/=n2; return f; }
+// ¿Este ticket ya se leyó? (21-nov-2026) Regla de Mauricio: no pagar dos veces la lectura del mismo ticket. La computadora recuerda los últimos
+// leídos (solo en memoria, no se guarda nada) y, si la foto automática es de uno de ellos, no la manda a la IA. Con QR (depósitos) es exacto:
+// el mismo texto es el mismo ticket y un texto distinto es otro. Sin QR se compara la "firma" de la imagen, también con el ticket de cabeza;
+// es aproximado: dos tickets casi iguales pueden confundirse, por eso el botón "Leer ticket" siempre lee.
+function escYaLeido(vistos, qr, firma, modelo){
+  for(const v of vistos){ if((v.modelo||'')!==(modelo||'')) continue; // con otro modelo elegido sí se vuelve a leer (sirve para compararlos)
+    if(qr && v.qr){ if(qr===v.qr) return v; continue; }
+    if(firma && v.firma && firma.length===v.firma.length){ const n=firma.length; let p=0, q=0; for(let i=0;i<n;i++){ p+=firma[i]*v.firma[i]; q+=firma[n-1-i]*v.firma[i]; } if(Math.max(p,q)>=ESC_GUIA.YA_LEIDO) return v; } }
+  return null; }
+// El cobro de la IA es en dólares; Mauricio lleva sus cuentas en pesos (21-nov-2026). Se muestra en pesos con un tipo de cambio aproximado y fijo
+// (el FIX andaba en 17.2 a 17.7 a mediados de 2026); es solo para darse una idea: lo que se paga es lo que diga la consola de Anthropic, en dólares.
+const ESC_PESOS_POR_DOLAR=17.6;
+const escCostoPesos = usd => '$'+(Number(usd)*ESC_PESOS_POR_DOLAR).toFixed(2)+' pesos';
 const escPesos = v => v==null||v===''||isNaN(Number(v))? '—' : fmtMXN(Number(v));
 const ESC_TIPOS={deposito_cajero:'Depósito del cajero', cierre_lote:'Cierre de lote', cliente_marcado:'Ticket de cliente', otro:'Otro ticket'};
+const escBreve = r => { const d=(r&&r.datos)||{}; const imp= (r.qr&&r.qr.reconocido)? r.qr.importe : (d.total_importe!=null? d.total_importe : d.total); return (ESC_TIPOS[r.tipo]||'Ticket').toLowerCase()+(imp!=null && !isNaN(Number(imp))? ' de '+escPesos(imp) : ''); };
 function escResultado(L){ // lo que leyó la IA de un ticket
   const r=L.res, d=(r&&r.datos)||{}; const caja=h('div',{class:'card stack esc-lectura'});
   const tipo=ESC_TIPOS[r.tipo]||'Ticket';
@@ -4218,7 +4232,7 @@ function escResultado(L){ // lo que leyó la IA de un ticket
     else { if(c2 && c2.diferencias===0 && c2.comparados>0) linea(`El QR y lo impreso coinciden en ${c2.comparados===1? '1 dato' : c2.comparados+' datos'}.`,'ok');
       else if(c2 && c2.comparados===0) linea('Se leyó el QR, pero de lo impreso no se pudo leer nada para compararlo.','warn');
       if(c2 && c2.sin_leer>0 && c2.comparados>0) caja.append(h('p',{class:'small muted esc-sinleer',style:'margin:0'},`De lo impreso no se leyó: ${c2.renglones.filter(x=>x.coincide===null).map(x=>x.dato).join(', ')}.`)); } }
-  const u=r.uso, gasto= u && (u.entrada||u.salida)? [u.modelo_nombre||r.modelo||null, `${fmtInt(u.entrada)} + ${fmtInt(u.salida)} tokens`, u.costo_usd!=null? 'US$'+Number(u.costo_usd).toFixed(3) : null].filter(Boolean).join(' · ') : null;
+  const u=r.uso, gasto= u && (u.entrada||u.salida)? [u.modelo_nombre||r.modelo||null, `${fmtInt(u.entrada)} + ${fmtInt(u.salida)} tokens`, u.costo_usd!=null? 'cerca de '+escCostoPesos(u.costo_usd)+' (US$'+Number(u.costo_usd).toFixed(3)+')' : null].filter(Boolean).join(' · ') : null;
   if(gasto) caja.append(h('p',{class:'small muted esc-gasto',style:'margin:0'}, gasto));
   caja.append(h('p',{class:'small muted',style:'margin:0',title:r.modelo||''}, [`Tardó ${Number(r.segundos||0).toFixed(1)} s`, L.tramos.length===1? '1 imagen' : L.tramos.length+' tramos', L.caja? 'recortado al papel' : 'imagen completa', L.qr? 'QR leído' : null, 'no se guardó nada'].filter(Boolean).join(' · ')));
   return caja;
@@ -4230,10 +4244,10 @@ async function adminEscaner(){
   const selCam=h('select',{id:'esc-cam','aria-label':'Cámara',style:'flex:1;min-width:200px'}); const res=h('span',{class:'esc-res',id:'esc-res'});
   const bLeer=h('button',{class:'btn primary',id:'esc-leer',disabled:''}, ico('camara',18), 'Leer ticket'); const bGirar=h('button',{class:'btn',id:'esc-girar',disabled:''},'Girar');
   const chk=h('input',{type:'checkbox',id:'esc-recorte'}); chk.checked=ESC.recorte; chk.addEventListener('change',()=>{ ESC.recorte=chk.checked; });
-  const chkAuto=h('input',{type:'checkbox',id:'esc-auto'}); chkAuto.checked=ESC.auto; chkAuto.addEventListener('change',()=>{ ESC.auto=chkAuto.checked; G.e={}; guia.textContent=''; guia.dataset.estado=''; });
+  const chkAuto=h('input',{type:'checkbox',id:'esc-auto'}); chkAuto.checked=ESC.auto; chkAuto.addEventListener('change',()=>{ ESC.auto=chkAuto.checked; G.e={}; G.repetido=null; uso(); guia.textContent=''; guia.dataset.estado=''; });
   const selMod=h('select',{id:'esc-modelo','aria-label':'Modelo que lee',style:'min-width:200px'}, h('option',{value:''},'Modelo: el de siempre'), h('option',{value:'claude-opus-5-5'},'Probar con Opus 5.5'), h('option',{value:'claude-sonnet-5-5'},'Probar con Sonnet 5.5')); selMod.value=ESC.modelo||''; selMod.addEventListener('change',()=>{ ESC.modelo=selMod.value; });
   const guia=h('p',{class:'esc-guia',id:'esc-guia','aria-live':'polite'}); const diag=h('p',{class:'small muted',id:'esc-diag',style:'margin:0'}); const bEnfocar=h('button',{class:'btn sm',id:'esc-enfocar',style:'display:none'},'Enfocar');
-  const G={ e:{}, caja:null, estado:'', nit:0 }; ESC.guia=G;
+  const G={ e:{}, caja:null, estado:'', nit:0, repetido:null, uso:Date.now() }; ESC.guia=G; const uso=()=>{ G.uso=Date.now(); };
   // Enfoque: el navegador solo puede pedirlo si la cámara ofrece ese control. Aquí se ve qué ofrece esta cámara.
   const enfoque={ modos:[], distancia:null };
   const leerControles=()=>{ enfoque.modos=[]; enfoque.distancia=null; let cap={}, aj={}; try{ const tr=ESC.stream.getVideoTracks()[0]; cap=(tr.getCapabilities&&tr.getCapabilities())||{}; aj=(tr.getSettings&&tr.getSettings())||{}; }catch(e){}
@@ -4255,13 +4269,18 @@ async function adminEscaner(){
     G.caja=caja; G.nit=nit; return escGuia(G.e, { caja, W:cv.width, H:cv.height, nitidez:nit, firma, ocupado:!!ESC.ocupado, t:performance.now() }); };
   const marco=(g2,caja,estado)=>{ if(!caja) return; const col= estado==='tomar'||estado==='listo'? '#84FF00' : '#FBBF24'; g2.save(); g2.lineWidth=Math.max(3,Math.round(g2.canvas.width/260)); g2.strokeStyle=col; g2.shadowColor='rgba(0,0,0,.55)'; g2.shadowBlur=6; g2.strokeRect(caja.x,caja.y,caja.w,caja.h); g2.restore(); };
   const inp=h('input',{type:'file',accept:'image/*',id:'esc-archivo',style:'display:none'}); const bFoto=h('button',{class:'btn',id:'esc-foto'},'Elegir una foto');
-  const apagada=()=>{ vivo=false; guia.textContent=''; guia.dataset.estado=''; diag.textContent=''; bEnfocar.style.display='none'; vista.innerHTML=''; vista.append(h('div',{class:'esc-apagada'}, h('p',{class:'small muted',style:'margin:0 0 12px'},'Pon un ticket bajo la cámara de documentos.'), h('button',{class:'btn primary',id:'esc-encender',onclick:()=>encender()},'Encender la cámara'))); bLeer.disabled=true; bGirar.disabled=true; res.textContent=''; };
+  const apagada=(porque)=>{ vivo=false; G.repetido=null; guia.textContent=''; guia.dataset.estado=''; diag.textContent=''; bEnfocar.style.display='none'; vista.innerHTML=''; vista.append(h('div',{class:'esc-apagada'}, h('p',{class:'small muted',id:'esc-apagada-msg',style:'margin:0 0 12px'},porque||'Pon un ticket bajo la cámara de documentos.'), h('button',{class:'btn primary',id:'esc-encender',onclick:()=>encender()},'Encender la cámara'))); bLeer.disabled=true; bGirar.disabled=true; res.textContent=''; };
   const pinta=()=>{ if(!vivo || !lienzo.isConnected){ if(!lienzo.isConnected && !vista.isConnected) escCerrar(); return; } // al salir de la pantalla la cámara se apaga sola
     if(video.videoWidth){ const w=video.videoWidth, hh=video.videoHeight, k=Math.min(1, 1100/Math.max(w,hh)); const cv=escGirar(video, Math.round(w*k), Math.round(hh*k), ESC.giro);
       if(lienzo.width!==cv.width||lienzo.height!==cv.height){ lienzo.width=cv.width; lienzo.height=cv.height; } const g2=lienzo.getContext('2d'); g2.drawImage(cv,0,0); res.textContent=`${w} × ${hh}`;
       if(ESC.auto){ let r=null; try{ r=medir(cv,k,w,hh); }catch(e){ r=null; }
-        if(r){ marco(g2,G.caja,r.estado); if(G.caja) res.textContent=`${w} × ${hh} · nitidez ${Math.round(G.nit)}`; if(guia.textContent!==r.texto) guia.textContent=r.texto; guia.dataset.estado=r.estado; G.estado=r.estado; if(r.reenfocar) enfocar();
-          if(r.tomar && !ESC.ocupado){ setTimeout(()=>{ if(vivo && video.videoWidth && !ESC.ocupado) leer(escGirar(video, video.videoWidth, video.videoHeight, ESC.giro)); else G.e.tomado=false; }, 60); } } } }
+        if(r){ if(r.estado!=='listo') G.repetido=null; const rep=r.estado==='listo' && G.repetido, texto=rep||r.texto, estado=rep? 'repetido' : r.estado; // "repetido": ese ticket ya se había leído y no se mandó otra vez
+          if(r.estado==='ajustar'||r.estado==='tomar'||r.estado==='espera') uso(); // hay un ticket sin leer bajo la cámara: está en uso
+          marco(g2,G.caja,estado); if(G.caja) res.textContent=`${w} × ${hh} · nitidez ${Math.round(G.nit)}`; if(guia.textContent!==texto) guia.textContent=texto; guia.dataset.estado=estado; G.estado=estado; if(r.reenfocar) enfocar();
+          if(r.tomar && !ESC.ocupado){ setTimeout(()=>{ if(vivo && video.videoWidth && !ESC.ocupado) leer(escGirar(video, video.videoWidth, video.videoHeight, ESC.giro), true); else G.e.tomado=false; }, 60); } } } }
+    // Apagado solo (21-nov-2026, regla de Mauricio): 2 minutos sin tickets y la cámara se apaga; queda el botón para encenderla. "Sin tickets" es
+    // que no hay ninguno a la vista o que el que está ya se leyó. Con "Automático" apagado no se sabe si hay ticket: cuenta desde el último botón.
+    if(ESC.ocupado) uso(); else if(Date.now()-G.uso>ESC_GUIA.SIN_USO){ const m=Math.max(1,Math.round(ESC_GUIA.SIN_USO/60000)); escCerrar(); apagada(`La cámara se apagó sola: ${m===1?'pasó 1 minuto':'pasaron '+m+' minutos'} sin tickets.`); return; }
     setTimeout(pinta, 120); };
   async function encender(id){
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ aviso('Este navegador no deja usar la cámara desde la página. Prueba con Chrome o Edge en la computadora.','err',12000,'Sin cámara'); return; }
@@ -4276,26 +4295,34 @@ async function adminEscaner(){
     if(!id){ let guardada=null; try{ guardada=localStorage.getItem('om_esc_cam'); }catch(e){} const quiero=cams.find(c=>c.deviceId===guardada) || cams.find(c=>/ipevo|v4k|document|visualiz/i.test(c.label||''));
       if(quiero && quiero.deviceId && quiero.deviceId!==actual) return encender(quiero.deviceId); }
     selCam.innerHTML=''; cams.forEach((c,i)=>selCam.append(h('option',{value:c.deviceId}, c.label||('Cámara '+(i+1))))); selCam.value=actual;
-    vista.innerHTML=''; vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; G.e={}; leerControles(); pinta();
+    vista.innerHTML=''; vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; G.e={}; G.repetido=null; uso(); leerControles(); pinta();
   }
   selCam.addEventListener('change',()=>{ try{ localStorage.setItem('om_esc_cam', selCam.value); }catch(e){} encender(selCam.value); });
-  bGirar.addEventListener('click',()=>{ ESC.giro=(ESC.giro+90)%360; });
+  bGirar.addEventListener('click',()=>{ ESC.giro=(ESC.giro+90)%360; uso(); });
   const pintaLado=()=>{ lado.innerHTML='';
     if(ESC.ocupado){ lado.append(h('div',{class:'card'}, omEsperando(['Leyendo el ticket…']))); if(ESC.ocupado.tramos) lado.append(h('div',{class:'esc-tramos'}, ...ESC.ocupado.tramos.map(u=>h('img',{src:u,alt:'Tramo enviado'})))); return; }
     if(!ESC.lecturas.length){ lado.append(h('div',{class:'card empty',id:'esc-vacio'}, h('b',{},'Aquí sale lo que lea la IA'), h('p',{class:'small',style:'margin:6px auto 0;max-width:52ch'},'Es una prueba: no se guarda la imagen ni la lectura.'))); return; }
     const [ult,...antes]=ESC.lecturas;
     lado.append(ult.error? h('div',{class:'card stack esc-lectura'}, h('h3',{style:'margin:0'},'No se pudo leer'), h('p',{class:'small',style:'margin:0;color:var(--err)'},ult.error)) : escResultado(ult), h('div',{class:'esc-tramos',id:'esc-tramos'}, ...ult.tramos.map(u=>h('img',{src:u,alt:'Lo que se le mandó a la IA'}))));
-    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : (ESC_TIPOS[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&(r.datos.total_importe!=null||r.datos.total!=null)? escPesos(r.datos.total_importe!=null? r.datos.total_importe : r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, (r.comprobacion&&r.comprobacion.que==='lote'&&r.comprobacion.fallas>0)? 'los totales no cuadran' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`, (r.uso&&r.uso.costo_usd!=null)? (r.uso.modelo_nombre||'')+' US$'+Number(r.uso.costo_usd).toFixed(3) : null].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
+    if(antes.length){ const lista=h('div',{class:'list'}); for(const L of antes){ const r=L.res; lista.append(h('div',{class:'item fija',style:'cursor:default'}, h('div',{class:'l'}, h('b',{}, L.error? 'No se pudo leer' : (ESC_TIPOS[r.tipo]||'Ticket')), h('span',{class:'small muted'}, L.error? L.error : [(r.qr&&r.qr.reconocido)? escPesos(r.qr.importe) : (r.datos&&(r.datos.total_importe!=null||r.datos.total!=null)? escPesos(r.datos.total_importe!=null? r.datos.total_importe : r.datos.total) : null), (r.cotejo&&r.cotejo.diferencias>0)? 'marcado: no coincide con el QR' : null, (r.comprobacion&&r.comprobacion.que==='lote'&&r.comprobacion.fallas>0)? 'los totales no cuadran' : null, r.legible? 'se lee bien' : 'no se lee bien', `${Number(r.segundos||0).toFixed(1)} s`, (r.uso&&r.uso.costo_usd!=null)? ((r.uso.modelo_nombre||'')+' '+escCostoPesos(r.uso.costo_usd)).trim() : null].filter(Boolean).join(' · '))), h('span',{class:'small muted'},L.hora))); }
       lado.append(h('div',{class:'esc-antes'}, h('h3',{style:'margin:0 0 10px'},'Lecturas anteriores de esta sesión'), lista)); } };
-  async function leer(fuente){ // fuente: el cuadro de la cámara o la foto elegida, ya con el giro aplicado
-    if(ESC.ocupado) return; const caja= ESC.recorte? escCajaPapel(fuente) : null; const tramos=escTramos(fuente, caja);
-    ESC.ocupado={tramos}; bLeer.disabled=true; bFoto.disabled=true; pintaLado(); const L={ tramos, caja, hora:fmtHora(new Date().toISOString()) };
+  async function leer(fuente, sola){ // fuente: el cuadro de la cámara o la foto elegida, ya con el giro aplicado. sola: la tomó la guía automática
+    if(ESC.ocupado) return; uso(); const caja= ESC.recorte? escCajaPapel(fuente) : null; const L={ caja, hora:fmtHora(new Date().toISOString()), modelo:ESC.modelo||'' };
+    const enviar=()=>{ L.tramos=escTramos(fuente, caja); ESC.ocupado={tramos:L.tramos}; pintaLado(); };
+    ESC.ocupado={tramos:null}; bLeer.disabled=true; bFoto.disabled=true; if(!sola) enviar();
     await new Promise(z=>setTimeout(z,30)); try{ L.qr=await escLeeQR(fuente, caja); }catch(e){ L.qr=null; }
+    try{ const cf=caja||escCajaPapel(fuente); L.firma= cf? escFirma(fuente, cf) : null; }catch(e){ L.firma=null; }
+    if(sola){ // antes de gastar una lectura: ¿este ticket ya se leyó? El botón "Leer ticket" y "Elegir una foto" no pasan por aquí: esos siempre leen
+      const ya=escYaLeido(ESC.vistos, L.qr? L.qr.texto : null, L.firma, L.modelo);
+      if(ya){ ESC.ocupado=false; bLeer.disabled=!vivo; bFoto.disabled=false; ESC.repetidos++; G.repetido=`Este ya se leyó (${ya.breve}, a las ${ya.hora}). Retíralo y pon el siguiente. Si es otro ticket, oprime "Leer ticket".`; return; }
+      enviar(); }
+    const tramos=L.tramos;
     try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:Object.assign({ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]), qr:L.qr? L.qr.texto : null }, ESC.modelo? { modelo:ESC.modelo } : {}) });
       if(error){ let m=error.message||'No respondió el servidor'; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} throw new Error(/not found|404/i.test(m)? 'Falta instalar la función leer-ticket en Supabase.' : m); }
       if(!data || !data.ok) throw new Error((data&&data.error)||'La lectura falló'); L.res=data; }
     catch(e){ L.error=e.message||String(e); }
-    ESC.lecturas.unshift(L); if(ESC.lecturas.length>12) ESC.lecturas.length=12; ESC.ocupado=false; bLeer.disabled=!vivo; bFoto.disabled=false; if(lado.isConnected) pintaLado(); }
+    if(L.res && L.res.legible!==false){ ESC.vistos.unshift({ qr:L.qr? L.qr.texto : null, firma:L.firma, modelo:L.modelo, breve:escBreve(L.res), hora:L.hora }); if(ESC.vistos.length>40) ESC.vistos.length=40; } // solo los que sí se leyeron bien: uno que salió mal se puede repetir
+    ESC.lecturas.unshift(L); if(ESC.lecturas.length>12) ESC.lecturas.length=12; ESC.ocupado=false; uso(); bLeer.disabled=!vivo; bFoto.disabled=false; if(lado.isConnected) pintaLado(); }
   bLeer.addEventListener('click',()=>{ if(!vivo || !video.videoWidth) return; leer(escGirar(video, video.videoWidth, video.videoHeight, ESC.giro)); });
   bFoto.addEventListener('click',()=>inp.click());
   inp.addEventListener('change',async()=>{ const f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
@@ -4310,7 +4337,7 @@ async function adminEscaner(){
       h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, selMod, h('span',{class:'small muted'},'Para comparar lectura, tiempo y costo.')),
       h('div',{class:'row',style:'gap:10px;flex-wrap:wrap;align-items:center'}, diag, bEnfocar)),
     lado));
-  if(ESC.stream && ESC.stream.active){ video.srcObject=ESC.stream; try{ await video.play(); }catch(e){} vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; leerControles();
+  if(ESC.stream && ESC.stream.active){ video.srcObject=ESC.stream; try{ await video.play(); }catch(e){} vista.append(lienzo); vivo=true; bLeer.disabled=false; bGirar.disabled=false; uso(); leerControles();
     try{ const cams=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='videoinput'); cams.forEach((c,i)=>selCam.append(h('option',{value:c.deviceId}, c.label||('Cámara '+(i+1))))); selCam.value=(ESC.stream.getVideoTracks()[0].getSettings()||{}).deviceId||''; }catch(e){} pinta(); }
   else apagada();
   pintaLado();
@@ -5523,7 +5550,7 @@ function depositoPDF(H){
   pie(); return doc.output('blob');
 }
 window.__bancos={ leer:bancoLeer, decodificar:bancoDecodificar, estado:BAN, deposito:DEP, depositoPDF };   // gancho para las pruebas
-window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos, leeQR:escLeeQR, guia:escGuia, nitidez:escNitidez, firma:escFirma, GUIA:ESC_GUIA };   // gancho para las pruebas
+window.__escaner={ estado:ESC, cajaPapel:escCajaPapel, tramos:escTramos, leeQR:escLeeQR, guia:escGuia, nitidez:escNitidez, firma:escFirma, yaLeido:escYaLeido, GUIA:ESC_GUIA };   // gancho para las pruebas
 async function renderOficina(){
   if(S.rol!=='oficina'){ go(esTablero()?'admin':'login'); return; }
   // 14-nov-2026: Oficina también ve Cortes ▸ Hoy (tablero del día; al tocar un corte se descarga su PDF para firma, p. ej. si no se imprimió en bombas)
