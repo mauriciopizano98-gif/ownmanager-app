@@ -953,6 +953,28 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .bm-desc .small,.bc-cta .small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .b-est{justify-self:end}
 .be .b-cab,.be .item.b-fila{grid-template-columns:minmax(0,1.3fr) repeat(4,minmax(0,1fr)) 132px}
+/* Conciliación (25-nov-2026): misma familia que Bancos. La barra del día reparte lo que marcó el dispensario, de lo más seguro (ya en el banco) a lo que falta. */
+.cn .b-cab,.cn .item.b-fila{grid-template-columns:minmax(0,1.2fr) repeat(5,minmax(0,1fr)) 158px}
+.cn.dia .b-cab,.cn.dia .item.b-fila{grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr)) minmax(0,1.7fr)}
+.cn .b-est{display:flex;justify-content:flex-end}.cn .chip{white-space:nowrap}
+.cn-nota{color:var(--muted);font-size:14.5px;min-width:0;text-align:right}
+.cn-nota.neg{color:var(--err);font-weight:600}
+.cn .item.b-fila.cn-fin{background:var(--surface2);min-height:58px}.cn-fin b{font-weight:700;grid-column:1/4}.cn-fin .r{grid-column:4;font-size:17px}
+.cn-det{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cn-per{display:flex;align-items:baseline;gap:10px;margin:18px 0 0}.cn-per b{font:600 16px var(--font-body)}
+.cn-estado{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.cn-dianav input[type=date]{width:auto;min-height:40px;margin-left:auto;font-size:14.5px}
+.cn-dianav b{min-width:0;text-align:left}
+.cn-modo{margin-top:18px}
+.cn-fechas{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:16px}
+.cn-fechas label{display:flex;flex-direction:column;gap:4px}.cn-fechas input[type=date]{width:auto}
+.cn-barra{display:flex;gap:2px;height:14px;margin-top:18px;border-radius:999px;overflow:hidden;background:var(--surface2)}
+.cn-barra i{display:block;height:100%;min-width:3px}
+.cn-barra .ef,.cn-ley .ef{background:var(--fg)}.cn-barra .tj,.cn-ley .tj{background:var(--muted)}.cn-barra .cl,.cn-ley .cl{background:var(--line2)}
+.cn-barra .ca,.cn-ley .ca{background:var(--surface2);box-shadow:inset 0 0 0 1.5px var(--line2)}.cn-barra .si,.cn-ley .si{background:var(--err)}
+.cn-ley{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:10px;font-size:14px;color:var(--muted)}
+.cn-ley span{display:inline-flex;align-items:center;gap:7px}.cn-ley i{width:10px;height:10px;border-radius:3px;flex:none}
+.cn-ley b{font:600 14px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--fg)}
 .bm .b-cab,.bm .item.b-fila{grid-template-columns:128px minmax(0,3fr) repeat(3,minmax(0,1fr))}
 .bm-fecha{white-space:nowrap}
 .bt .b-cab,.bt .item.b-fila{grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr))}
@@ -1051,6 +1073,10 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
   .b-fila .r[data-l]{text-align:left;font-size:14.5px}
   .b-fila .r[data-l]::before{content:attr(data-l);display:block;font:500 12.5px var(--font-body);color:var(--muted)}
   .be .item.b-fila{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cn .item.b-fila{grid-template-columns:repeat(2,minmax(0,1fr))} .cn .b-dia{grid-area:1/1} .cn .b-est{grid-area:1/2}
+  .cn.dia .item.b-fila{grid-template-columns:repeat(2,minmax(0,1fr))} .cn.dia .b-fila>b{grid-column:1/3} .cn-nota{grid-column:1/3;text-align:left}
+  .cn.dia .b-fila.cn-fin>b{grid-column:1/2} .cn-fin .r{grid-column:2;text-align:right} .cn-det{grid-template-columns:1fr}
+  .cn-dianav{flex-wrap:wrap} .cn-dianav input[type=date]{margin-left:0;width:100%}
   .be .b-dia{grid-area:1/1} .be .b-est{grid-area:1/2}
   .bm .item.b-fila{grid-template-columns:minmax(0,1fr) auto}
   .bm-fecha{grid-area:1/1;font-size:13.5px;color:var(--muted)} .bm-desc{grid-area:2/1/3/3} .bm-dep,.bm-ret{grid-area:1/2} .bm .r.nada{display:none}
@@ -1303,7 +1329,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.12.0';
+const OM_VERSION='2.13.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1817,15 +1843,20 @@ function siguienteNoche(c){
       box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias')); return; }
     for(const i of ordenNoche()){ const x=st.e2.find(y=>y.isla===i.id); if(hechoNoche(x)) continue; if(await intentarSinVentas(x.id)) continue;
       box.append(h('p',{class:'muted'},`${i.nombre} marcó litros esta noche: captura su dinero.`), h('button',{class:'btn primary big block',onclick:()=>cargarCorte(x.id)},`Ahora el dinero de ${i.nombre}`)); return; }
-    box.append(await botonPDFNoche(st), h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias'));
+    box.append(await botonPDFNoche(st,true), h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias'));
   })().catch(()=>{ box.innerHTML=''; box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo, gracias')); });
   return box;
 }
-async function botonPDFNoche(st){
-  return h('button',{class:'btn ok big block',onclick:async(ev)=>{ const b=ev.currentTarget; b.disabled=true; const t=b.textContent; b.textContent='Generando…';
-    try{ const blob=await generarPDFNoche(st); if(await entregarBlob(blob, `Noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`)) btnHecho(b,'Listo'); }
-    catch(e){ toast('No se pudo generar el PDF: '+(e.message||e),5000); }
-    b.disabled=false; b.textContent=t; }},'Imprimir el corte de la noche');
+// En la computadora se manda a la impresora (como el corte de día); en el teléfono se descarga. `solo`: se lanza una vez sin tocar el botón.
+async function botonPDFNoche(st, solo){
+  const nombre=`Cortes_noche_${ESTACION.replace(/\s+/g,'')}_${st.d1}.pdf`;
+  const hacer=async(b,silencioso)=>{ b.disabled=true; const t=b.textContent; b.textContent=esTelefono()?'Generando…':'Preparando impresión…';
+    try{ const blob=await generarPDFNoche(st); if(esTelefono()){ if(await entregarBlob(blob, nombre)) btnHecho(b,'Listo'); } else await imprimirBlob(blob, nombre); }
+    catch(e){ if(!silencioso) toast('No se pudo generar el PDF: '+(e.message||e),5000); }
+    b.disabled=false; b.textContent=t; };
+  const btn=h('button',{class:'btn ok big block',onclick:(ev)=>hacer(ev.currentTarget,false)}, esTelefono()?'Descargar los cortes de la noche':'Imprimir los cortes de la noche');
+  if(solo && !esTelefono()) setTimeout(()=>hacer(btn,true),900);
+  return btn;
 }
 function esCorteNoche(c){ return !!(c && hayModoNoche() && turnosNoche().some(t=>t.id===c.turno)); } // un corte es de noche por su turno, en cualquier dispositivo
 async function renderHome(){
@@ -2689,8 +2720,10 @@ async function analisisIA(c,d,q,venta,t,tol,box,nombre,hist){
 }
 // ---- PDF para firma del despachador: 2 hojas, sin fotos, cuadro de firmas en cada hoja (13-nov-2026).
 // Las fotos de los totalizadores van solo en el PDF del correo a dirección (reporte-turno / resumen-diario).
-async function generarPDF(c){
-  const { jsPDF } = window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210, M=14; let y=0;
+// `en` (opcional): { doc, primera } para escribir este corte dentro de un PDF que ya existe (los cortes de la noche salen juntos).
+async function generarPDF(c, en){
+  const { jsPDF } = window.jspdf; const doc=(en&&en.doc)||new jsPDF({unit:'mm',format:'a4'}); const W=210, M=14; let y=0;
+  if(en&&en.doc&&!en.primera) doc.addPage();
   const NOCHE=[28,42,57], AZUL=[31,79,176], ROJO=[250,77,77], VERDE=[23,165,84], GRIS=[94,110,134], LINEA=[217,225,236], SUAVE=[243,246,250];
   const t=calcDinero(c.dinero||{}); const dn=c.dinero||{}; const q=c.calidad||null; const venta=c.venta||{porProducto:{},importe:null};
   const esc=x=>String(x??'');
@@ -2766,7 +2799,7 @@ async function generarPDF(c){
   const dif=venta.importe!=null?Math.round((t.declarado-venta.importe)*100)/100:null; const tolp=S.config.toleranciaPesos??50;
   const difTxt=dif==null?'—':(Math.abs(dif)<=tolp?(dif===0?'Cuadra exacto':`Cuadra (${(dif>0?'+':'')+fmtMXN(dif)})`):(dif<0?`Faltante ${fmtMXN(Math.abs(dif))}`:`Sobrante ${fmtMXN(dif)}`));
   const difCol=dif==null?GRIS:(Math.abs(dif)<=tolp?VERDE:(dif<0?ROJO:[199,129,26]));
-  const depos=(dn.depositos||[]).reduce((s,x)=>s+(Number(x.importe)||0),0);
+  const depos=(dn.depositos||[]).reduce((s,x)=>s+(Number(x.importe??x.total)||0),0);
   tabla([{t:'Concepto',w:122},{t:'Importe',w:60,a:'right'}],[
     ['Venta esperada',venta.importe!=null?fmtMXN(venta.importe):'—'],
     ['Tarjetas crédito',fmtMXN(t.credito)],['Tarjetas débito',fmtMXN(t.debito)],['Efectivo'+(depos?` (de eso, depositado ${fmtMXN(depos)})`:''),fmtMXN(t.efectivo)],['Clientes marcados',fmtMXN(t.clientes)],
@@ -2775,7 +2808,7 @@ async function generarPDF(c){
   if(dn.comentario){ const cab=Math.max(0,Math.min(3,Math.floor((240-y)/4))); const ls=doc.splitTextToSize('Explicación: '+dn.comentario,W-2*M).slice(0,cab); if(ls.length){ txt(M,y,ls,{s:8.5,c:GRIS}); y+=ls.length*4+2; } }
   if(q&&y<=243){ txt(M,y,`Calificación del corte: ${q.puntos}/100 · ${q.nivel}`,{b:true,s:9,c:q.puntos>=90?VERDE:q.puntos>=75?AZUL:q.puntos>=60?[199,129,26]:ROJO}); y+=5; }
   firmas(); pie(2);
-  return doc.output('blob');
+  return (en&&en.doc)? null : doc.output('blob');
 }
 // Reduce el logo a máx 600 px de ancho y ≤300 KB (PNG si viene en PNG, si no JPEG).
 function reducirLogo(file){ return new Promise((res,rej)=>{ if(!/^image\/(png|jpeg)$/.test(file.type)) return rej(new Error('usa PNG o JPG')); const url=URL.createObjectURL(file); const im=new Image();
@@ -2783,74 +2816,21 @@ function reducirLogo(file){ return new Promise((res,rej)=>{ if(!/^image\/(png|jp
     let out=file.type==='image/png'?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',0.88); if(out.length>400000) out=cv.toDataURL('image/jpeg',0.82); if(out.length>400000){ const cv2=document.createElement('canvas'); cv2.width=Math.round(w*0.6); cv2.height=Math.round(hh*0.6); cv2.getContext('2d').drawImage(im,0,0,cv2.width,cv2.height); out=cv2.toDataURL('image/jpeg',0.8); }
     if(out.length>400000) return rej(new Error('la imagen sigue pesando más de 300 KB; usa una más sencilla')); res(out); };
   im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('no se pudo leer la imagen')); }; im.src=url; }); }
-// PDF de la noche: UN formato con los dos cortes de la isla nocturna (22–24 y 00–06) separados, y las otras islas como comprobación.
-// A medianoche no se imprime nada; a las 6 sale este. Se arma con los cortes del propio velador (mi_corte).
+// PDF de la noche (25-nov-2026, a petición de oficina para conciliar): ya no hay hoja resumida "Corte de la noche".
+// A las 6 salen los cortes normales de firma, idénticos a los de día: uno por cada isla que vendió en cada tramo (22–24 y 00–06),
+// todos en un solo archivo para que sea una sola impresión. A medianoche no se imprime nada. Se arma con los cortes del propio velador (mi_corte).
+function corteConVenta(c){ if(!c||c.estado!=='enviado') return false; const t=calcDinero(c.dinero||{}); return (Number(c.totales&&c.totales.litros)||0)>0 || (Number(c.aceites&&c.aceites.importe)||0)>0 || t.declarado>0; }
+async function cortesDeLaNoche(st){
+  const traer=async(x)=>{ if(!x||!x.id||x.estado!=='enviado') return null; try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); return j? corteDesdeServidor(j):null; }catch(_){ return null; } };
+  const todos=[]; for(const e of [st.e1, st.e2]) for(const i of S.config.islas){ const c=await traer((e||[]).find(y=>y.isla===i.id)); if(c) todos.push(c); }
+  const conVenta=todos.filter(corteConVenta); if(conVenta.length) return conVenta;
+  const i1=islaNocturna(); return todos.filter(c=>c.isla===i1.id);   // noche sin ninguna venta: queda en papel la isla de la noche, en ceros
+}
 async function generarPDFNoche(st){
-  if(!window.jspdf) throw new Error('No se cargó el generador de PDF.');
-  const EN=etqNoche();
-  const i1=islaNocturna();
-  const traer=async(x)=>{ if(!x||!x.id) return null; try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); return j? corteDesdeServidor(j):null; }catch(_){ return null; } };
-  const c1=await traer(st.e1.find(y=>y.isla===i1.id)), c2=await traer(st.e2.find(y=>y.isla===i1.id));
-  const otras=[]; for(const i of S.config.islas){ if(i.id===i1.id) continue; otras.push({isla:i, c: await traer(st.e2.find(y=>y.isla===i.id)), x: st.e2.find(y=>y.isla===i.id)}); }
-  const { jsPDF } = window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210, M=14; let y=0;
-  const NOCHE=[28,42,57], AZUL=[31,79,176], ROJO=[250,77,77], VERDE=[23,165,84], GRIS=[94,110,134], LINEA=[217,225,236], SUAVE=[243,246,250];
-  const esc=x=>String(x??'');
-  const txt=(x,yy,str,o={})=>{ doc.setFont('helvetica',o.b?'bold':'normal'); doc.setFontSize(o.s||10); doc.setTextColor(...(o.c||NOCHE)); doc.text(esc(str),x,yy,{align:o.a||'left',maxWidth:o.mw}); };
-  const linea=(yy,col)=>{ doc.setDrawColor(...(col||LINEA)); doc.setLineWidth(0.3); doc.line(M,yy,W-M,yy); };
-  const caja=(x,yy,w,hh,fill)=>{ doc.setFillColor(...fill); doc.setDrawColor(...fill); doc.roundedRect(x,yy,w,hh,2,2,'F'); };
-  const filete=()=>{ [[0,245,212],[204,255,0],[255,255,0]].forEach((col,i)=>{ doc.setFillColor(...col); doc.rect(i*W/3,0,W/3+0.2,1.4,'F'); }); };
-  const logoCab=()=>{ const ld=S.config&&S.config.logoData; if(ld){ try{ const r=S.config.logoRatio||2.5; const hh=15.2, ww=Math.min(60,hh*r); doc.addImage(ld,/^data:image\/png/i.test(ld)?'PNG':'JPEG',M,10,ww,hh); return; }catch(e){} } txt(M,16,ESTACION,{b:true,s:14}); };
-  const cabecera=(titulo)=>{ filete(); logoCab(); txt(W-M,14,'CORTE DE LA NOCHE',{b:true,s:12,a:'right',c:AZUL}); txt(W-M,19.5,titulo,{s:9,a:'right',c:GRIS}); linea(25,AZUL); y=31; };
-  const pie=(n,total)=>{ linea(283); let px=0; try{ px=pieLogoPdf(doc,M,284.6); }catch(e){} txt(M+px,288,`Generado con Own Manager · ${ESTACION} · Noche del ${fmtFecha(st.d1)} · Sellos ${(c1&&c1.hash||'').slice(0,10)}… / ${(c2&&c2.hash||'').slice(0,10)}…`,{s:7.5,c:GRIS}); txt(W-M,288,`Página ${n} de ${total}`,{s:7.5,c:GRIS,a:'right'}); };
-  const tabla=(cols,rows,opts={})=>{ const x0=M; const ws=cols.map(k=>k.w); const rowH=opts.rowH||6.2; const tw=ws.reduce((a,b)=>a+b,0);
-    const header=()=>{ caja(x0,y,tw,rowH,SUAVE); let x=x0; cols.forEach((k,i)=>{ txt(k.a==='right'?x+ws[i]-2:x+2,y+4.3,k.t,{b:true,s:8,c:GRIS,a:k.a||'left'}); x+=ws[i]; }); y+=rowH; };
-    header();
-    rows.forEach((r,ri)=>{ if(y>268){ pie(opts.pagina,opts.total); doc.addPage(); cabecera(opts.titulo||''); header(); } let x=x0; const bold=r.bold||(ri===rows.length-1&&opts.ultimaNegrita); cols.forEach((k,i)=>{ txt(k.a==='right'?x+ws[i]-2:x+2,y+4.3,r[i],{s:8.5,b:bold,a:k.a||'left',c:r.color||NOCHE}); x+=ws[i]; }); linea(y+rowH); y+=rowH; });
-    y+=3; };
-  const TOTAL=2; const t1n=st.t1.nombre, t2n=st.t2.nombre;
-  const quien=(c2&&c2.despachadorNombre)||(c1&&c1.despachadorNombre)||(S.me&&S.me.nombre)||'';
-  const lit=(c)=>c&&c.totales?Number(c.totales.litros)||0:0; const dec=(c)=>c?calcDinero(c.dinero||{}):{efectivo:0,tarjetas:0,clientes:0,declarado:0};
-  const vimp=(c)=>c&&c.venta&&c.venta.importe!=null?Number(c.venta.importe):null; const dif=(c)=>{ const v=vimp(c); return v==null?null:Math.round((dec(c).declarado-v)*100)/100; };
-  // ---------- Página 1: lecturas y venta, separadas por tramo
-  cabecera(`${ESTACION} · ${i1.nombre} · ${t1n} y ${t2n}`);
-  txt(M,y+2,`Noche del ${fmtFecha(st.d1)} · ${i1.nombre}`,{b:true,s:16}); txt(M,y+8,`Velador: ${quien}`,{s:10,c:GRIS}); y+=14;
-  const info=[[t1n+' enviado', c1&&c1.enviadoEn?fmtHora(c1.enviadoEn):'—'],[t2n+' enviado', c2&&c2.enviadoEn?fmtHora(c2.enviadoEn):'—'],['Litros '+t1n, fmtL(lit(c1))+' L'],['Litros '+t2n, fmtL(lit(c2))+' L']];
-  info.forEach((p,i)=>{ const col=i%2, row=Math.floor(i/2); const x=M+col*91; txt(x,y+row*6.5,p[0],{s:8,c:GRIS}); txt(x+40,y+row*6.5,p[1],{s:9,b:true}); }); y+=2*6.5+4;
-  const kw=(W-2*M-3*3)/4; const dT=dif(c1), dN=dif(c2);
-  [['Litros de la noche',fmtL(lit(c1)+lit(c2))+' L',AZUL],['Venta esperada',fmtMXN((vimp(c1)||0)+(vimp(c2)||0)),AZUL],['Declarado',fmtMXN(dec(c1).declarado+dec(c2).declarado),NOCHE],['Diferencia',(dT==null&&dN==null)?'—':((dT||0)+(dN||0)>=0?'+':'')+fmtMXN((dT||0)+(dN||0)),((dT||0)+(dN||0))<-(S.config.toleranciaPesos??50)?ROJO:VERDE]]
-    .forEach((k,i)=>{ const x=M+i*(kw+3); caja(x,y,kw,18,SUAVE); txt(x+3,y+5.5,k[0],{s:7.5,c:GRIS}); txt(x+3,y+13,k[1],{s:11.5,b:true,c:k[2]}); }); y+=24;
-  txt(M,y,`Lecturas del totalizador · ${i1.nombre}`,{b:true,s:11}); y+=3;
-  const l1=(c1&&c1.lecturas)||[], l2=(c2&&c2.lecturas)||[]; const claves=[...new Set([...l1,...l2].map(l=>l.manguera))];
-  const filasL=claves.map(k=>{ const a=l1.find(l=>l.manguera===k), b=l2.find(l=>l.manguera===k); return [k,(a||b||{}).producto||'', a&&a.inicial!=null?fmtL(a.inicial):'—', a&&a.final!=null?fmtL(a.final):'—', a&&a.litros!=null?fmtL(a.litros):'—', b&&b.final!=null?fmtL(b.final):'—', b&&b.litros!=null?fmtL(b.litros):'—', fmtL((a&&a.litros||0)+(b&&b.litros||0))]; });
-  filasL.push(Object.assign(['Total','','','',fmtL(lit(c1)),'',fmtL(lit(c2)),fmtL(lit(c1)+lit(c2))],{bold:true}));
-  tabla([{t:'Manguera',w:22},{t:'Producto',w:20},{t:'Inicial '+EN.ini+'h',w:25,a:'right'},{t:'Final '+EN.med+'h',w:25,a:'right'},{t:'L '+EN.r1,w:20,a:'right'},{t:'Final '+EN.fin+'h',w:25,a:'right'},{t:'L '+EN.r2,w:20,a:'right'},{t:'L noche',w:25,a:'right'}],filasL,{pagina:1,total:TOTAL,titulo:'Lecturas'});
-  txt(M,y,'Venta por producto',{b:true,s:11}); y+=3;
-  const prods=[...new Set([...Object.keys((c1&&c1.venta&&c1.venta.porProducto)||{}),...Object.keys((c2&&c2.venta&&c2.venta.porProducto)||{})])];
-  const vp=(c,p)=>(c&&c.venta&&c.venta.porProducto&&c.venta.porProducto[p])||{litros:0,importe:0,precio:null};
-  const filasV=prods.map(p=>[p, fmtL(vp(c1,p).litros)+' L', vp(c1,p).precio!=null?fmtMXN(vp(c1,p).importe):'—', fmtL(vp(c2,p).litros)+' L', vp(c2,p).precio!=null?fmtMXN(vp(c2,p).importe):'—', fmtMXN((Number(vp(c1,p).importe)||0)+(Number(vp(c2,p).importe)||0))]);
-  filasV.push(Object.assign(['Total',fmtL(lit(c1))+' L',vimp(c1)!=null?fmtMXN(vimp(c1)):'—',fmtL(lit(c2))+' L',vimp(c2)!=null?fmtMXN(vimp(c2)):'—',fmtMXN((vimp(c1)||0)+(vimp(c2)||0))],{bold:true}));
-  tabla([{t:'Producto',w:32},{t:'L '+EN.r1,w:28,a:'right'},{t:'$ '+EN.r1,w:30,a:'right'},{t:'L '+EN.r2,w:28,a:'right'},{t:'$ '+EN.r2,w:30,a:'right'},{t:'$ noche',w:34,a:'right'}],filasV,{pagina:1,total:TOTAL,titulo:'Venta'});
-  pie(1,TOTAL);
-  // ---------- Página 2: dinero por tramo, otras islas y firmas
-  doc.addPage(); cabecera('Dinero por tramo · comprobación de las otras islas');
-  txt(M,y,'Dinero entregado',{b:true,s:11}); y+=3;
-  const d1=dec(c1), d2=dec(c2);
-  const fd=(nombre,a,b)=>[nombre,fmtMXN(a),fmtMXN(b),fmtMXN(a+b)];
-  const filasD=[fd('Tarjetas',d1.tarjetas,d2.tarjetas), fd('Efectivo',d1.efectivo,d2.efectivo), fd('Clientes marcados u otros',d1.clientes,d2.clientes), Object.assign(fd('Declarado',d1.declarado,d2.declarado),{bold:true}),
-    ['Venta esperada',vimp(c1)!=null?fmtMXN(vimp(c1)):'—',vimp(c2)!=null?fmtMXN(vimp(c2)):'—',fmtMXN((vimp(c1)||0)+(vimp(c2)||0))],
-    Object.assign(['Diferencia',dT==null?'—':(dT>=0?'+':'')+fmtMXN(dT),dN==null?'—':(dN>=0?'+':'')+fmtMXN(dN),(dT==null&&dN==null)?'—':(((dT||0)+(dN||0))>=0?'+':'')+fmtMXN((dT||0)+(dN||0))],{bold:true,color:((dT||0)+(dN||0))<-(S.config.toleranciaPesos??50)?ROJO:NOCHE})];
-  tabla([{t:'',w:62},{t:t1n,w:40,a:'right'},{t:t2n,w:40,a:'right'},{t:'Noche',w:40,a:'right'}],filasD,{pagina:2,total:TOTAL,titulo:'Dinero'});
-  const coment=[c1&&c1.dinero&&c1.dinero.comentario?`${t1n}: ${c1.dinero.comentario}`:null, c2&&c2.dinero&&c2.dinero.comentario?`${t2n}: ${c2.dinero.comentario}`:null].filter(Boolean);
-  if(coment.length){ txt(M,y,'Comentarios: '+coment.join(' · '),{s:8,c:GRIS,mw:W-2*M}); y+=10; }
-  txt(M,y,'Otras islas a las '+EN.fin+' (comprobación)',{b:true,s:11}); y+=3;
-  const filasO=otras.map(o=>{ const c=o.c; const x=o.x; const l=(c&&c.lecturas)||[]; const lt=c&&c.totales?Number(c.totales.litros)||0:l.reduce((a,q)=>a+(Number(q.litros)||0),0);
-    const estado = !x? 'Sin corte' : x.estado==='omitida'? 'Cerrada' : (c&&c.dinero&&c.dinero.sinVentas)? 'Sin ventas (inicial = final, leído por la IA)' : x.estado==='enviado'? (lt>0.05?'Con venta · '+fmtL(lt)+' L':'Enviada') : 'Abierta';
-    return Object.assign([o.isla.nombre, estado, c&&c.enviadoEn?fmtHora(c.enviadoEn):'—', fmtL(lt)+' L'],{color: lt>0.05?ROJO:NOCHE}); });
-  tabla([{t:'Isla',w:30},{t:'Resultado',w:92},{t:'Hora',w:30},{t:'Litros',w:30,a:'right'}],filasO,{pagina:2,total:TOTAL,titulo:'Otras islas'});
-  const conDetalle=otras.filter(o=>o.c&&o.c.lecturas&&o.c.lecturas.length);
-  for(const o of conDetalle){ if(y>230) break; txt(M,y,o.isla.nombre+' · lecturas',{b:true,s:9,c:GRIS}); y+=2; tabla([{t:'Manguera',w:40},{t:'Producto',w:40},{t:'Inicial',w:34,a:'right'},{t:'Final',w:34,a:'right'},{t:'Litros',w:34,a:'right'}], o.c.lecturas.map(l=>[l.manguera,l.producto,l.inicial!=null?fmtL(l.inicial):'—',l.final!=null?fmtL(l.final):'—',l.litros!=null?fmtL(l.litros):'—']),{rowH:5.4,pagina:2,total:TOTAL}); }
-  y=Math.max(y+6,238); linea(y+14); txt(M,y+18,'Velador: '+quien,{s:9,c:GRIS}); linea(y+14,LINEA); doc.setDrawColor(...LINEA); doc.line(W/2+6,y+14,W-M,y+14); txt(W/2+6,y+18,'Revisó (administración)',{s:9,c:GRIS});
-  pie(2,TOTAL);
+  if(!window.jspdf||!window.jspdf.jsPDF) throw new Error('No se cargó el generador de PDF.');
+  const cs=await cortesDeLaNoche(st); if(!cs.length) throw new Error('No hay cortes enviados de esta noche.');
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+  for(let i=0;i<cs.length;i++) await generarPDF(cs[i],{doc, primera:i===0});
   return doc.output('blob');
 }
 async function descargarPDF(c, btn){
@@ -2863,20 +2843,22 @@ async function descargarPDF(c, btn){
 }
 // Imprime el PDF de firma sin abrir pestañas: se carga en un iframe oculto y se llama a print() (abre el diálogo de la impresora).
 // Si el navegador no lo permite, se abre el PDF en una pestaña para imprimirlo desde ahí.
+async function imprimirBlob(blob, nombre){
+  if(esApk()) return await entregarBlob(blob, nombre);
+  const url=URL.createObjectURL(blob);
+  const prev=document.getElementById('omPrint'); if(prev) prev.remove();
+  const fr=h('iframe',{id:'omPrint',title:'Impresión del corte',style:'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none'});
+  await new Promise(res=>{ let done=false; const fin=()=>{ if(!done){ done=true; res(); } }; fr.onload=fin; fr.onerror=fin; fr.src=url; document.body.append(fr); setTimeout(fin,3500); });
+  try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ window.open(url,'_blank'); }
+  setTimeout(()=>URL.revokeObjectURL(url),5*60000);
+  return true;
+}
 let _pdfCache={};
 async function pdfDelCorte(c){ if(_pdfCache.id===c.id&&_pdfCache.hash===(c.hash||'')&&_pdfCache.blob) return _pdfCache.blob; const blob=await generarPDF(c); _pdfCache={id:c.id,hash:c.hash||'',blob}; return blob; }
 async function imprimirPDF(c, btn, silencioso){
   if(!window.jspdf||!window.jspdf.jsPDF){ if(!silencioso) toast('No se cargó el generador de PDF; revisa la conexión y vuelve a intentar.',4000); return false; }
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Preparando impresión…'; }
-  try{ const blob=await pdfDelCorte(c);
-    if(esApk()) return await entregarBlob(blob, `Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}.pdf`);
-    const url=URL.createObjectURL(blob);
-    const prev=document.getElementById('omPrint'); if(prev) prev.remove();
-    const fr=h('iframe',{id:'omPrint',title:'Impresión del corte',style:'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none'});
-    await new Promise(res=>{ let done=false; const fin=()=>{ if(!done){ done=true; res(); } }; fr.onload=fin; fr.onerror=fin; fr.src=url; document.body.append(fr); setTimeout(fin,3500); });
-    try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ window.open(url,'_blank'); }
-    setTimeout(()=>URL.revokeObjectURL(url),5*60000);
-    return true; }
+  try{ const blob=await pdfDelCorte(c); return await imprimirBlob(blob, `Corte_${ESTACION.replace(/\s+/g,'')}_${c.fecha}_T${c.turno}.pdf`); }
   catch(e){ if(!silencioso) toast('No se pudo preparar la impresión: '+(e.message||e.code||e),5000); return false; }
   finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
 }
@@ -2927,6 +2909,7 @@ async function renderAdmin(){
   // Menú por grupos (orden de Mauricio, 12-nov-2026): cada grupo se queda abierto hasta que él lo cierra.
   const dueno=S.rol==='dueno';
   const items=[['chat','chat','Asistente'],
+    ...(dueno?[['gconc','concilia','Conciliación',[['cdia','hoy','Diaria'],['cacum','acumulado','Acumulado'],['chist','historico','Histórico']]]]:[]),   // 25-nov-2026: la herramienta principal del dueño
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy'],['cortes','cortes','Lista de cortes']]],
     ['descargas','descarga','Descargas'],
     navTareas(),
@@ -2939,6 +2922,7 @@ async function renderAdmin(){
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados'],...(dueno&&S.config.escanerTickets?[['escaner','camara','Prueba del escáner']]:[])]],
     ['eliminados','anulados','Eliminados y cancelados']]; // 20-nov-2026: todo lo eliminado, cancelado o anulado vive aquí (dueño y Contabilidad), no en las listas de trabajo
   const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  if(dueno) Object.assign(titulos,{ cdia:'Conciliación · Diaria', cacum:'Conciliación · Acumulado', chist:'Conciliación · Histórico' });
   if(dueno && S.config.escanerTickets) titulos.escaner='Prueba del escáner'; // escáner de tickets, etapa 1: con el interruptor apagado esta pantalla no existe
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
@@ -2951,7 +2935,7 @@ async function renderAdmin(){
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:async()=>{ if(e.id===S.config.estacionId) return; S.estacionElegida=e.id; await cargarConfig(); render(); }},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main;
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
   finally{ app=prev; }
 }
 
@@ -3774,6 +3758,9 @@ const ICONS={
   banco:'<path d="M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 18h18M3 21h18"/>',
   proveedores:'<path d="M3 7h11v10H3zM14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
   hoy:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  concilia:'<path d="M12 4v16M8 20h8M5 7h14M5 7l-2.5 6a2.8 2.8 0 0 0 5 0L5 7ZM19 7l-2.5 6a2.8 2.8 0 0 0 5 0L19 7Z"/>',
+  acumulado:'<path d="M4 20h16M6.5 20v-5M11 20v-9M15.5 20v-12M20 6l-3-2.5M20 6l-3.2 1.6"/>',
+  historico:'<path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5M4 4.5v3.5h3.5M12 8v4.2l2.8 1.8"/>',
   cortes:'<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M5 21h10M8 7h4M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-3-3"/>',
   depositos:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 10.5v3M7 8v8"/>',
   anulados:'<circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/>',
@@ -4351,7 +4338,7 @@ const ELI_CATS=[['cortes','Cortes'],['descargas','Descargas'],['tareas','Tareas 
 const ELI_TOPE=50;
 async function eliCargar(){
   const pide=async arma=>{ try{ const {data,error}=await arma(); if(error) return []; return data||[]; }catch(e){ return []; } }; // lo que un perfil no puede ver simplemente no sale
-  const [cortes, descargas, tareas, avisos, cargas, hojas, pagos, facturas, viajes, precios, borrados, usuarios, proveedores, islas, cuentas]=await Promise.all([
+  const [cortes, descargas, tareas, avisos, cargas, hojas, pagos, facturas, viajes, precios, borrados, usuarios, proveedores, islas, cuentas, reemplazos]=await Promise.all([
     pide(()=>sb.from('cortes').select('*, despachadores(nombre)').eq('estado','anulado').order('anulado_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('descargas').select('*').eq('estado','anulada').order('anulada_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('tareas').select('*').eq('estado','cancelada').order('cancelada_en',{ascending:false}).limit(ELI_TOPE)),
@@ -4363,7 +4350,8 @@ async function eliCargar(){
     pide(()=>sb.from('log_viajes').select('*').eq('estado','cancelado').order('actualizado_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('cambios_precio').select('*').eq('estado','cancelado').order('cancelado_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('bitacora').select('*').eq('accion','eliminar').in('tabla',['facturas','pagos','estados_cuenta']).order('en',{ascending:false}).limit(150)),
-    pide(()=>sb.from('usuarios').select('id, nombre')), pide(()=>sb.from('proveedores').select('id, nombre').limit(2000)), pide(()=>sb.from('islas').select('id, nombre')), bancoCuentas().catch(()=>[]) ]);
+    pide(()=>sb.from('usuarios').select('id, nombre')), pide(()=>sb.from('proveedores').select('id, nombre').limit(2000)), pide(()=>sb.from('islas').select('id, nombre')), bancoCuentas().catch(()=>[]),
+    pide(()=>sb.from('banco_reemplazos').select('*').order('hecho_en',{ascending:false}).limit(ELI_TOPE)) ]);   // 062; si la tabla aún no existe, simplemente no sale nada
   const quien=id=>{ const u=usuarios.find(x=>x.id===id); return u? u.nombre : null; };
   const est=id=>{ const e=(S.estaciones||[]).find(x=>x.id===id); return e? e.nombre : null; };
   const isla=id=>{ const x=islas.find(q=>q.id===id); return x? x.nombre : null; };
@@ -4385,6 +4373,10 @@ async function eliCargar(){
     else if(b.tabla==='pagos') pon('pagos','Eliminado', b.en, une('Pago a '+(prov(x.proveedor_id)||'proveedor'), x.monto!=null? fmtMonto(x.monto) : null), une(neg(x.negocio_id), x.fecha? 'del '+fmtFecha(x.fecha) : null, x.referencia? 'folio '+x.referencia : null, x.concepto), por, motivo);
     else pon('estados','Eliminado', b.en, une('Estado de cuenta', cta(x.cuenta_id), x.archivo_nombre), une(x.periodo_inicio&&x.periodo_fin? bancoPeriodo(x.periodo_inicio, x.periodo_fin) : null), por, motivo); }
   for(const g of cargas) pon('bancos','Eliminado', g.eliminada_en, une('Archivo de movimientos', cta(g.cuenta_id)), une(g.archivo_nombre, bancoPeriodo(g.desde,g.hasta), `${fmtInt(g.nuevas)} movimientos`, g.subido_por_nombre? 'lo subió '+g.subido_por_nombre : null), quien(g.eliminada_por), g.eliminada_motivo);
+  for(const R of reemplazos){ const dts=Array.isArray(R.detalle)?R.detalle:[]; const n=Number(R.movimientos)||dts.length; const per=(R.desde&&R.hasta&&R.desde!==R.hasta)? bancoPeriodo(R.desde,R.hasta) : null;   // de un solo día, la fecha ya va en cada movimiento
+    const lista=dts.slice(0,4).map(m=> R.tipo==='texto'? `${fmtFecha(m.fecha)} · ${fmtMonto(Number(m.abono)||Number(m.cargo)||0)} · antes “${m.antes||''}”, ahora “${m.ahora||''}”` : `${fmtFecha(m.fecha)} · ${Number(m.abono)?'depósito':'retiro'} ${fmtMonto(Number(m.abono)||Number(m.cargo)||0)} · ${(m.descripcion||'')+(m.referencia?' '+m.referencia:'')}`).join(' | ')+(dts.length>4? ` | y ${dts.length-4} más` : '');
+    pon('bancos', R.tipo==='texto'?'Actualizado':'Reemplazado', R.hecho_en, une(R.tipo==='texto'? (n===1?'Descripción de 1 movimiento':'Descripción de '+fmtInt(n)+' movimientos') : (n===1?'1 movimiento del banco':fmtInt(n)+' movimientos del banco'), cta(R.cuenta_id)), une(per, lista),
+      R.hecho_por_nombre||quien(R.hecho_por), R.tipo==='texto'? 'El banco cambió la descripción; el dinero es el mismo.' : 'El banco los cambió después de la última subida; se guardó lo que trae el archivo nuevo.'); }
   for(const H of hojas){ const r=H.deposito_renglones||[]; const tot=r.reduce((x,y)=>x+Number(y.importe),0);
     pon('bancos','Cancelada', H.cancelada_en, une('Hoja de depósito '+H.folio, cta(H.cuenta_id), fmtMXN(tot)), une(r.length===1? '1 depósito' : r.length+' depósitos', H.creada_por_nombre? 'la hizo '+H.creada_por_nombre : null), quien(H.cancelada_por), H.cancelada_motivo); }
   for(const c of precios) pon('precios','Cancelado', c.cancelado_en, une('Cambio de precio programado', est(c.estacion_id)), une('para '+fmtFecha(fechaMX(c.programado_para))+' '+fmtHora(c.programado_para), Object.entries(c.precios||{}).map(([k,v])=>k+' '+fmtMonto(v)).join(' · '), c.nota), quien(c.cancelado_por), null);
@@ -5265,8 +5257,14 @@ async function bancoSubir(){
     return;
   }
   if(w.paso==='listo'){ const r=w.resultado; const cta=cuentas.find(c=>c.id===w.cuentaId);
-    add(card, h('div',{class:'sechead'}, h('h3',{id:'bs-listo'}, r.nuevas>0? 'Movimientos guardados' : 'Estos movimientos ya estaban guardados'), null),
+    const nAct=Number(r.actualizadas)||0, nRee=Number(r.reemplazadas)||0;   // 062: lo que el banco cambió después de la última subida
+    add(card, h('div',{class:'sechead'}, h('h3',{id:'bs-listo'}, r.nuevas>0? 'Movimientos guardados' : (nAct? 'Movimientos actualizados' : 'Estos movimientos ya estaban guardados')), null),
       resumenEstado([['CUENTA',r.cuenta],['PERIODO', r.nuevas>0? bancoPeriodo(r.desde,r.hasta) : null],['NUEVOS',fmtInt(r.nuevas)],['YA ESTABAN',fmtInt(r.repetidas)],['SALDO FINAL', r.saldo_final!=null? fmtMonto(r.saldo_final) : null]]));
+    if(nAct||nRee){ const uno=(n,a,b)=>n===1?a:b; const ps=[];
+      if(nAct) ps.push(`El banco cambió la descripción de ${fmtInt(nAct)} ${uno(nAct,'movimiento','movimientos')} que ya ${uno(nAct,'estaba guardado','estaban guardados')}; el dinero es el mismo. Se ${uno(nAct,'actualizó','actualizaron')}.`);
+      if(nRee) ps.push(`El banco cambió ${fmtInt(nRee)} ${uno(nRee,'movimiento','movimientos')} ${r.reemplazo_desde&&r.reemplazo_desde!==r.reemplazo_hasta? 'del '+fmtFecha(r.reemplazo_desde)+' al '+fmtFecha(r.reemplazo_hasta) : 'del '+fmtFecha(r.reemplazo_desde||r.reemplazo_hasta)} después de la última subida. Se ${uno(nRee,'reemplazó','reemplazaron')} con lo que trae este archivo.`);
+      ps.push('Cómo estaban antes queda en Eliminados y cancelados.');
+      add(card, h('div',{class:'alert warn',id:'bs-cambios',style:'display:block'}, ...ps.map(t=>h('p',{class:'small',style:'margin:0 0 4px'},t)))); }
     if((r.tipos||[]).length){ const t=h('div',{class:'list b-tabla bt',id:'bs-tipos'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Lo nuevo, por tipo'), h('span',{class:'r'},'Movimientos'), h('span',{class:'r'},'Depósitos'), h('span',{class:'r'},'Retiros')));
       for(const x of r.tipos) t.append(h('div',{class:'item b-fila fija'}, h('b',{},BAN_TIPOS[x.tipo]||x.tipo), h('span',{class:'r','data-l':'Movimientos'},fmtInt(x.n)), h('span',{class:'r'+(Number(x.abonos)?'':' nada'),'data-l':'Depósitos'},Number(x.abonos)?fmtMonto(x.abonos):'—'), h('span',{class:'r'+(Number(x.cargos)?'':' nada'),'data-l':'Retiros'},Number(x.cargos)?fmtMonto(x.cargos):'—')));
       card.append(t); }
@@ -5414,6 +5412,192 @@ async function bancoEfectivo(){
           ...d.avisos.map(g=>h('div',{class:'ln avisado'}, h('span',{}, h('span',{},'Avisado, sin caer'), h('span',{class:'small muted'},`Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}`)), h('b',{},fmtMXN(g.importe))))))); } }
   if(!lista.length) list.append(h('div',{class:'card empty'},h('b',{},'Este mes todavía no empieza')));
   cont.append(list);
+}
+
+// ---- CONCILIACIÓN (25-nov-2026). La herramienta del dueño: por día, lo que marcó el dispensario contra lo que cayó en bancos.
+// Cada peso del dispensario termina en: efectivo en el banco, tarjetas en el banco, clientes marcados (declarado por el despachador),
+// en camino (todavía dentro de su plazo o falta subir el banco) o sin explicar. "Sin explicar" es la medida de la fuga.
+// Tres vistas del mismo cálculo: Diaria (un día con su desglose), Acumulado (lo que va del mes) e Histórico (otro mes o fechas específicas).
+// Lo calcula la app con lo ya guardado (cortes enviados y movimientos del banco); no escribe nada.
+const CONC={ dia:null, mes:null, modo:'mes', del:'', al:'', abre:null, cache:{} };
+const CONC_PLAZO={ efectivo:6, tarjetas:4 };   // días que puede tardar en verse en el banco: recolección de valores hasta 6; tarjetas, fin de semana largo
+const concTipoLote = desc => /DEBITO|[0-9]D\s*$/i.test(desc||'')? 'Débito' : 'Crédito';   // BBVA: VENTAS DEBITO / CREDITO / TDC INTER / AMEX; Banorte: termina en C o D
+// Cálculo puro (lo usan las tres vistas y las pruebas). p: { ini, fin, hoy, cortes, efMovs, tjMovs, reng, ultimoEf, ultimoTj, tolCorte }
+function concCalcular(p){
+  const r2=n=>Math.round(n*100)/100; const tolC=p.tolCorte??50; const dias={};
+  const D=f=>dias[f]||(dias[f]={ f, cortes:[], deps:[], lotes:[], avisos:[], sinCaer:[], disp:0, litros:0, decl:{efectivo:0,tarjetas:0,clientes:0}, banco:{efectivo:0,tarjetas:0}, difCortes:0 });
+  const declarados=[];
+  for(const c of p.cortes||[]){ const t=calcDinero(c.dinero||{}); const venta=c.venta&&c.venta.importe!=null? Number(c.venta.importe) : null; const d=D(c.fecha);
+    const x={ c, venta, t, dif: venta==null? null : r2(t.declarado-venta) }; d.cortes.push(x); d.disp=r2(d.disp+(venta||0)); d.litros+=Number(c.totales&&c.totales.litros)||0;
+    d.decl.efectivo=r2(d.decl.efectivo+t.efectivo); d.decl.tarjetas=r2(d.decl.tarjetas+t.tarjetas); d.decl.clientes=r2(d.decl.clientes+t.clientes); d.difCortes=r2(d.difCortes+(x.dif||0));
+    const det=(c.dinero&&c.dinero.tarjetas&&Array.isArray(c.dinero.tarjetas.detalle))? c.dinero.tarjetas.detalle : [];
+    for(const v of det){ const imp=r2(Number(v.importe)||0); if(imp>0) declarados.push({ corte:c, fecha:c.fecha, terminal:v.terminal, tipo:v.tipo, importe:imp, mov:null }); } }
+  // Efectivo: el día es el del ticket del cajero, el de la venta que trae la recolección o la fecha de corte de la hoja de depósito (igual que Efectivo por día).
+  const porMov={}; for(const g of p.reng||[]) if(g.movimiento_id) (porMov[g.movimiento_id]||(porMov[g.movimiento_id]=[])).push(g);
+  for(const m of p.efMovs||[]){ if(porMov[m.id]) continue; const d=D(m.dia||m.fecha); const imp=Number(m.abono)||0; d.deps.push(m); d.banco.efectivo=r2(d.banco.efectivo+imp); }
+  for(const grupo of Object.values(porMov)){ let resto=Number(grupo[0].banco_importe)||0; grupo.forEach((g,i)=>{ const parte= i===grupo.length-1? r2(resto) : Number(g.importe); resto-=parte;
+    const d=D(g.fecha_corte); d.deps.push({ aviso:g, abono:parte, fecha:g.banco_fecha, cuenta_id:g.cuenta_id, tipo:'efectivo' }); d.banco.efectivo=r2(d.banco.efectivo+parte); }); }
+  for(const g of p.reng||[]) if(!g.movimiento_id) D(g.fecha_corte).avisos.push(g);
+  // Tarjetas: el banco acredita por lote, al siguiente día hábil. Cada abono busca su lote declarado por importe exacto (hasta 6 días atrás);
+  // el que no encuentra pareja se cuenta en el día anterior a su acreditación y queda marcado.
+  const tj=(p.tjMovs||[]).filter(m=>Number(m.abono)>0).slice().sort((a,b)=> a.fecha<b.fecha? -1 : a.fecha>b.fecha? 1 : (a.orden||0)-(b.orden||0));
+  for(const m of tj){ const imp=r2(Number(m.abono)); const tipo=concTipoLote(m.descripcion); const desde=addDays(m.fecha,-6);
+    const cand=declarados.filter(l=>!l.mov && Math.abs(l.importe-imp)<0.005 && l.fecha>=desde && l.fecha<=m.fecha).sort((a,b)=> ((b.tipo===tipo)-(a.tipo===tipo)) || (a.fecha<b.fecha? 1 : a.fecha>b.fecha? -1 : 0));
+    const ligado=cand[0]||null; if(ligado) ligado.mov=m; const d=D(ligado? ligado.fecha : addDays(m.fecha,-1));
+    d.lotes.push({ m, importe:imp, tipo, ligado }); d.banco.tarjetas=r2(d.banco.tarjetas+imp); }
+  for(const l of declarados) if(!l.mov) D(l.fecha).sinCaer.push(l);
+  const tope= p.fin<=p.hoy? addDays(p.fin,-1) : p.hoy<p.ini? null : p.hoy; const lista=[]; let acum=0;
+  const T={ disp:0, litros:0, cortes:0, banco:0, efectivo:0, tarjetas:0, clientes:0, camino:0, otros:0, sin:0, dias:0, mal:0, faltan:0, tol:0, alarma:null };
+  for(let f=p.ini; tope && f<=tope; f=addDays(f,1)){ const d=dias[f]||D(f); const n=d.cortes.length; const banco=r2(d.banco.efectivo+d.banco.tarjetas);
+    const cubEf=!!p.ultimoEf && p.ultimoEf>=addDays(f,CONC_PLAZO.efectivo), cubTj=!!p.ultimoTj && p.ultimoTj>=addDays(f,CONC_PLAZO.tarjetas);
+    const faltaEf=Math.max(0,r2(d.decl.efectivo-d.banco.efectivo)), faltaTj=Math.max(0,r2(d.decl.tarjetas-d.banco.tarjetas));
+    const caminoEf=cubEf?0:faltaEf, caminoTj=cubTj?0:faltaTj, camino=r2(caminoEf+caminoTj);
+    const sin=r2(banco+d.decl.clientes+camino-d.disp); const tol=tolC*Math.max(1,n);
+    const sinBanco=(!p.ultimoEf||p.ultimoEf<f) && (!p.ultimoTj||p.ultimoTj<f);
+    const estado= (!n && !banco)? 'nada' : !n? 'sincorte' : (sinBanco && camino>0.005)? 'pend' : Math.abs(sin)<=tol? (camino>tol? 'camino' : 'ok') : sin<0? 'falta' : 'sobra';
+    if(estado!=='nada'){ acum=r2(acum+sin); T.dias++; if(n) T.tol+=tol; if(estado==='falta') T.faltan++; if(estado==='falta'||estado==='sobra'||estado==='sincorte') T.mal++; }
+    T.disp=r2(T.disp+d.disp); T.litros+=d.litros; T.cortes+=n; T.banco=r2(T.banco+banco); T.efectivo=r2(T.efectivo+d.banco.efectivo); T.tarjetas=r2(T.tarjetas+d.banco.tarjetas);
+    T.clientes=r2(T.clientes+d.decl.clientes); T.camino=r2(T.camino+camino); T.sin=r2(T.sin+sin);
+    lista.push({ f, d, n, banco, camino, caminoEf, caminoTj, faltaEf, faltaTj, cubEf, cubTj, otros:r2(d.decl.clientes+camino), sin, tol, estado, acum }); }
+  T.otros=r2(T.clientes+T.camino);
+  // El total se marca cuando algún día quedó con faltante, o cuando la suma de diferencias chicas ya pasa de la tolerancia del periodo.
+  T.alarma= (T.faltan>0 && T.sin<-0.005) || T.sin<-Math.max(T.tol,tolC)? 'falta' : T.sin>Math.max(T.tol,tolC)? 'sobra' : null;
+  return { lista, T, tope };
+}
+// Lo que se necesita del servidor para un periodo. Se guarda un minuto en memoria: moverse entre días o vistas no vuelve a pedirlo ni parpadea.
+async function concCargar(est, ini, fin){
+  const k=est+'|'+ini+'|'+fin; const ya=CONC.cache[k]; if(ya && Date.now()-ya.t<60000) return ya.datos;
+  const cuentas=(await bancoCuentas()).filter(c=>c.estacionId===est); const idsEf=cuentas.filter(c=>c.uso!=='terminales').map(c=>c.id), idsTerm=cuentas.filter(c=>c.uso==='terminales').map(c=>c.id), idsTj=cuentas.map(c=>c.id);
+  const iniC=addDays(ini,-7), finT=addDays(fin,8);   // los lotes de tarjeta caen días después y se ligan con cortes de días antes
+  const cortes=await bancoTodo(()=>sb.from('cortes').select('id, fecha, turno, isla_id, estado, dinero, venta, totales, despachadores(nombre)').eq('estacion_id',est).eq('estado','enviado').gte('fecha',iniC).lt('fecha',fin).order('fecha'));
+  const ult=async ids=>{ if(!ids.length) return null; const u=await sel(sb.from('movimientos_bancarios').select('fecha').in('cuenta_id',ids).order('fecha',{ascending:false}).limit(1)); return u.length? u[0].fecha : null; };
+  let efMovs=[], tjMovs=[], reng=[], ultimoEf=null, ultimoTj=null;
+  if(idsEf.length){ efMovs=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, cuenta_id, orden, fecha, dia, tipo, abono, ticket_num, descripcion').in('cuenta_id',idsEf).in('tipo',BAN_EFECTIVO).gte('dia',iniC).lt('dia',fin).order('dia').order('orden'));
+    reng=(await bancoTodo(()=>sb.from('deposito_renglones').select('id, hoja_id, cuenta_id, orden, fecha_corte, importe, referencia, movimiento_id, ligado_por, banco_importe, banco_fecha, deposito_hojas(folio, cancelada_en)').in('cuenta_id',idsEf).gte('fecha_corte',addDays(ini,-45)).lt('fecha_corte',addDays(fin,45)).order('fecha_corte').order('orden'))).filter(g=>!(g.deposito_hojas&&g.deposito_hojas.cancelada_en));
+    ultimoEf=await ult(idsEf); }
+  if(idsTj.length){ tjMovs=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, cuenta_id, orden, fecha, tipo, abono, descripcion').in('cuenta_id',idsTj).eq('tipo','tarjetas').gte('fecha',iniC).lt('fecha',finT).order('fecha').order('orden'));
+    ultimoTj=await ult(idsTerm.length? idsTerm : idsTj); }
+  const datos={ cuentas, cortes, efMovs, tjMovs, reng, ultimoEf, ultimoTj }; CONC.cache[k]={ t:Date.now(), datos }; return datos;
+}
+const concMesDe = f => f.slice(0,7);
+async function concTraer(cont, ini, fin){   // carga con el símbolo de espera solo si hay que ir al servidor; devuelve null si no se pudo
+  const est=S.config.estacionId; const k=est+'|'+ini+'|'+fin; const fresca=CONC.cache[k] && Date.now()-CONC.cache[k].t<60000;
+  const espera= fresca? null : omEsperando(['Cargando cortes y banco…']); if(espera) cont.append(espera);
+  try{ const d=await concCargar(est, ini, fin); if(espera) espera.remove(); return d; }
+  catch(e){ if(espera) espera.remove(); cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return null; }
+}
+const concSigno = n => Math.abs(n)<0.005? fmtMXN(0) : (n<0?'−':'+')+fmtMXN(Math.abs(n));
+function concChip(x){
+  const c={ ok:()=>h('span',{class:'chip ok'}, ico('palomita',14),'Cuadra'), camino:()=>h('span',{class:'chip'},'En camino'), pend:()=>h('span',{class:'chip'},'Falta el banco'),
+    falta:()=>h('span',{class:'chip err'}, ico('alerta',14),'Faltan '+fmtMXN(Math.abs(x.sin))), sobra:()=>h('span',{class:'chip warn'}, ico('alerta',14),'Sobran '+fmtMXN(x.sin)),
+    sincorte:()=>h('span',{class:'chip warn'}, ico('alerta',14),'Sin corte'), nada:()=>h('span',{class:'small muted'},'Sin datos') };
+  return (c[x.estado]||c.nada)();
+}
+function concTotales(T, id){
+  const etq= T.alarma==='falta'? 'Falta sin explicar' : T.alarma==='sobra'? 'Sobra sin explicar' : 'Sin explicar';
+  return h('div',{class:'tot b-tot cn-tot',id,style:'margin-top:14px;--n:4'}, bancoDato('Marcó el dispensario',fmtMXN(T.disp)), bancoDato('Cayó en bancos',fmtMXN(T.banco)), bancoDato('Clientes y en camino',fmtMXN(T.otros)), bancoDato(etq, T.alarma? fmtMXN(Math.abs(T.sin)) : concSigno(T.sin), T.alarma==='falta'?'neg':''));
+}
+function concHasta(datos, id){
+  const p=[]; if(datos.ultimoEf) p.push('efectivo hasta el '+fmtFecha(datos.ultimoEf)); if(datos.ultimoTj) p.push('tarjetas hasta el '+fmtFecha(datos.ultimoTj));
+  return h('p',{class:'small muted',id,style:'margin:10px 0 0'}, p.length? 'Banco subido: '+p.join(' · ')+'. Lo que todavía no puede verse en el banco se cuenta como "en camino", no como faltante.' : 'Todavía no hay movimientos del banco de esta estación: todo lo declarado aparece como "en camino".');
+}
+// La tabla por día de Acumulado e Histórico. Tocar un día lo abre en Diaria.
+function concTabla(res, id){
+  const list=h('div',{class:'list b-tabla cn',id,style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Día'), h('span',{class:'r'},'Dispensario'), h('span',{class:'r'},'En bancos'), h('span',{class:'r'},'Clientes y en camino'), h('span',{class:'r'},'Sin explicar'), h('span',{class:'r'},'Acumulado'), h('span',{},'')));
+  const pesos=(n,l,apagado)=>h('span',{class:'r'+(apagado?' nada':''),'data-l':l}, n==null? '—' : fmtMXN(n));
+  const dif=(n,l,rojo)=>h('span',{class:'r'+(n==null||Math.abs(n)<0.005?' nada':rojo?' neg':''),'data-l':l}, n==null? '—' : concSigno(n));
+  for(const x of res.lista.slice().reverse()){ const vacio=x.estado==='nada';
+    const fila=h('div',{class:'item b-fila'+(vacio?' fija':''),'data-dia':x.f,role:vacio?null:'button',tabindex:vacio?null:'0','aria-label':vacio?null:'Ver el desglose del '+fmtFecha(x.f)},
+      h('span',{class:'b-dia'}, h('b',{},fmtFecha(x.f)), x.n? h('span',{class:'small muted'}, `${x.n} ${x.n===1?'corte':'cortes'}`) : null),
+      pesos(x.n? x.d.disp : null,'Dispensario',!x.n), pesos(vacio? null : x.banco,'En bancos',!x.banco), pesos(vacio? null : x.otros,'Clientes y en camino',!x.otros),
+      dif(vacio? null : x.sin,'Sin explicar', x.estado==='falta'), dif(vacio? null : x.acum,'Acumulado', false), h('span',{class:'b-est'}, concChip(x)));
+    if(!vacio){ const ir=()=>{ CONC.dia=x.f; CONC.abre=null; adminTab='cdia'; render(); }; fila.addEventListener('click',ir); fila.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); ir(); } }); }
+    list.append(fila); }
+  return list;
+}
+function concSinNada(res, texto){ return (!res.T.cortes && !res.T.banco)? h('div',{style:'margin-top:14px'}, bancoVacio('No hay cortes ni depósitos en este periodo', texto)) : null; }
+// Conciliación ▸ Acumulado: lo que va del mes.
+async function concAcumulado(){
+  const hoy=nowMX().fecha, mes=concMesDe(hoy), ini=mes+'-01', fin=logMesMas(mes,1)+'-01';
+  const cont=h('div',{}); app.append(cont); const datos=await concTraer(cont, ini, fin); if(!datos) return;
+  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50 }, datos));
+  cont.append(h('p',{class:'cn-per',id:'ca-per'}, h('b',{},logMes(mes)), h('span',{class:'small muted'}, res.tope? `del 1 al ${Number(res.tope.slice(8))}` : '')), concTotales(res.T,'ca-tot'), concHasta(datos,'ca-hasta'));
+  cont.append(concSinNada(res,'Cuando haya cortes enviados de este mes, aquí aparece cada día con lo que marcó el dispensario y lo que cayó en bancos.') || concTabla(res,'ca-lista'));
+}
+// Conciliación ▸ Histórico: otro mes, o fechas específicas (hasta 92 días).
+async function concHistorico(){
+  const hoy=nowMX().fecha; if(!CONC.mes) CONC.mes=logMesMas(concMesDe(hoy),-1);
+  const cont=h('div',{}); app.append(cont);
+  const modo=h('div',{class:'tabs cn-modo',role:'group','aria-label':'Periodo'}, ...[['mes','Por mes'],['fechas','Por fechas']].map(([k,l])=>h('button',{id:'ch-modo-'+k,class:CONC.modo===k?'on':'','aria-pressed':String(CONC.modo===k),onclick:()=>{ if(CONC.modo===k) return; CONC.modo=k; render(); }},l)));
+  cont.append(modo);
+  let ini, fin;
+  if(CONC.modo==='mes'){ const ir=d=>()=>{ CONC.mes=logMesMas(CONC.mes,d); render(); };
+    cont.append(h('div',{class:'per-nav'}, h('button',{class:'btn sm',id:'ch-ant',title:'Mes anterior','aria-label':'Mes anterior',onclick:ir(-1)},'‹'), h('b',{id:'ch-mes'},logMes(CONC.mes)), h('button',{class:'btn sm',id:'ch-sig',title:'Mes siguiente','aria-label':'Mes siguiente',disabled:CONC.mes>=concMesDe(hoy),onclick:ir(1)},'›')));
+    ini=CONC.mes+'-01'; fin=logMesMas(CONC.mes,1)+'-01'; }
+  else{ const del=h('input',{type:'date',id:'ch-del',value:CONC.del||'',max:hoy,'aria-label':'Del'}), al=h('input',{type:'date',id:'ch-al',value:CONC.al||'',max:hoy,'aria-label':'Al'});
+    const aviso=h('p',{class:'small',id:'ch-aviso',style:'color:var(--err);margin:6px 0 0',hidden:true});
+    const ver=()=>{ const a=del.value, b=al.value; let m=''; if(!a||!b) m='Elige las dos fechas.'; else if(b<a) m='La segunda fecha va después de la primera.'; else if(addDays(a,92)<b) m='El periodo puede ser de hasta 92 días.';
+      if(m){ aviso.textContent=m; aviso.hidden=false; return; } CONC.del=a; CONC.al=b; render(); };
+    cont.append(h('div',{class:'cn-fechas'}, h('label',{}, h('span',{class:'small muted'},'Del'), del), h('label',{}, h('span',{class:'small muted'},'Al'), al), h('button',{class:'btn primary',id:'ch-ver',onclick:ver},'Ver periodo')), aviso);
+    if(!CONC.del||!CONC.al){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Elige de qué fecha a qué fecha','Sirve para revisar una semana, una quincena o los días de un problema en particular.'))); return; }
+    ini=CONC.del; fin=addDays(CONC.al,1); }
+  const datos=await concTraer(cont, ini, fin); if(!datos) return;
+  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50 }, datos));
+  cont.append(concTotales(res.T,'ch-tot'), concHasta(datos,'ch-hasta'));
+  cont.append(concSinNada(res,'Prueba con otro mes u otras fechas.') || concTabla(res,'ch-lista'));
+}
+// Conciliación ▸ Diaria: un día con su desglose. La barra reparte lo que marcó el dispensario.
+async function concDiaria(){
+  const hoy=nowMX().fecha; if(!CONC.dia || CONC.dia>hoy) CONC.dia=addDays(hoy,-1);
+  const f=CONC.dia, mes=concMesDe(f), ini=mes+'-01', fin=logMesMas(mes,1)+'-01';
+  const cont=h('div',{}); app.append(cont);
+  const ir=n=>()=>{ CONC.dia=addDays(f,n); CONC.abre=null; render(); };
+  const fecha=h('input',{type:'date',id:'cd-fecha',value:f,max:hoy,'aria-label':'Ir a una fecha',onchange:e=>{ if(e.target.value && e.target.value<=hoy){ CONC.dia=e.target.value; CONC.abre=null; render(); } }});
+  cont.append(h('div',{class:'per-nav cn-dianav'}, h('button',{class:'btn sm',id:'cd-ant',title:'Día anterior','aria-label':'Día anterior',onclick:ir(-1)},'‹'), h('b',{id:'cd-dia'},fmtFechaLarga(f)), h('button',{class:'btn sm',id:'cd-sig',title:'Día siguiente','aria-label':'Día siguiente',disabled:f>=hoy,onclick:ir(1)},'›'), fecha));
+  const datos=await concTraer(cont, ini, fin); if(!datos) return;
+  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50 }, datos)); const x=res.lista.find(y=>y.f===f);
+  if(!x || x.estado==='nada'){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('No hay cortes ni depósitos de este día', f===hoy? 'Los cortes de hoy aparecen conforme se envían.' : 'Elige otro día con las flechas o con la fecha.'))); return; }
+  const d=x.d; const T={ disp:d.disp, banco:x.banco, otros:x.otros, sin:x.sin, alarma: x.estado==='falta'? 'falta' : (x.estado==='sobra'||x.estado==='sincorte')? 'sobra' : null };
+  cont.append(h('div',{class:'cn-estado',id:'cd-estado'}, concChip(x), h('span',{class:'small muted'}, x.estado==='ok'? `Dentro de la tolerancia de ${fmtMXN(x.tol)} (${x.n} ${x.n===1?'corte':'cortes'}).` : x.estado==='pend'? 'Sube los movimientos del banco de este día para compararlo.' : x.estado==='camino'? 'Lo que falta todavía está dentro de su plazo para caer.' : x.estado==='sincorte'? 'Cayó dinero al banco y no hay cortes enviados de este día.' : `Pasa de la tolerancia de ${fmtMXN(x.tol)}.`)));
+  cont.append(concTotales(T,'cd-tot'));
+  // La barra del día: de izquierda a derecha, lo más seguro primero.
+  const partes=[['ef','Efectivo en banco',d.banco.efectivo],['tj','Tarjetas en banco',d.banco.tarjetas],['cl','Clientes marcados',d.decl.clientes],['ca','En camino',x.camino],['si','Sin explicar', x.estado==='falta'? -x.sin : 0]].filter(p=>p[2]>0.005);
+  const base=Math.max(d.disp, partes.reduce((s,p)=>s+p[2],0))||1;
+  cont.append(h('div',{class:'cn-barra',id:'cd-barra',role:'img','aria-label':'Reparto de lo que marcó el dispensario: '+partes.map(p=>`${p[1]} ${fmtMXN(p[2])}`).join(', ')}, ...partes.map(p=>h('i',{class:p[0],style:`width:${(p[2]/base*100).toFixed(2)}%`}))),
+    h('div',{class:'cn-ley',id:'cd-ley'}, ...partes.map(p=>h('span',{}, h('i',{class:p[0]}), p[1], h('b',{},fmtMXN(p[2]))))));
+  // El desglose: cada renglón se abre y enseña sus piezas.
+  const isla=id=>((S.config.islas||[]).find(i=>i.uuid===id)||{}).nombre||'Isla'; const cta=id=>(datos.cuentas.find(c=>c.id===id)||{}).alias||'';
+  const list=h('div',{class:'list b-tabla cn dia',id:'cd-lista',style:'margin-top:18px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'De dónde sale'), h('span',{class:'r'},'Según los cortes'), h('span',{class:'r'},'En el banco'), h('span',{},'')));
+  const nota=(decl, banco, camino, cubierto, queEs)=>{ const dif=Math.round((banco-decl)*100)/100; if(Math.abs(dif)<0.005) return decl>0? ['Completo',''] : ['Nada declarado',''];
+    if(dif>0) return ['Cayó de más: '+fmtMXN(dif),'']; if(camino>0.005) return [(cubierto? 'Faltan ' : 'En camino: ')+fmtMXN(camino),'']; return ['Faltan '+fmtMXN(-dif),'neg']; };
+  const fila=(k, etq, decl, banco, n, piezas)=>{ const abierto=CONC.abre===k; const puede=!!piezas;
+    const r=h('div',{class:'item b-fila'+(abierto?' abierta':'')+(puede?'':' fija'),'data-k':k,role:puede?'button':null,tabindex:puede?'0':null,'aria-expanded':puede?String(abierto):null},
+      h('b',{},etq), h('span',{class:'r'+(decl==null?' nada':''),'data-l':'Según los cortes'}, decl==null? '—' : fmtMXN(decl)), h('span',{class:'r'+(banco==null?' nada':''),'data-l':'En el banco'}, banco==null? '—' : fmtMXN(banco)), h('span',{class:'cn-nota '+(n[1]||'')}, n[0]));
+    if(puede){ const abrir=()=>{ CONC.abre=abierto?null:k; render(); }; r.addEventListener('click',abrir); r.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abrir(); } }); }
+    list.append(r); if(abierto && piezas) list.append(h('div',{class:'b-det cn-det',id:'cd-det'}, ...piezas())); };
+  const ln=(a,b,v,cls)=>h('div',{class:'ln'+(cls?' '+cls:'')}, h('span',{}, h('span',{},a), b? h('span',{class:'small muted'},b) : null), h('b',{},v));
+  const vacioTxt=t=>h('p',{class:'small muted',style:'margin:0'},t);
+  fila('disp','Marcó el dispensario', d.disp, null, [`${fmtL(d.litros)} L y aceites · ${x.n} ${x.n===1?'corte':'cortes'}`,''], ()=>[
+    h('div',{}, h('h4',{},'Cortes del día'), ...d.cortes.map(({c,venta})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''), venta==null? '—' : fmtMXN(venta)))),
+    h('div',{}, h('h4',{},'Lo que declaró cada corte'), ...d.cortes.map(({c,t,dif})=>ln(isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0], dif==null||Math.abs(dif)<0.005? 'Cuadra con su venta' : (dif<0? 'Le faltaron ' : 'Le sobraron ')+fmtMXN(Math.abs(dif)), fmtMXN(t.declarado)))) ]);
+  fila('ef','Efectivo', d.decl.efectivo, d.banco.efectivo, nota(d.decl.efectivo, d.banco.efectivo, x.caminoEf, x.cubEf), ()=>[
+    h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,t})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''), fmtMXN(t.efectivo))) : [vacioTxt('No hay cortes enviados de este día.')])),
+    h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const g=m.aviso; const sub=[datos.cuentas.length>1? cta(m.cuenta_id) : null, m.fecha && m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null, g&&g.ligado_por==='numero'? 'ligado por número' : g&&g.ligado_por&&g.ligado_por!=='referencia'? 'ligado por cantidad, sin referencia' : null].filter(Boolean).join(' · ');
+        return ln(g? `Depósito con hoja ${g.deposito_hojas?g.deposito_hojas.folio:''}` : m.ticket_num? 'Ticket '+m.ticket_num : (m.descripcion||'Depósito'), sub, fmtMXN(m.abono)); }) : [vacioTxt(x.cubEf? 'No cayó ningún depósito de este día.' : 'Todavía no se ve ningún depósito de este día.')]),
+      ...d.avisos.map(g=>ln('Avisado, sin caer', `Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}`, fmtMXN(g.importe), 'avisado'))) ]);
+  fila('tj','Tarjetas', d.decl.tarjetas, d.banco.tarjetas, nota(d.decl.tarjetas, d.banco.tarjetas, x.caminoTj, x.cubTj), ()=>[
+    h('div',{}, h('h4',{},'Lotes declarados en los cortes'), ...(()=>{ const ls=[]; for(const {c} of d.cortes){ const det=(c.dinero&&c.dinero.tarjetas&&Array.isArray(c.dinero.tarjetas.detalle))? c.dinero.tarjetas.detalle : []; for(const v of det) if(Number(v.importe)>0) ls.push(ln(`${v.terminal||'Terminal'} · ${v.tipo||''}`, isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0], fmtMXN(v.importe))); } return ls.length? ls : [vacioTxt('Ningún corte declaró tarjetas.')]; })()),
+    h('div',{}, h('h4',{},'Acreditado por el banco'), ...(d.lotes.length? d.lotes.map(l=>ln((t=>t? t[0]+t.slice(1).toLowerCase() : 'Lote '+l.tipo.toLowerCase())((l.m.descripcion||'').split('/')[0].trim()), ['acreditado el '+fmtFecha(l.m.fecha), l.ligado? null : 'sin lote declarado igual: contado por fecha'].filter(Boolean).join(' · '), fmtMXN(l.importe))) : [vacioTxt(x.cubTj? 'El banco no acreditó ningún lote de este día.' : 'Todavía no se ve ningún lote de este día.')]),
+      ...d.sinCaer.map(l=>ln('Declarado, sin caer', `${l.terminal||'Terminal'} · ${l.tipo||''}`, fmtMXN(l.importe), 'avisado'))) ]);
+  const clientes=[]; for(const {c} of d.cortes) for(const cl of (c.dinero&&c.dinero.clientes)||[]) if(Number(cl.importe)>0) clientes.push({ cl, c });
+  fila('cli','Clientes marcados', d.decl.clientes, null, [clientes.length? 'Declarado, sin comprobar' : 'Ninguno', ''], clientes.length? ()=>[
+    h('div',{}, h('h4',{},'Clientes que marcaron los despachadores'), ...clientes.map(({cl,c})=>ln(cl.nombre||'Cliente', isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0]+(cl.otro? ' · otro' : ''), fmtMXN(cl.importe)))),
+    h('div',{}, h('h4',{},'Por qué no se comprueba'), vacioTxt('Todavía no hay cuenta de clientes en OwnManager: este importe es lo que escribió el despachador. Crédito, prepago, vales, jarreo y autoconsumo entran aquí.')) ] : null);
+  const conDif=d.cortes.filter(z=>z.dif!=null && Math.abs(z.dif)>0.005).length;
+  fila('dif','Diferencia de los cortes', d.difCortes, null, [conDif? `${conDif} ${conDif===1?'corte':'cortes'} con diferencia` : 'Ningún corte con diferencia', d.difCortes<-x.tol?'neg':''], null);
+  list.querySelector('[data-k="dif"] .r').textContent=concSigno(d.difCortes);
+  list.append(h('div',{class:'item b-fila fija cn-fin',id:'cd-fin'}, h('b',{}, x.estado==='falta'? 'Falta sin explicar' : (x.estado==='sobra'||x.estado==='sincorte')? 'Sobra sin explicar' : 'Sin explicar'), h('span',{class:'r'+(x.estado==='falta'?' neg':''),id:'cd-sin'}, concSigno(x.sin))));
+  cont.append(list, concHasta(datos,'cd-hasta'));
 }
 
 // ---- BANCOS ▸ Depósito manual (19-nov-2026)
@@ -5799,7 +5983,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, CONC }; // solo para la prueba de humo
 boot();
 })();
 </script>
