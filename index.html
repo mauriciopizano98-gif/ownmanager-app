@@ -1329,7 +1329,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.13.0';
+const OM_VERSION='2.14.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -4639,10 +4639,14 @@ async function adminClientes(){
       h('button',{class:'btn primary block',id:'cm-cuenta-guardar',onclick:async()=>{ const dig=inp.value.replace(/\D/g,''); if(dig && dig.length<12){ toast('La cuenta tiene al menos 12 dígitos.'); return; } const c12=dig? dig.slice(0,12) : null;
         if(c12 && c.clientesMarcados.some(y=>y!==x && y.cuenta===c12)){ aviso('Esa cuenta ya es de '+c.clientesMarcados.find(y=>y!==x && y.cuenta===c12).nombre+'.','err'); return; }
         const antes=x.cuenta; if(c12) x.cuenta=c12; else delete x.cuenta; try{ await guardaCm(); sh.remove(); toast(c12? 'Cuenta guardada.' : 'Cuenta quitada.'); drawCm(); }catch(e){ if(antes) x.cuenta=antes; else delete x.cuenta; aviso('No se guardó: '+(e.message||e.code),'err'); } }},'Guardar'))); document.body.append(sh); inp.focus(); };
+  const pedirTipo=x=>{ const sh=h('div',{class:'sheet',id:'cm-tipo-hoja',onclick:e=>{ if(e.target===sh) sh.remove(); }}); const pon=async t=>{ const antes=x.tipo; if(t) x.tipo=t; else delete x.tipo; try{ await guardaCm(); CONC.cache={}; sh.remove(); toast(t? 'Tipo guardado.' : 'Quedó sin tipo.'); drawCm(); }catch(e){ if(antes) x.tipo=antes; else delete x.tipo; aviso('No se guardó: '+(e.message||e.code),'err'); } };
+    sh.append(h('div',{class:'in stack'}, h('h3',{},'Tipo de '+x.nombre), h('p',{class:'small muted',style:'margin:0'},'Le dice a Conciliación qué pasa con lo que consume este cliente.'),
+      h('div',{class:'list'}, ...CLI_TIPOS.map(t=>h('div',{class:'item'+(x.tipo===t[0]?' on':''),role:'button',tabindex:'0','data-tipo':t[0],'aria-pressed':String(x.tipo===t[0]),onclick:()=>pon(t[0]),onkeydown:e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pon(t[0]); } }}, h('div',{class:'l'}, h('b',{},t[1]), h('span',{class:'small muted'},t[2]+'. En Conciliación sale como “'+t[3]+'”.')), x.tipo===t[0]? h('span',{class:'chip ok'}, ico('palomita',14),'Elegido') : null))),
+      x.tipo? h('button',{class:'btn ghost block',id:'cm-tipo-quitar',onclick:()=>pon(null)},'Dejar sin tipo') : null)); document.body.append(sh); };
   const cmList=h('div',{class:'list'}); const drawCm=()=>{ cmList.innerHTML=''; if(!c.clientesMarcados.length) cmList.append(h('p',{class:'hint'},'Todavía no hay clientes marcados.'));
-    c.clientesMarcados.forEach((x,i)=>cmList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},x.nombre),h('span',{class:'small muted'},(x.activo===false?'Inactivo':'Activo')+(x.cuenta?' · cuenta '+x.cuenta:' · sin cuenta para tickets'))),h('div',{class:'row'},h('button',{class:'btn sm','data-cuenta':x.id||x.nombre,onclick:()=>pedirCuenta(x)},'Cuenta'),h('button',{class:'btn sm',onclick:async()=>{ x.activo=!(x.activo!==false); await guardaCm(); drawCm(); }},x.activo===false?'Activar':'Desactivar'),h('button',{class:'btn sm ghost danger',onclick:async()=>{ c.clientesMarcados.splice(i,1); await guardaCm(); drawCm(); }},'Quitar'))))); };
+    c.clientesMarcados.forEach((x,i)=>cmList.append(h('div',{class:'item',style:'cursor:default'},h('div',{class:'l'},h('b',{},x.nombre),h('span',{class:'small muted'},(x.activo===false?'Inactivo':'Activo')+' · '+(cliTipo(x.tipo)? cliTipo(x.tipo)[1]+' ('+cliTipo(x.tipo)[2].toLowerCase()+')' : 'sin tipo')+(x.cuenta?' · cuenta '+x.cuenta:' · sin cuenta para tickets'))),h('div',{class:'row'},h('button',{class:'btn sm','data-tipo-de':x.id||x.nombre,onclick:()=>pedirTipo(x)},'Tipo'),h('button',{class:'btn sm','data-cuenta':x.id||x.nombre,onclick:()=>pedirCuenta(x)},'Cuenta'),h('button',{class:'btn sm',onclick:async()=>{ x.activo=!(x.activo!==false); await guardaCm(); drawCm(); }},x.activo===false?'Activar':'Desactivar'),h('button',{class:'btn sm ghost danger',onclick:async()=>{ c.clientesMarcados.splice(i,1); await guardaCm(); drawCm(); }},'Quitar'))))); };
   drawCm();
-  app.append(h('div',{class:'card stack'}, h('p',{class:'small muted'},'Clientes que cargan a cuenta; aparecen en la lista de "Clientes" del corte.'),
+  app.append(h('div',{class:'card stack'}, h('p',{class:'small muted'},'Clientes que cargan a cuenta; aparecen en la lista de "Clientes" del corte. El tipo separa en Conciliación lo que está por cobrar, lo que ya estaba pagado y lo que no es dinero.'),
     h('div',{class:'grid2'},nuevaC,h('button',{class:'btn primary',onclick:async()=>{ const n=nuevaC.value.trim(); if(!n||c.clientesMarcados.some(x=>x.nombre.toLowerCase()===n.toLowerCase())) return; c.clientesMarcados.push({id:'cm-'+uid().slice(-8),nombre:n,activo:true}); try{ await guardaCm(); }catch(e){ aviso('No se guardó: '+(e.message||e.code),'err'); c.clientesMarcados.pop(); return; } nuevaC.value=''; drawCm(); }},'Agregar')), cmList));
 }
 // vista: 'terminales' (solo esa sección) o 'ajustes' (identidad, alertas, islas y orden, integridad).
@@ -5421,14 +5425,22 @@ async function bancoEfectivo(){
 // Lo calcula la app con lo ya guardado (cortes enviados y movimientos del banco); no escribe nada.
 const CONC={ dia:null, mes:null, modo:'mes', del:'', al:'', abre:null, cache:{} };
 const CONC_PLAZO={ efectivo:6, tarjetas:4 };   // días que puede tardar en verse en el banco: recolección de valores hasta 6; tarjetas, fin de semana largo
+// Tipo de cada cliente marcado (Configuración ▸ Clientes marcados): dice si su consumo está por cobrarse, ya estaba pagado o no es dinero.
+const CLI_TIPOS=[['credito','Crédito','Se le cobra después','Por cobrar'],['prepago','Prepago','Pagó por adelantado','Descontado de anticipos'],['autoconsumo','Autoconsumo','Vehículos de la empresa','No es dinero: consumo propio'],['jarreo','Jarreo','Producto que regresa al tanque','No es dinero: regresa al tanque']];
+const cliTipo = t => CLI_TIPOS.find(x=>x[0]===t)||null;
+const concTiposDe = lista => { const m={}; for(const x of lista||[]) if(x.tipo && cliTipo(x.tipo)){ if(x.id) m['id:'+x.id]=x.tipo; m['n:'+String(x.nombre||'').trim().toLowerCase()]=x.tipo; } return m; };
+const concEnMano = d => BILLETES.reduce((t,b)=>t+b*(Number(d&&d.efectivo&&d.efectivo.extra&&d.efectivo.extra.billetes&&d.efectivo.extra.billetes[b])||0),0) + MONEDAS.reduce((t,m)=>t+m*(Number(d&&d.efectivo&&d.efectivo.extra&&d.efectivo.extra.monedas&&d.efectivo.extra.monedas[m])||0),0);
+const concHabil = f => { let g=addDays(f,1); for(;;){ const w=new Date(g+'T12:00:00Z').getUTCDay(); if(w!==0 && w!==6) return g; g=addDays(g,1); } };   // siguiente día hábil (sin festivos)
 const concTipoLote = desc => /DEBITO|[0-9]D\s*$/i.test(desc||'')? 'Débito' : 'Crédito';   // BBVA: VENTAS DEBITO / CREDITO / TDC INTER / AMEX; Banorte: termina en C o D
-// Cálculo puro (lo usan las tres vistas y las pruebas). p: { ini, fin, hoy, cortes, efMovs, tjMovs, reng, ultimoEf, ultimoTj, tolCorte }
+// Cálculo puro (lo usan las tres vistas y las pruebas). p: { ini, fin, hoy, cortes, efMovs, tjMovs, reng, ultimoEf, ultimoTj, ultimoCaj, tipos, tolCorte }
+// ultimoCaj: último día subido de la cuenta donde cae el cajero (si la estación tiene cajero). tipos: mapa de concTiposDe().
 function concCalcular(p){
   const r2=n=>Math.round(n*100)/100; const tolC=p.tolCorte??50; const dias={};
-  const D=f=>dias[f]||(dias[f]={ f, cortes:[], deps:[], lotes:[], avisos:[], sinCaer:[], disp:0, litros:0, decl:{efectivo:0,tarjetas:0,clientes:0}, banco:{efectivo:0,tarjetas:0}, difCortes:0 });
+  const D=f=>dias[f]||(dias[f]={ f, cortes:[], deps:[], lotes:[], avisos:[], sinCaer:[], disp:0, litros:0, decl:{efectivo:0,tarjetas:0,clientes:0}, banco:{efectivo:0,tarjetas:0}, difCortes:0, mano:0, cli:{credito:0,prepago:0,autoconsumo:0,jarreo:0,sin:0} });
   const declarados=[];
   for(const c of p.cortes||[]){ const t=calcDinero(c.dinero||{}); const venta=c.venta&&c.venta.importe!=null? Number(c.venta.importe) : null; const d=D(c.fecha);
-    const x={ c, venta, t, dif: venta==null? null : r2(t.declarado-venta) }; d.cortes.push(x); d.disp=r2(d.disp+(venta||0)); d.litros+=Number(c.totales&&c.totales.litros)||0;
+    const mano=r2(concEnMano(c.dinero||{})); const x={ c, venta, t, mano, dif: venta==null? null : r2(t.declarado-venta) }; d.cortes.push(x); d.mano=r2(d.mano+mano);
+    for(const cl of (c.dinero&&c.dinero.clientes)||[]){ const imp=Number(cl.importe)||0; if(imp<=0) continue; const tp=(p.tipos&&(p.tipos['id:'+cl.id]||(!cl.otro&&p.tipos['n:'+String(cl.nombre||'').trim().toLowerCase()])))||'sin'; d.cli[tp]=r2(d.cli[tp]+imp); } d.disp=r2(d.disp+(venta||0)); d.litros+=Number(c.totales&&c.totales.litros)||0;
     d.decl.efectivo=r2(d.decl.efectivo+t.efectivo); d.decl.tarjetas=r2(d.decl.tarjetas+t.tarjetas); d.decl.clientes=r2(d.decl.clientes+t.clientes); d.difCortes=r2(d.difCortes+(x.dif||0));
     const det=(c.dinero&&c.dinero.tarjetas&&Array.isArray(c.dinero.tarjetas.detalle))? c.dinero.tarjetas.detalle : [];
     for(const v of det){ const imp=r2(Number(v.importe)||0); if(imp>0) declarados.push({ corte:c, fecha:c.fecha, terminal:v.terminal, tipo:v.tipo, importe:imp, mov:null }); } }
@@ -5449,16 +5461,19 @@ function concCalcular(p){
   const tope= p.fin<=p.hoy? addDays(p.fin,-1) : p.hoy<p.ini? null : p.hoy; const lista=[]; let acum=0;
   const T={ disp:0, litros:0, cortes:0, banco:0, efectivo:0, tarjetas:0, clientes:0, camino:0, otros:0, sin:0, dias:0, mal:0, faltan:0, tol:0, alarma:null };
   for(let f=p.ini; tope && f<=tope; f=addDays(f,1)){ const d=dias[f]||D(f); const n=d.cortes.length; const banco=r2(d.banco.efectivo+d.banco.tarjetas);
-    const cubEf=!!p.ultimoEf && p.ultimoEf>=addDays(f,CONC_PLAZO.efectivo), cubTj=!!p.ultimoTj && p.ultimoTj>=addDays(f,CONC_PLAZO.tarjetas);
+    // Efectivo: lo depositado en el turno y lo declarado "en mano" tienen plazos distintos. Con cajero, lo depositado se acredita al siguiente día hábil:
+    // ya debe verse cuando el banco está subido más allá de ese día. Lo en mano (y todo, donde hay recolección) tiene hasta 6 días.
+    const cubMano=!!p.ultimoEf && p.ultimoEf>=addDays(f,CONC_PLAZO.efectivo), cubEf= p.ultimoCaj? p.ultimoCaj>concHabil(f) : cubMano, cubTj=!!p.ultimoTj && p.ultimoTj>=addDays(f,CONC_PLAZO.tarjetas);
     const faltaEf=Math.max(0,r2(d.decl.efectivo-d.banco.efectivo)), faltaTj=Math.max(0,r2(d.decl.tarjetas-d.banco.tarjetas));
-    const caminoEf=cubEf?0:faltaEf, caminoTj=cubTj?0:faltaTj, camino=r2(caminoEf+caminoTj);
+    const faltaDep=Math.min(faltaEf, Math.max(0,r2(d.decl.efectivo-d.mano-d.banco.efectivo))), faltaMano=r2(faltaEf-faltaDep);
+    const caminoEf=r2((cubEf?0:faltaDep)+(cubMano?0:faltaMano)), caminoTj=cubTj?0:faltaTj, camino=r2(caminoEf+caminoTj);
     const sin=r2(banco+d.decl.clientes+camino-d.disp); const tol=tolC*Math.max(1,n);
     const sinBanco=(!p.ultimoEf||p.ultimoEf<f) && (!p.ultimoTj||p.ultimoTj<f);
     const estado= (!n && !banco)? 'nada' : !n? 'sincorte' : (sinBanco && camino>0.005)? 'pend' : Math.abs(sin)<=tol? (camino>tol? 'camino' : 'ok') : sin<0? 'falta' : 'sobra';
     if(estado!=='nada'){ acum=r2(acum+sin); T.dias++; if(n) T.tol+=tol; if(estado==='falta') T.faltan++; if(estado==='falta'||estado==='sobra'||estado==='sincorte') T.mal++; }
     T.disp=r2(T.disp+d.disp); T.litros+=d.litros; T.cortes+=n; T.banco=r2(T.banco+banco); T.efectivo=r2(T.efectivo+d.banco.efectivo); T.tarjetas=r2(T.tarjetas+d.banco.tarjetas);
     T.clientes=r2(T.clientes+d.decl.clientes); T.camino=r2(T.camino+camino); T.sin=r2(T.sin+sin);
-    lista.push({ f, d, n, banco, camino, caminoEf, caminoTj, faltaEf, faltaTj, cubEf, cubTj, otros:r2(d.decl.clientes+camino), sin, tol, estado, acum }); }
+    lista.push({ f, d, n, banco, camino, caminoEf, caminoTj, faltaEf, faltaTj, faltaDep, faltaMano, cubEf, cubMano, cubTj, otros:r2(d.decl.clientes+camino), sin, tol, estado, acum }); }
   T.otros=r2(T.clientes+T.camino);
   // El total se marca cuando algún día quedó con faltante, o cuando la suma de diferencias chicas ya pasa de la tolerancia del periodo.
   T.alarma= (T.faltan>0 && T.sin<-0.005) || T.sin<-Math.max(T.tol,tolC)? 'falta' : T.sin>Math.max(T.tol,tolC)? 'sobra' : null;
@@ -5471,13 +5486,13 @@ async function concCargar(est, ini, fin){
   const iniC=addDays(ini,-7), finT=addDays(fin,8);   // los lotes de tarjeta caen días después y se ligan con cortes de días antes
   const cortes=await bancoTodo(()=>sb.from('cortes').select('id, fecha, turno, isla_id, estado, dinero, venta, totales, despachadores(nombre)').eq('estacion_id',est).eq('estado','enviado').gte('fecha',iniC).lt('fecha',fin).order('fecha'));
   const ult=async ids=>{ if(!ids.length) return null; const u=await sel(sb.from('movimientos_bancarios').select('fecha').in('cuenta_id',ids).order('fecha',{ascending:false}).limit(1)); return u.length? u[0].fecha : null; };
-  let efMovs=[], tjMovs=[], reng=[], ultimoEf=null, ultimoTj=null;
+  let efMovs=[], tjMovs=[], reng=[], ultimoEf=null, ultimoTj=null, ultimoCaj=null;
   if(idsEf.length){ efMovs=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, cuenta_id, orden, fecha, dia, tipo, abono, ticket_num, descripcion').in('cuenta_id',idsEf).in('tipo',BAN_EFECTIVO).gte('dia',iniC).lt('dia',fin).order('dia').order('orden'));
     reng=(await bancoTodo(()=>sb.from('deposito_renglones').select('id, hoja_id, cuenta_id, orden, fecha_corte, importe, referencia, movimiento_id, ligado_por, banco_importe, banco_fecha, deposito_hojas(folio, cancelada_en)').in('cuenta_id',idsEf).gte('fecha_corte',addDays(ini,-45)).lt('fecha_corte',addDays(fin,45)).order('fecha_corte').order('orden'))).filter(g=>!(g.deposito_hojas&&g.deposito_hojas.cancelada_en));
-    ultimoEf=await ult(idsEf); }
+    ultimoEf=await ult(idsEf); const caj=[...new Set(efMovs.filter(m=>m.tipo==='efectivo_cajero').map(m=>m.cuenta_id))]; if(caj.length) ultimoCaj=await ult(caj); }
   if(idsTj.length){ tjMovs=await bancoTodo(()=>sb.from('movimientos_bancarios').select('id, cuenta_id, orden, fecha, tipo, abono, descripcion').in('cuenta_id',idsTj).eq('tipo','tarjetas').gte('fecha',iniC).lt('fecha',finT).order('fecha').order('orden'));
     ultimoTj=await ult(idsTerm.length? idsTerm : idsTj); }
-  const datos={ cuentas, cortes, efMovs, tjMovs, reng, ultimoEf, ultimoTj }; CONC.cache[k]={ t:Date.now(), datos }; return datos;
+  const datos={ cuentas, cortes, efMovs, tjMovs, reng, ultimoEf, ultimoTj, ultimoCaj }; CONC.cache[k]={ t:Date.now(), datos }; return datos;
 }
 const concMesDe = f => f.slice(0,7);
 async function concTraer(cont, ini, fin){   // carga con el símbolo de espera solo si hay que ir al servidor; devuelve null si no se pudo
@@ -5520,7 +5535,7 @@ function concSinNada(res, texto){ return (!res.T.cortes && !res.T.banco)? h('div
 async function concAcumulado(){
   const hoy=nowMX().fecha, mes=concMesDe(hoy), ini=mes+'-01', fin=logMesMas(mes,1)+'-01';
   const cont=h('div',{}); app.append(cont); const datos=await concTraer(cont, ini, fin); if(!datos) return;
-  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50 }, datos));
+  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50, tipos:concTiposDe(S.config.clientesMarcados) }, datos));
   cont.append(h('p',{class:'cn-per',id:'ca-per'}, h('b',{},logMes(mes)), h('span',{class:'small muted'}, res.tope? `del 1 al ${Number(res.tope.slice(8))}` : '')), concTotales(res.T,'ca-tot'), concHasta(datos,'ca-hasta'));
   cont.append(concSinNada(res,'Cuando haya cortes enviados de este mes, aquí aparece cada día con lo que marcó el dispensario y lo que cayó en bancos.') || concTabla(res,'ca-lista'));
 }
@@ -5542,7 +5557,7 @@ async function concHistorico(){
     if(!CONC.del||!CONC.al){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('Elige de qué fecha a qué fecha','Sirve para revisar una semana, una quincena o los días de un problema en particular.'))); return; }
     ini=CONC.del; fin=addDays(CONC.al,1); }
   const datos=await concTraer(cont, ini, fin); if(!datos) return;
-  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50 }, datos));
+  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50, tipos:concTiposDe(S.config.clientesMarcados) }, datos));
   cont.append(concTotales(res.T,'ch-tot'), concHasta(datos,'ch-hasta'));
   cont.append(concSinNada(res,'Prueba con otro mes u otras fechas.') || concTabla(res,'ch-lista'));
 }
@@ -5555,7 +5570,7 @@ async function concDiaria(){
   const fecha=h('input',{type:'date',id:'cd-fecha',value:f,max:hoy,'aria-label':'Ir a una fecha',onchange:e=>{ if(e.target.value && e.target.value<=hoy){ CONC.dia=e.target.value; CONC.abre=null; render(); } }});
   cont.append(h('div',{class:'per-nav cn-dianav'}, h('button',{class:'btn sm',id:'cd-ant',title:'Día anterior','aria-label':'Día anterior',onclick:ir(-1)},'‹'), h('b',{id:'cd-dia'},fmtFechaLarga(f)), h('button',{class:'btn sm',id:'cd-sig',title:'Día siguiente','aria-label':'Día siguiente',disabled:f>=hoy,onclick:ir(1)},'›'), fecha));
   const datos=await concTraer(cont, ini, fin); if(!datos) return;
-  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50 }, datos)); const x=res.lista.find(y=>y.f===f);
+  const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50, tipos:concTiposDe(S.config.clientesMarcados) }, datos)); const x=res.lista.find(y=>y.f===f);
   if(!x || x.estado==='nada'){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('No hay cortes ni depósitos de este día', f===hoy? 'Los cortes de hoy aparecen conforme se envían.' : 'Elige otro día con las flechas o con la fecha.'))); return; }
   const d=x.d; const T={ disp:d.disp, banco:x.banco, otros:x.otros, sin:x.sin, alarma: x.estado==='falta'? 'falta' : (x.estado==='sobra'||x.estado==='sincorte')? 'sobra' : null };
   cont.append(h('div',{class:'cn-estado',id:'cd-estado'}, concChip(x), h('span',{class:'small muted'}, x.estado==='ok'? `Dentro de la tolerancia de ${fmtMXN(x.tol)} (${x.n} ${x.n===1?'corte':'cortes'}).` : x.estado==='pend'? 'Sube los movimientos del banco de este día para compararlo.' : x.estado==='camino'? 'Lo que falta todavía está dentro de su plazo para caer.' : x.estado==='sincorte'? 'Cayó dinero al banco y no hay cortes enviados de este día.' : `Pasa de la tolerancia de ${fmtMXN(x.tol)}.`)));
@@ -5580,8 +5595,11 @@ async function concDiaria(){
   fila('disp','Marcó el dispensario', d.disp, null, [`${fmtL(d.litros)} L y aceites · ${x.n} ${x.n===1?'corte':'cortes'}`,''], ()=>[
     h('div',{}, h('h4',{},'Cortes del día'), ...d.cortes.map(({c,venta})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''), venta==null? '—' : fmtMXN(venta)))),
     h('div',{}, h('h4',{},'Lo que declaró cada corte'), ...d.cortes.map(({c,t,dif})=>ln(isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0], dif==null||Math.abs(dif)<0.005? 'Cuadra con su venta' : (dif<0? 'Le faltaron ' : 'Le sobraron ')+fmtMXN(Math.abs(dif)), fmtMXN(t.declarado)))) ]);
-  fila('ef','Efectivo', d.decl.efectivo, d.banco.efectivo, nota(d.decl.efectivo, d.banco.efectivo, x.caminoEf, x.cubEf), ()=>[
-    h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,t})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''), fmtMXN(t.efectivo))) : [vacioTxt('No hay cortes enviados de este día.')])),
+  const faltaRealEf=Math.round((x.faltaEf-x.caminoEf)*100)/100;
+  const notaEf= x.faltaEf<0.005? nota(d.decl.efectivo, d.banco.efectivo, 0, true) : [[faltaRealEf>0.005? 'Faltan '+fmtMXN(faltaRealEf) : null, x.caminoEf>0.005? 'En camino: '+fmtMXN(x.caminoEf) : null].filter(Boolean).join(' · '), faltaRealEf>0.005?'neg':''];
+  fila('ef','Efectivo', d.decl.efectivo, d.banco.efectivo, notaEf, ()=>[
+    h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,t,mano})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : '')+(mano>0.005? ` · depositó ${fmtMXN(t.efectivo-mano)} · en mano ${fmtMXN(mano)}` : ''), fmtMXN(t.efectivo))) : [vacioTxt('No hay cortes enviados de este día.')]),
+      d.mano>0.005? ln('En mano, en total', 'Declarado sin depósito en el turno: no tiene ticket'+(x.faltaMano>0.005? (x.cubMano? ' · no ha caído' : ' · tiene hasta 6 días para caer') : ' · ya cayó'), fmtMXN(d.mano), 'avisado') : null),
     h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const g=m.aviso; const sub=[datos.cuentas.length>1? cta(m.cuenta_id) : null, m.fecha && m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null, g&&g.ligado_por==='numero'? 'ligado por número' : g&&g.ligado_por&&g.ligado_por!=='referencia'? 'ligado por cantidad, sin referencia' : null].filter(Boolean).join(' · ');
         return ln(g? `Depósito con hoja ${g.deposito_hojas?g.deposito_hojas.folio:''}` : m.ticket_num? 'Ticket '+m.ticket_num : (m.descripcion||'Depósito'), sub, fmtMXN(m.abono)); }) : [vacioTxt(x.cubEf? 'No cayó ningún depósito de este día.' : 'Todavía no se ve ningún depósito de este día.')]),
       ...d.avisos.map(g=>ln('Avisado, sin caer', `Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}`, fmtMXN(g.importe), 'avisado'))) ]);
@@ -5590,9 +5608,13 @@ async function concDiaria(){
     h('div',{}, h('h4',{},'Acreditado por el banco'), ...(d.lotes.length? d.lotes.map(l=>ln((t=>t? t[0]+t.slice(1).toLowerCase() : 'Lote '+l.tipo.toLowerCase())((l.m.descripcion||'').split('/')[0].trim()), ['acreditado el '+fmtFecha(l.m.fecha), l.ligado? null : 'sin lote declarado igual: contado por fecha'].filter(Boolean).join(' · '), fmtMXN(l.importe))) : [vacioTxt(x.cubTj? 'El banco no acreditó ningún lote de este día.' : 'Todavía no se ve ningún lote de este día.')]),
       ...d.sinCaer.map(l=>ln('Declarado, sin caer', `${l.terminal||'Terminal'} · ${l.tipo||''}`, fmtMXN(l.importe), 'avisado'))) ]);
   const clientes=[]; for(const {c} of d.cortes) for(const cl of (c.dinero&&c.dinero.clientes)||[]) if(Number(cl.importe)>0) clientes.push({ cl, c });
-  fila('cli','Clientes marcados', d.decl.clientes, null, [clientes.length? 'Declarado, sin comprobar' : 'Ninguno', ''], clientes.length? ()=>[
-    h('div',{}, h('h4',{},'Clientes que marcaron los despachadores'), ...clientes.map(({cl,c})=>ln(cl.nombre||'Cliente', isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0]+(cl.otro? ' · otro' : ''), fmtMXN(cl.importe)))),
-    h('div',{}, h('h4',{},'Por qué no se comprueba'), vacioTxt('Todavía no hay cuenta de clientes en OwnManager: este importe es lo que escribió el despachador. Crédito, prepago, vales, jarreo y autoconsumo entran aquí.')) ] : null);
+  const tipoDe=cl=>{ const m=concTiposDe(S.config.clientesMarcados); return m['id:'+cl.id]||(!cl.otro&&m['n:'+String(cl.nombre||'').trim().toLowerCase()])||'sin'; };
+  const piezasCli=(lista, porque)=>()=>[ h('div',{}, h('h4',{},'Lo que marcaron los despachadores'), ...lista.map(({cl,c})=>ln(cl.nombre||'Cliente', isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0]+(cl.otro? ' · otro' : ''), fmtMXN(cl.importe)))), h('div',{}, h('h4',{},'Qué falta comprobar'), vacioTxt(porque)) ];
+  const conTipo=clientes.some(z=>tipoDe(z.cl)!=='sin');
+  if(!conTipo) fila('cli','Clientes marcados', d.decl.clientes, null, [clientes.length? 'Declarado, sin comprobar' : 'Ninguno', ''], clientes.length? piezasCli(clientes,'Todavía no hay cuenta de clientes en OwnManager: este importe es lo que escribió el despachador. Ponle su tipo a cada cliente en Configuración ▸ Clientes marcados para separar lo que está por cobrar de lo que ya estaba pagado.') : null);
+  else{ const POR={ credito:'Es lo que escribió el despachador. Falta la cuenta del cliente para comprobar que se cobre.', prepago:'Es lo que escribió el despachador. Falta la cuenta del cliente para comprobar que su anticipo alcanzaba.', autoconsumo:'Es combustible de vehículos de la empresa: no se convierte en dinero. Falta el control por vehículo.', jarreo:'Es producto que debe regresar al tanque: no se convierte en dinero. Falta el registro de jarreos del encargado.', sin:'Estos clientes no tienen tipo (o se escribieron a mano como "otro"). Ponles su tipo en Configuración ▸ Clientes marcados.' };
+    for(const [k,etq,nt] of [...CLI_TIPOS.map(t=>[t[0], t[0]==='credito'?'Clientes de crédito':t[0]==='prepago'?'Clientes de prepago':t[1], t[3]]), ['sin','Clientes sin tipo','Declarado, sin clasificar']]){ const ls=clientes.filter(z=>tipoDe(z.cl)===k); if(!ls.length) continue;
+      fila('cli-'+k, etq, d.cli[k], null, [nt,''], piezasCli(ls, POR[k])); } }
   const conDif=d.cortes.filter(z=>z.dif!=null && Math.abs(z.dif)>0.005).length;
   fila('dif','Diferencia de los cortes', d.difCortes, null, [conDif? `${conDif} ${conDif===1?'corte':'cortes'} con diferencia` : 'Ningún corte con diferencia', d.difCortes<-x.tol?'neg':''], null);
   list.querySelector('[data-k="dif"] .r').textContent=concSigno(d.difCortes);
@@ -5983,7 +6005,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, CONC }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC }; // solo para la prueba de humo
 boot();
 })();
 </script>
