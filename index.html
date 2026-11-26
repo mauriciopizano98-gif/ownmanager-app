@@ -1329,7 +1329,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.16.0';
+const OM_VERSION='2.17.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -5424,7 +5424,8 @@ async function bancoEfectivo(){
 // Tres vistas del mismo cálculo: Diaria (un día con su desglose), Acumulado (lo que va del mes) e Histórico (otro mes o fechas específicas).
 // Lo calcula la app con lo ya guardado (cortes enviados y movimientos del banco); no escribe nada.
 const CONC={ dia:null, mes:null, modo:'mes', del:'', al:'', abre:null, cache:{} };
-const CONC_PLAZO={ efectivo:6, tarjetas:4 };   // días que puede tardar en verse en el banco: recolección de valores hasta 6; tarjetas, fin de semana largo
+const CONC_PLAZO={ efectivo:3, tarjetas:4 };   // días que puede tardar en verse en el banco. Efectivo: 3 en todas las estaciones (decisión de Mauricio, 25-nov-2026: depósito en ventanilla mínimo lunes, miércoles y viernes). Tarjetas: fin de semana largo
+const concPlazoEf = p => p.plazoEf || CONC_PLAZO.efectivo;
 // Tipo de cada cliente marcado (Configuración ▸ Clientes marcados): dice si su consumo está por cobrarse, ya estaba pagado o no es dinero.
 const CLI_TIPOS=[['credito','Crédito','Se le cobra después','Por cobrar'],['prepago','Débito','Pagó por adelantado','Descontado de anticipos'],['autoconsumo','Autoconsumo','Vehículos de la empresa','No es dinero: consumo propio'],['jarreo','Jarreo','Producto que regresa al tanque','No es dinero: regresa al tanque']];
 const cliTipo = t => CLI_TIPOS.find(x=>x[0]===t)||null;
@@ -5488,9 +5489,9 @@ function concCalcular(p){
   const tope= p.fin<=p.hoy? addDays(p.fin,-1) : p.hoy<p.ini? null : p.hoy; const lista=[]; let acum=0;
   const T={ disp:0, litros:0, cortes:0, banco:0, efectivo:0, tarjetas:0, clientes:0, camino:0, otros:0, sin:0, dias:0, mal:0, faltan:0, tol:0, alarma:null };
   for(let f=p.ini; tope && f<=tope; f=addDays(f,1)){ const d=dias[f]||D(f); const n=d.cortes.length; const banco=r2(d.banco.efectivo+d.banco.tarjetas);
-    // Efectivo: todo lo que no ha caído tiene hasta 6 días. Se probó un plazo corto para lo "depositado" donde hay cajero (2.14.0) y dio faltantes falsos:
+    // Efectivo: todo lo que no ha caído tiene el mismo plazo (3 días). Se probó tratar aparte lo "depositado" (2.14.0) y dio faltantes falsos:
     // hay cortes que ponen todo su arqueo en esa columna sin separar lo que quedó en mano (visto con datos reales el 25-nov-2026).
-    const cubMano=!!p.ultimoEf && p.ultimoEf>=addDays(f,CONC_PLAZO.efectivo), cubEf=cubMano, cubTj=!!p.ultimoTj && p.ultimoTj>=addDays(f,CONC_PLAZO.tarjetas);
+    const venceEf=addDays(f,concPlazoEf(p)), venceTj=addDays(f,CONC_PLAZO.tarjetas); const cubMano=!!p.ultimoEf && p.ultimoEf>=venceEf, cubEf=cubMano, cubTj=!!p.ultimoTj && p.ultimoTj>=venceTj;
     const faltaEf=Math.max(0,r2(d.decl.efectivo-d.banco.efectivo)), faltaTj=Math.max(0,r2(d.decl.tarjetas-d.banco.tarjetas));
     const faltaDep=Math.min(faltaEf, Math.max(0,r2(d.decl.efectivo-d.mano-d.banco.efectivo))), faltaMano=r2(faltaEf-faltaDep);
     const caminoEf=r2((cubEf?0:faltaDep)+(cubMano?0:faltaMano)), caminoTj=cubTj?0:faltaTj, camino=r2(caminoEf+caminoTj);
@@ -5500,7 +5501,7 @@ function concCalcular(p){
     if(estado!=='nada'){ acum=r2(acum+sin); T.dias++; if(n) T.tol+=tol; if(estado==='falta') T.faltan++; if(estado==='falta'||estado==='sobra'||estado==='sincorte') T.mal++; }
     T.disp=r2(T.disp+d.disp); T.litros+=d.litros; T.cortes+=n; T.banco=r2(T.banco+banco); T.efectivo=r2(T.efectivo+d.banco.efectivo); T.tarjetas=r2(T.tarjetas+d.banco.tarjetas);
     T.clientes=r2(T.clientes+d.decl.clientes); T.camino=r2(T.camino+camino); T.sin=r2(T.sin+sin);
-    lista.push({ f, d, n, banco, camino, caminoEf, caminoTj, faltaEf, faltaTj, faltaDep, faltaMano, cubEf, cubMano, cubTj, otros:r2(d.decl.clientes+camino), sin, tol, estado, acum }); }
+    lista.push({ f, d, n, venceEf, venceTj, banco, camino, caminoEf, caminoTj, faltaEf, faltaTj, faltaDep, faltaMano, cubEf, cubMano, cubTj, otros:r2(d.decl.clientes+camino), sin, tol, estado, acum }); }
   T.otros=r2(T.clientes+T.camino);
   // El total se marca cuando algún día quedó con faltante, o cuando la suma de diferencias chicas ya pasa de la tolerancia del periodo.
   T.alarma= (T.faltan>0 && T.sin<-0.005) || T.sin<-Math.max(T.tol,tolC)? 'falta' : T.sin>Math.max(T.tol,tolC)? 'sobra' : null;
@@ -5545,7 +5546,7 @@ function concTotales(T, id){
 }
 function concHasta(datos, id){
   const p=[]; if(datos.ultimoEf) p.push('efectivo hasta el '+fmtFecha(datos.ultimoEf)); if(datos.ultimoTj) p.push('tarjetas hasta el '+fmtFecha(datos.ultimoTj));
-  return h('p',{class:'small muted',id,style:'margin:10px 0 0'}, p.length? 'Banco subido: '+p.join(' · ')+'. Por acreditar es dinero que ya se declaró en los cortes y que el banco todavía no acredita, dentro de su plazo (tarjetas, 4 días; efectivo, 6 días). Si pasa el plazo y no cae, se vuelve merma.' : 'Todavía no hay movimientos del banco de esta estación: todo lo declarado aparece como por acreditar.');
+  return h('p',{class:'small muted',id,style:'margin:10px 0 0'}, p.length? 'Banco subido: '+p.join(' · ')+`. Por acreditar es dinero que ya se declaró en los cortes y todavía no se ve en el banco: efectivo en mano que falta depositar, depósitos sin acreditar y tarjetas que el banco aún no paga. Tiene plazo: efectivo, ${concPlazoEf(datos)} días; tarjetas, ${CONC_PLAZO.tarjetas} días. Lo que se vence sin caer cuenta como merma.` : 'Todavía no hay movimientos del banco de esta estación: todo lo declarado aparece como por acreditar.');
 }
 // La tabla por día de Acumulado e Histórico. Tocar un día lo abre en Diaria.
 function concTabla(res, id){
@@ -5614,8 +5615,9 @@ async function concDiaria(){
   // El desglose: cada renglón se abre y enseña sus piezas.
   const isla=id=>((S.config.islas||[]).find(i=>i.uuid===id)||{}).nombre||'Isla'; const cta=id=>(datos.cuentas.find(c=>c.id===id)||{}).alias||'';
   const list=h('div',{class:'list b-tabla cn dia',id:'cd-lista',style:'margin-top:18px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'De dónde sale'), h('span',{class:'r'},'Según los cortes'), h('span',{class:'r'},'Acreditado'), h('span',{},'')));
+  const QUE_TJ='El banco aún no las paga'; const hasta=f=>` · vence el ${fmtFecha(f)}`;
   const nota=(decl, banco, camino, cubierto, queEs)=>{ const dif=Math.round((banco-decl)*100)/100; if(Math.abs(dif)<0.005) return decl>0? ['Completo',''] : ['Nada declarado',''];
-    if(dif>0) return ['Cayó de más: '+fmtMXN(dif),'']; if(camino>0.005) return [(cubierto? 'Faltan ' : 'Por acreditar: ')+fmtMXN(camino),'']; return ['Faltan '+fmtMXN(-dif),'neg']; };
+    if(dif>0) return ['Cayó de más: '+fmtMXN(dif),'']; if(camino>0.005) return [(cubierto? 'Faltan ' : (queEs||'Por acreditar')+': ')+fmtMXN(camino)+(cubierto? '' : hasta(queEs===QUE_TJ? x.venceTj : x.venceEf)),'']; return ['Faltan '+fmtMXN(-dif),'neg']; };
   const fila=(k, etq, decl, banco, n, piezas)=>{ const abierto=CONC.abre===k; const puede=!!piezas;
     const r=h('div',{class:'item b-fila'+(abierto?' abierta':'')+(puede?'':' fija'),'data-k':k,role:puede?'button':null,tabindex:puede?'0':null,'aria-expanded':puede?String(abierto):null},
       h('b',{},etq), h('span',{class:'r'+(decl==null?' nada':''),'data-l':'Según los cortes'}, decl==null? '—' : fmtMXN(decl)), h('span',{class:'r'+(banco==null?' nada':''),'data-l':'Acreditado'}, banco==null? '—' : fmtMXN(banco)), h('span',{class:'cn-nota '+(n[1]||'')}, n[0]));
@@ -5627,14 +5629,14 @@ async function concDiaria(){
     h('div',{}, h('h4',{},'Cortes del día'), ...d.cortes.map(({c,venta})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''), venta==null? '—' : fmtMXN(venta)))),
     h('div',{}, h('h4',{},'Lo que declaró cada corte'), ...d.cortes.map(({c,t,dif})=>ln(isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0], dif==null||Math.abs(dif)<0.005? 'Cuadra con su venta' : (dif<0? 'Le faltaron ' : 'Le sobraron ')+fmtMXN(Math.abs(dif)), fmtMXN(t.declarado)))) ]);
   const faltaRealEf=Math.round((x.faltaEf-x.caminoEf)*100)/100;
-  const notaEf= x.faltaEf<0.005? nota(d.decl.efectivo, d.banco.efectivo, 0, true) : [[faltaRealEf>0.005? 'Faltan '+fmtMXN(faltaRealEf) : null, x.caminoEf>0.005? 'Por acreditar: '+fmtMXN(x.caminoEf)+(d.mano>0.005? ' (en mano '+fmtMXN(Math.min(d.mano,x.caminoEf))+')' : '') : null].filter(Boolean).join(' · '), faltaRealEf>0.005?'neg':''];
+  const notaEf= x.faltaEf<0.005? nota(d.decl.efectivo, d.banco.efectivo, 0, true) : [[faltaRealEf>0.005? 'Faltan '+fmtMXN(faltaRealEf) : null, x.caminoEf>0.005? (d.mano>=x.caminoEf-0.005? 'En mano, sin depositar: '+fmtMXN(x.caminoEf) : 'Por acreditar: '+fmtMXN(x.caminoEf)+(d.mano>0.005? ' (en mano, sin depositar: '+fmtMXN(d.mano)+')' : ''))+hasta(x.venceEf) : null].filter(Boolean).join(' · '), faltaRealEf>0.005?'neg':''];
   fila('ef','Efectivo', d.decl.efectivo, d.banco.efectivo, notaEf, ()=>[
     h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,t,mano})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : '')+(mano>0.005? ` · depositó ${fmtMXN(t.efectivo-mano)} · en mano ${fmtMXN(mano)}` : ''), fmtMXN(t.efectivo))) : [vacioTxt('No hay cortes enviados de este día.')]),
-      d.mano>0.005? ln('En mano, en total', 'Declarado sin depósito en el turno: no tiene ticket'+(x.faltaMano>0.005? (x.cubMano? ' · no ha caído' : ' · tiene hasta 6 días para caer') : ' · ya cayó'), fmtMXN(d.mano), 'avisado') : null),
+      d.mano>0.005? ln('En mano, en total', 'Declarado sin depósito en el turno: no tiene ticket'+(x.faltaMano>0.005? (x.cubMano? ' · no cayó en su plazo' : ' · vence el '+fmtFecha(x.venceEf)) : ' · ya cayó'), fmtMXN(d.mano), 'avisado') : null),
     h('div',{}, h('h4',{},'Cayó al banco'), ...(d.deps.length? d.deps.map(m=>{ const g=m.aviso; const sub=[datos.cuentas.length>1? cta(m.cuenta_id) : null, m.fecha && m.fecha!==f? 'acreditado el '+fmtFecha(m.fecha) : null, g&&g.ligado_por==='numero'? 'ligado por número' : g&&g.ligado_por&&g.ligado_por!=='referencia'? 'ligado por cantidad, sin referencia' : null].filter(Boolean).join(' · ');
         return ln(g? `Depósito con hoja ${g.deposito_hojas?g.deposito_hojas.folio:''}` : m.ticket_num? 'Ticket '+m.ticket_num : (m.descripcion||'Depósito'), sub, fmtMXN(m.abono)); }) : [vacioTxt(x.cubEf? 'No cayó ningún depósito de este día.' : 'Todavía no se ve ningún depósito de este día.')]),
       ...d.avisos.map(g=>ln('Avisado, sin caer', `Hoja ${g.deposito_hojas?g.deposito_hojas.folio:''} · ref. ${g.referencia}`, fmtMXN(g.importe), 'avisado'))) ]);
-  fila('tj','Tarjetas', d.decl.tarjetas, d.banco.tarjetas, nota(d.decl.tarjetas, d.banco.tarjetas, x.caminoTj, x.cubTj), ()=>[
+  fila('tj','Tarjetas', d.decl.tarjetas, d.banco.tarjetas, nota(d.decl.tarjetas, d.banco.tarjetas, x.caminoTj, x.cubTj, QUE_TJ), ()=>[
     h('div',{}, h('h4',{},'Lotes declarados en los cortes'), ...(()=>{ const ls=[]; for(const {c} of d.cortes){ const det=(c.dinero&&c.dinero.tarjetas&&Array.isArray(c.dinero.tarjetas.detalle))? c.dinero.tarjetas.detalle : []; for(const v of det) if(Number(v.importe)>0) ls.push(ln(`${v.terminal||'Terminal'} · ${v.tipo||''}`, isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0], fmtMXN(v.importe))); } return ls.length? ls : [vacioTxt('Ningún corte declaró tarjetas.')]; })()),
     h('div',{}, h('h4',{},'Acreditado por el banco'), ...(d.lotes.length? d.lotes.map(l=>ln((t=>t? t[0]+t.slice(1).toLowerCase() : 'Lote '+l.tipo.toLowerCase())((l.m.descripcion||'').split('/')[0].trim()), ['acreditado el '+fmtFecha(l.m.fecha), l.modo==='suma'? `parte de un pago de ${fmtMXN(l.total)} que cubrió ${l.n} lotes declarados` : l.modo==='partes'? `con otros ${l.n-1} del mismo lote suma lo declarado: ${fmtMXN(l.ligado.importe)}` : l.modo==='dia'? `el banco paga el día junto: sus pagos suman lo mismo que los ${l.n} lotes declarados` : l.modo==='parecido'? `el corte declaró ${fmtMXN(l.ligado.importe)}: el banco pagó ${fmtMXN(Math.abs(l.dif))} ${l.dif>0?'más':'menos'}` : l.modo==='fecha'? 'sin lote declarado igual: contado por fecha' : null].filter(Boolean).join(' · '), fmtMXN(l.importe))) : [vacioTxt(x.cubTj? 'El banco no acreditó ningún lote de este día.' : 'Todavía no se ve ningún lote de este día.')]),
       ...d.sinCaer.map(l=>ln('Declarado, sin caer', `${l.terminal||'Terminal'} · ${l.tipo||''}`, fmtMXN(l.importe), 'avisado'))) ]);
@@ -6036,7 +6038,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha }; // solo para la prueba de humo
 boot();
 })();
 </script>
