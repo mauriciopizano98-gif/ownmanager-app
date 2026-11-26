@@ -1350,7 +1350,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.19.0';
+const OM_VERSION='2.19.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -5001,7 +5001,9 @@ const PC_PLAZO=3;   // días que tiene el pago para aparecer en el banco (25-nov
 function pcEstado(r){ if(r.en_banco) return 'banco'; return (r.banco_hasta && r.banco_hasta>addDays(r.fecha,PC_PLAZO))? 'nocayo' : 'espera'; }
 const pcFirma = d => d.map(x=>x.id+(x.en_banco?'1':'0')+(x.banco_hasta||'')).join('|');
 const pcFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /pagos_clientes_lista|schema cache/i.test(String((e.raw&&e.raw.message)||e.message||'')));
-const pcFaltaFuncion = j => !!j && (j.code==='NOT_FOUND' || /\(404\)|not found/i.test(String(j.error||j.message||'')));
+// En el navegador, una función que no existe (o que no arrancó) no llega como 404: el navegador corta la llamada y solo dice "Failed to fetch" (visto el 25-nov-2026).
+const pcFaltaFuncion = j => !!j && (j.sinRespuesta || j.code==='NOT_FOUND' || /\(404\)|not found/i.test(String(j.error||j.message||'')));
+const PC_SIN_FUNCION='No hubo respuesta de la función «pago-cliente» de Supabase. Revisa que exista con ese nombre exacto en Edge Functions y que haya internet.';
 const pcMime = f => f.type || ({pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif'})[(String(f.name||'').split('.').pop()||'').toLowerCase()] || '';
 async function pagosClientes(){
   if(PC.w){ await pcWizard(); return; }
@@ -5088,9 +5090,9 @@ async function pcLeer(f){
   if(!/^(application\/pdf|image\/(jpeg|png|webp))$/.test(mime)){ aviso('Ese archivo no se puede leer. Tiene que ser el PDF, una captura de pantalla o una foto.','err',10000,'No se puede leer'); return; }
   if(blob.size>8*1024*1024){ aviso('El archivo pasa de 8 MB. Si es una foto, tómale captura de pantalla y sube la captura.','err',10000,'Archivo muy pesado'); return; }
   w.archivo={ nombre:f.name||'comprobante', mime, b64:await archivoABase64(blob) }; w.paso='leyendo'; render();
-  const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime },'pago-cliente').catch(e=>({ok:false,error:e.message}));
+  const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime },'pago-cliente').catch(e=>({ok:false,sinRespuesta:true,error:e.message}));
   if(PC.w!==w) return;   // se canceló mientras leía
-  if(!j.ok){ w.paso='archivo'; render(); aviso(pcFaltaFuncion(j)? 'Falta instalar en Supabase la función «pago-cliente». Avísale a Mauricio.' : (j.error||'No se pudo leer el comprobante.'),'err',12000,'No se pudo leer'); return; }
+  if(!j.ok){ w.paso='archivo'; render(); aviso(pcFaltaFuncion(j)? PC_SIN_FUNCION : (j.error||'No se pudo leer el comprobante.'),'err',15000,'No se pudo leer'); return; }
   const ia=j.extraido||{}; const ests=j.estaciones||[];
   w.a=j; w.sug=j.sugerencia||null; w.otro=!w.sug;
   w.form={ estacionId:j.estacion_id||(ests.length===1? ests[0].id : ''), clienteId:'', fecha:ia.fecha||'', importe:ia.importe!=null? String(ia.importe) : '', concepto:ia.concepto||'', folio:ia.folio||'' };
@@ -5126,10 +5128,10 @@ async function pcWizard(){
       if(!(Number(f.importe)>0)){ msg.textContent='Falta el importe: toca Editar y escríbelo.'; return; }
       card.querySelectorAll('button').forEach(x=>x.disabled=true); const txt=b.textContent; b.textContent='Guardando…';
       const j=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, estacion_id:f.estacionId, cliente_id:f.clienteId, cuenta_id:a.cuenta? a.cuenta.id : null,
-        fecha:f.fecha, importe:Number(f.importe), concepto:f.concepto.trim()||null, folio:f.folio.trim()||null, ordenante:ia.ordenante||null, cuenta_origen:ia.cuenta_origen||null, extraido:ia },'pago-cliente').catch(e=>({ok:false,error:e.message}));
+        fecha:f.fecha, importe:Number(f.importe), concepto:f.concepto.trim()||null, folio:f.folio.trim()||null, ordenante:ia.ordenante||null, cuenta_origen:ia.cuenta_origen||null, extraido:ia },'pago-cliente').catch(e=>({ok:false,sinRespuesta:true,error:e.message}));
       if(PC.w!==w) return;
       if(!j.ok){ if(j.codigo==='comprobante_duplicado'||j.codigo==='pago_repetido'){ PC.w={paso:'archivo'}; render(); } else { card.querySelectorAll('button').forEach(x=>x.disabled=false); b.textContent=txt; }
-        aviso(j.error||'No se pudo guardar el pago.','err',12000,'No se guardó'); return; }
+        aviso(pcFaltaFuncion(j)? PC_SIN_FUNCION : (j.error||'No se pudo guardar el pago.'),'err',15000,'No se guardó'); return; }
       w.paso='listo'; w.r=j; PC.datos=null; PC.abre=null; render(); };
     // Cambiar de estación: los clientes son otros y lo aprendido también; se vuelve a pedir la sugerencia para esa estación.
     const selEst=h('select',{id:'pc-estacion'}, h('option',{value:''},'— Elige la estación —'), ...ests.map(e=>h('option',{value:e.id,selected:e.id===f.estacionId},e.nombre)));
