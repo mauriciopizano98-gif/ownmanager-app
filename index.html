@@ -954,7 +954,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .b-est{justify-self:end}
 .be .b-cab,.be .item.b-fila{grid-template-columns:minmax(0,1.3fr) repeat(4,minmax(0,1fr)) 132px}
 /* Conciliación (25-nov-2026): misma familia que Bancos. La barra del día reparte lo que marcó el dispensario, de lo más seguro (ya en el banco) a lo que falta. */
-.cn .b-cab,.cn .item.b-fila{grid-template-columns:minmax(0,1.2fr) repeat(5,minmax(0,1fr)) 158px}
+.cn .b-cab,.cn .item.b-fila{grid-template-columns:minmax(0,1.15fr) repeat(6,minmax(0,1fr)) 150px}
 .cn.dia .b-cab,.cn.dia .item.b-fila{grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr)) minmax(0,1.7fr)}
 .cn .b-est{display:flex;justify-content:flex-end}.cn .chip{white-space:nowrap}
 .cn-nota{color:var(--muted);font-size:14.5px;min-width:0;text-align:right}
@@ -1066,7 +1066,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .b-det .ln:last-child{border-bottom:0}
 .b-det .ln b{font:600 14.5px var(--font-mono);font-stretch:80%;white-space:nowrap}
 @media (max-width:760px){
-  .tot.b-tot{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tot.b-tot{grid-template-columns:repeat(2,minmax(0,1fr))} .tot.b-tot.cn-tot>:last-child{grid-column:1/-1}
   .b-tot div{border-bottom:1px solid var(--line)} .b-tot b{font-size:19px}
   .b-cab{display:none}
   .item.b-fila{padding:12px 14px;row-gap:6px}
@@ -1329,7 +1329,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.15.0';
+const OM_VERSION='2.16.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -5426,7 +5426,7 @@ async function bancoEfectivo(){
 const CONC={ dia:null, mes:null, modo:'mes', del:'', al:'', abre:null, cache:{} };
 const CONC_PLAZO={ efectivo:6, tarjetas:4 };   // días que puede tardar en verse en el banco: recolección de valores hasta 6; tarjetas, fin de semana largo
 // Tipo de cada cliente marcado (Configuración ▸ Clientes marcados): dice si su consumo está por cobrarse, ya estaba pagado o no es dinero.
-const CLI_TIPOS=[['credito','Crédito','Se le cobra después','Por cobrar'],['prepago','Prepago','Pagó por adelantado','Descontado de anticipos'],['autoconsumo','Autoconsumo','Vehículos de la empresa','No es dinero: consumo propio'],['jarreo','Jarreo','Producto que regresa al tanque','No es dinero: regresa al tanque']];
+const CLI_TIPOS=[['credito','Crédito','Se le cobra después','Por cobrar'],['prepago','Débito','Pagó por adelantado','Descontado de anticipos'],['autoconsumo','Autoconsumo','Vehículos de la empresa','No es dinero: consumo propio'],['jarreo','Jarreo','Producto que regresa al tanque','No es dinero: regresa al tanque']];
 const cliTipo = t => CLI_TIPOS.find(x=>x[0]===t)||null;
 const concTiposDe = lista => { const m={}; for(const x of lista||[]) if(x.tipo && cliTipo(x.tipo)){ if(x.id) m['id:'+x.id]=x.tipo; m['n:'+String(x.nombre||'').trim().toLowerCase()]=x.tipo; } return m; };
 const concEnMano = d => BILLETES.reduce((t,b)=>t+b*(Number(d&&d.efectivo&&d.efectivo.extra&&d.efectivo.extra.billetes&&d.efectivo.extra.billetes[b])||0),0) + MONEDAS.reduce((t,m)=>t+m*(Number(d&&d.efectivo&&d.efectivo.extra&&d.efectivo.extra.monedas&&d.efectivo.extra.monedas[m])||0),0);
@@ -5529,30 +5529,34 @@ async function concTraer(cont, ini, fin){   // carga con el símbolo de espera s
   catch(e){ if(espera) espera.remove(); cont.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return null; }
 }
 const concSigno = n => Math.abs(n)<0.005? fmtMXN(0) : (n<0?'−':'+')+fmtMXN(Math.abs(n));
+// Merma: lo que falta para completar el corte mecánico. Se enseña en positivo; cuando sobra, se dice "Sobran".
+const concMerma = n => n<-0.005? fmtMXN(-n) : n>0.005? 'Sobran '+fmtMXN(n) : fmtMXN(0);
 function concChip(x){
-  const c={ ok:()=>h('span',{class:'chip ok'}, ico('palomita',14),'Cuadra'), camino:()=>h('span',{class:'chip'},'En camino'), pend:()=>h('span',{class:'chip'},'Falta el banco'),
+  const c={ ok:()=>h('span',{class:'chip ok'}, ico('palomita',14),'Cuadra'), camino:()=>h('span',{class:'chip'},'Por acreditar'), pend:()=>h('span',{class:'chip'},'Falta el banco'),
     falta:()=>h('span',{class:'chip err'}, ico('alerta',14),'Faltan '+fmtMXN(Math.abs(x.sin))), sobra:()=>h('span',{class:'chip warn'}, ico('alerta',14),'Sobran '+fmtMXN(x.sin)),
     sincorte:()=>h('span',{class:'chip warn'}, ico('alerta',14),'Sin corte'), nada:()=>h('span',{class:'small muted'},'Sin datos') };
   return (c[x.estado]||c.nada)();
 }
+// Los cinco datos: Corte mecánico = Acreditado + Por acreditar + Clientes + Merma.
 function concTotales(T, id){
-  const etq= T.alarma==='falta'? 'Falta sin explicar' : T.alarma==='sobra'? 'Sobra sin explicar' : 'Sin explicar';
-  return h('div',{class:'tot b-tot cn-tot',id,style:'margin-top:14px;--n:4'}, bancoDato('Marcó el dispensario',fmtMXN(T.disp)), bancoDato('Cayó en bancos',fmtMXN(T.banco)), bancoDato('Clientes y en camino',fmtMXN(T.otros)), bancoDato(etq, T.alarma? fmtMXN(Math.abs(T.sin)) : concSigno(T.sin), T.alarma==='falta'?'neg':''));
+  const sobra=T.sin>0.005;
+  return h('div',{class:'tot b-tot cn-tot',id,style:'margin-top:14px;--n:5'}, bancoDato('Corte mecánico',fmtMXN(T.disp)), bancoDato('Acreditado',fmtMXN(T.banco)), bancoDato('Por acreditar',fmtMXN(T.camino)), bancoDato('Clientes',fmtMXN(T.clientes)),
+    bancoDato(sobra?'Sobrante':'Merma', fmtMXN(Math.abs(T.sin)), T.alarma==='falta'?'neg':''));
 }
 function concHasta(datos, id){
   const p=[]; if(datos.ultimoEf) p.push('efectivo hasta el '+fmtFecha(datos.ultimoEf)); if(datos.ultimoTj) p.push('tarjetas hasta el '+fmtFecha(datos.ultimoTj));
-  return h('p',{class:'small muted',id,style:'margin:10px 0 0'}, p.length? 'Banco subido: '+p.join(' · ')+'. Lo que todavía no puede verse en el banco se cuenta como "en camino", no como faltante.' : 'Todavía no hay movimientos del banco de esta estación: todo lo declarado aparece como "en camino".');
+  return h('p',{class:'small muted',id,style:'margin:10px 0 0'}, p.length? 'Banco subido: '+p.join(' · ')+'. Por acreditar es dinero que ya se declaró en los cortes y que el banco todavía no acredita, dentro de su plazo (tarjetas, 4 días; efectivo, 6 días). Si pasa el plazo y no cae, se vuelve merma.' : 'Todavía no hay movimientos del banco de esta estación: todo lo declarado aparece como por acreditar.');
 }
 // La tabla por día de Acumulado e Histórico. Tocar un día lo abre en Diaria.
 function concTabla(res, id){
-  const list=h('div',{class:'list b-tabla cn',id,style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Día'), h('span',{class:'r'},'Dispensario'), h('span',{class:'r'},'En bancos'), h('span',{class:'r'},'Clientes y en camino'), h('span',{class:'r'},'Sin explicar'), h('span',{class:'r'},'Acumulado'), h('span',{},'')));
+  const list=h('div',{class:'list b-tabla cn',id,style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Día'), h('span',{class:'r'},'Corte mecánico'), h('span',{class:'r'},'Acreditado'), h('span',{class:'r'},'Por acreditar'), h('span',{class:'r'},'Clientes'), h('span',{class:'r'},'Merma'), h('span',{class:'r'},'Acumulada'), h('span',{},'')));
   const pesos=(n,l,apagado)=>h('span',{class:'r'+(apagado?' nada':''),'data-l':l}, n==null? '—' : fmtMXN(n));
-  const dif=(n,l,rojo)=>h('span',{class:'r'+(n==null||Math.abs(n)<0.005?' nada':rojo?' neg':''),'data-l':l}, n==null? '—' : concSigno(n));
+  const dif=(n,l,rojo)=>h('span',{class:'r'+(n==null||Math.abs(n)<0.005?' nada':rojo?' neg':''),'data-l':l}, n==null? '—' : concMerma(n));
   for(const x of res.lista.slice().reverse()){ const vacio=x.estado==='nada';
     const fila=h('div',{class:'item b-fila'+(vacio?' fija':''),'data-dia':x.f,role:vacio?null:'button',tabindex:vacio?null:'0','aria-label':vacio?null:'Ver el desglose del '+fmtFecha(x.f)},
       h('span',{class:'b-dia'}, h('b',{},fmtFecha(x.f)), x.n? h('span',{class:'small muted'}, `${x.n} ${x.n===1?'corte':'cortes'}`) : null),
-      pesos(x.n? x.d.disp : null,'Dispensario',!x.n), pesos(vacio? null : x.banco,'En bancos',!x.banco), pesos(vacio? null : x.otros,'Clientes y en camino',!x.otros),
-      dif(vacio? null : x.sin,'Sin explicar', x.estado==='falta'), dif(vacio? null : x.acum,'Acumulado', false), h('span',{class:'b-est'}, concChip(x)));
+      pesos(x.n? x.d.disp : null,'Corte mecánico',!x.n), pesos(vacio? null : x.banco,'Acreditado',!x.banco), pesos(vacio? null : x.camino,'Por acreditar',!x.camino), pesos(vacio? null : x.d.decl.clientes,'Clientes',!x.d.decl.clientes),
+      dif(vacio? null : x.sin,'Merma', x.estado==='falta'), dif(vacio? null : x.acum,'Merma acumulada', false), h('span',{class:'b-est'}, concChip(x)));
     if(!vacio){ const ir=()=>{ CONC.dia=x.f; CONC.abre=null; adminTab='cdia'; render(); }; fila.addEventListener('click',ir); fila.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); ir(); } }); }
     list.append(fila); }
   return list;
@@ -5564,7 +5568,7 @@ async function concAcumulado(){
   const cont=h('div',{}); app.append(cont); const datos=await concTraer(cont, ini, fin); if(!datos) return;
   const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50, tipos:concTiposDe(S.config.clientesMarcados) }, datos));
   cont.append(h('p',{class:'cn-per',id:'ca-per'}, h('b',{},logMes(mes)), h('span',{class:'small muted'}, res.tope? `del 1 al ${Number(res.tope.slice(8))}` : '')), concTotales(res.T,'ca-tot'), concHasta(datos,'ca-hasta'));
-  cont.append(concSinNada(res,'Cuando haya cortes enviados de este mes, aquí aparece cada día con lo que marcó el dispensario y lo que cayó en bancos.') || concTabla(res,'ca-lista'));
+  cont.append(concSinNada(res,'Cuando haya cortes enviados de este mes, aquí aparece cada día con su corte mecánico y lo acreditado en bancos.') || concTabla(res,'ca-lista'));
 }
 // Conciliación ▸ Histórico: otro mes, o fechas específicas (hasta 92 días).
 async function concHistorico(){
@@ -5599,31 +5603,31 @@ async function concDiaria(){
   const datos=await concTraer(cont, ini, fin); if(!datos) return;
   const res=concCalcular(Object.assign({ ini, fin, hoy, tolCorte:S.config.toleranciaPesos??50, tipos:concTiposDe(S.config.clientesMarcados) }, datos)); const x=res.lista.find(y=>y.f===f);
   if(!x || x.estado==='nada'){ cont.append(h('div',{style:'margin-top:14px'}, bancoVacio('No hay cortes ni depósitos de este día', f===hoy? 'Los cortes de hoy aparecen conforme se envían.' : 'Elige otro día con las flechas o con la fecha.'))); return; }
-  const d=x.d; const T={ disp:d.disp, banco:x.banco, otros:x.otros, sin:x.sin, alarma: x.estado==='falta'? 'falta' : (x.estado==='sobra'||x.estado==='sincorte')? 'sobra' : null };
-  cont.append(h('div',{class:'cn-estado',id:'cd-estado'}, concChip(x), h('span',{class:'small muted'}, x.estado==='ok'? `Dentro de la tolerancia de ${fmtMXN(x.tol)} (${x.n} ${x.n===1?'corte':'cortes'}).` : x.estado==='pend'? 'Sube los movimientos del banco de este día para compararlo.' : x.estado==='camino'? 'Lo que falta todavía está dentro de su plazo para caer.' : x.estado==='sincorte'? 'Cayó dinero al banco y no hay cortes enviados de este día.' : `Pasa de la tolerancia de ${fmtMXN(x.tol)}.`)));
+  const d=x.d; const T={ disp:d.disp, banco:x.banco, otros:x.otros, clientes:d.decl.clientes, camino:x.camino, sin:x.sin, alarma: x.estado==='falta'? 'falta' : (x.estado==='sobra'||x.estado==='sincorte')? 'sobra' : null };
+  cont.append(h('div',{class:'cn-estado',id:'cd-estado'}, concChip(x), h('span',{class:'small muted'}, x.estado==='ok'? `Dentro de la tolerancia de ${fmtMXN(x.tol)} (${x.n} ${x.n===1?'corte':'cortes'}).` : x.estado==='pend'? 'Sube los movimientos del banco de este día para compararlo.' : x.estado==='camino'? 'Lo que falta por acreditar todavía está dentro de su plazo.' : x.estado==='sincorte'? 'Cayó dinero al banco y no hay cortes enviados de este día.' : `Pasa de la tolerancia de ${fmtMXN(x.tol)}.`)));
   cont.append(concTotales(T,'cd-tot'));
   // La barra del día: de izquierda a derecha, lo más seguro primero.
-  const partes=[['ef','Efectivo en banco',d.banco.efectivo],['tj','Tarjetas en banco',d.banco.tarjetas],['cl','Clientes marcados',d.decl.clientes],['ca','En camino',x.camino],['si','Sin explicar', x.estado==='falta'? -x.sin : 0]].filter(p=>p[2]>0.005);
+  const partes=[['ef','Efectivo acreditado',d.banco.efectivo],['tj','Tarjetas acreditadas',d.banco.tarjetas],['ca','Por acreditar',x.camino],['cl','Clientes',d.decl.clientes],['si','Merma', x.estado==='falta'? -x.sin : 0]].filter(p=>p[2]>0.005);
   const base=Math.max(d.disp, partes.reduce((s,p)=>s+p[2],0))||1;
-  cont.append(h('div',{class:'cn-barra',id:'cd-barra',role:'img','aria-label':'Reparto de lo que marcó el dispensario: '+partes.map(p=>`${p[1]} ${fmtMXN(p[2])}`).join(', ')}, ...partes.map(p=>h('i',{class:p[0],style:`width:${(p[2]/base*100).toFixed(2)}%`}))),
+  cont.append(h('div',{class:'cn-barra',id:'cd-barra',role:'img','aria-label':'Reparto del corte mecánico: '+partes.map(p=>`${p[1]} ${fmtMXN(p[2])}`).join(', ')}, ...partes.map(p=>h('i',{class:p[0],style:`width:${(p[2]/base*100).toFixed(2)}%`}))),
     h('div',{class:'cn-ley',id:'cd-ley'}, ...partes.map(p=>h('span',{}, h('i',{class:p[0]}), p[1], h('b',{},fmtMXN(p[2]))))));
   // El desglose: cada renglón se abre y enseña sus piezas.
   const isla=id=>((S.config.islas||[]).find(i=>i.uuid===id)||{}).nombre||'Isla'; const cta=id=>(datos.cuentas.find(c=>c.id===id)||{}).alias||'';
-  const list=h('div',{class:'list b-tabla cn dia',id:'cd-lista',style:'margin-top:18px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'De dónde sale'), h('span',{class:'r'},'Según los cortes'), h('span',{class:'r'},'En el banco'), h('span',{},'')));
+  const list=h('div',{class:'list b-tabla cn dia',id:'cd-lista',style:'margin-top:18px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'De dónde sale'), h('span',{class:'r'},'Según los cortes'), h('span',{class:'r'},'Acreditado'), h('span',{},'')));
   const nota=(decl, banco, camino, cubierto, queEs)=>{ const dif=Math.round((banco-decl)*100)/100; if(Math.abs(dif)<0.005) return decl>0? ['Completo',''] : ['Nada declarado',''];
-    if(dif>0) return ['Cayó de más: '+fmtMXN(dif),'']; if(camino>0.005) return [(cubierto? 'Faltan ' : 'En camino: ')+fmtMXN(camino),'']; return ['Faltan '+fmtMXN(-dif),'neg']; };
+    if(dif>0) return ['Cayó de más: '+fmtMXN(dif),'']; if(camino>0.005) return [(cubierto? 'Faltan ' : 'Por acreditar: ')+fmtMXN(camino),'']; return ['Faltan '+fmtMXN(-dif),'neg']; };
   const fila=(k, etq, decl, banco, n, piezas)=>{ const abierto=CONC.abre===k; const puede=!!piezas;
     const r=h('div',{class:'item b-fila'+(abierto?' abierta':'')+(puede?'':' fija'),'data-k':k,role:puede?'button':null,tabindex:puede?'0':null,'aria-expanded':puede?String(abierto):null},
-      h('b',{},etq), h('span',{class:'r'+(decl==null?' nada':''),'data-l':'Según los cortes'}, decl==null? '—' : fmtMXN(decl)), h('span',{class:'r'+(banco==null?' nada':''),'data-l':'En el banco'}, banco==null? '—' : fmtMXN(banco)), h('span',{class:'cn-nota '+(n[1]||'')}, n[0]));
+      h('b',{},etq), h('span',{class:'r'+(decl==null?' nada':''),'data-l':'Según los cortes'}, decl==null? '—' : fmtMXN(decl)), h('span',{class:'r'+(banco==null?' nada':''),'data-l':'Acreditado'}, banco==null? '—' : fmtMXN(banco)), h('span',{class:'cn-nota '+(n[1]||'')}, n[0]));
     if(puede){ const abrir=()=>{ CONC.abre=abierto?null:k; render(); }; r.addEventListener('click',abrir); r.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abrir(); } }); }
     list.append(r); if(abierto && piezas) list.append(h('div',{class:'b-det cn-det',id:'cd-det'}, ...piezas())); };
   const ln=(a,b,v,cls)=>h('div',{class:'ln'+(cls?' '+cls:'')}, h('span',{}, h('span',{},a), b? h('span',{class:'small muted'},b) : null), h('b',{},v));
   const vacioTxt=t=>h('p',{class:'small muted',style:'margin:0'},t);
-  fila('disp','Marcó el dispensario', d.disp, null, [`${fmtL(d.litros)} L y aceites · ${x.n} ${x.n===1?'corte':'cortes'}`,''], ()=>[
+  fila('disp','Corte mecánico', d.disp, null, [`${fmtL(d.litros)} L y aceites · ${x.n} ${x.n===1?'corte':'cortes'}`,''], ()=>[
     h('div',{}, h('h4',{},'Cortes del día'), ...d.cortes.map(({c,venta})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : ''), venta==null? '—' : fmtMXN(venta)))),
     h('div',{}, h('h4',{},'Lo que declaró cada corte'), ...d.cortes.map(({c,t,dif})=>ln(isla(c.isla_id)+' · '+turnoNombre(c.turno).split(' (')[0], dif==null||Math.abs(dif)<0.005? 'Cuadra con su venta' : (dif<0? 'Le faltaron ' : 'Le sobraron ')+fmtMXN(Math.abs(dif)), fmtMXN(t.declarado)))) ]);
   const faltaRealEf=Math.round((x.faltaEf-x.caminoEf)*100)/100;
-  const notaEf= x.faltaEf<0.005? nota(d.decl.efectivo, d.banco.efectivo, 0, true) : [[faltaRealEf>0.005? 'Faltan '+fmtMXN(faltaRealEf) : null, x.caminoEf>0.005? 'En camino: '+fmtMXN(x.caminoEf)+(d.mano>0.005? ' (en mano '+fmtMXN(Math.min(d.mano,x.caminoEf))+')' : '') : null].filter(Boolean).join(' · '), faltaRealEf>0.005?'neg':''];
+  const notaEf= x.faltaEf<0.005? nota(d.decl.efectivo, d.banco.efectivo, 0, true) : [[faltaRealEf>0.005? 'Faltan '+fmtMXN(faltaRealEf) : null, x.caminoEf>0.005? 'Por acreditar: '+fmtMXN(x.caminoEf)+(d.mano>0.005? ' (en mano '+fmtMXN(Math.min(d.mano,x.caminoEf))+')' : '') : null].filter(Boolean).join(' · '), faltaRealEf>0.005?'neg':''];
   fila('ef','Efectivo', d.decl.efectivo, d.banco.efectivo, notaEf, ()=>[
     h('div',{}, h('h4',{},'Efectivo en cortes'), ...(d.cortes.length? d.cortes.map(({c,t,mano})=>ln(turnoNombre(c.turno), isla(c.isla_id)+(c.despachadores&&c.despachadores.nombre? ' · '+c.despachadores.nombre : '')+(mano>0.005? ` · depositó ${fmtMXN(t.efectivo-mano)} · en mano ${fmtMXN(mano)}` : ''), fmtMXN(t.efectivo))) : [vacioTxt('No hay cortes enviados de este día.')]),
       d.mano>0.005? ln('En mano, en total', 'Declarado sin depósito en el turno: no tiene ticket'+(x.faltaMano>0.005? (x.cubMano? ' · no ha caído' : ' · tiene hasta 6 días para caer') : ' · ya cayó'), fmtMXN(d.mano), 'avisado') : null),
@@ -5640,12 +5644,12 @@ async function concDiaria(){
   const conTipo=clientes.some(z=>tipoDe(z.cl)!=='sin');
   if(!conTipo) fila('cli','Clientes marcados', d.decl.clientes, null, [clientes.length? 'Declarado, sin comprobar' : 'Ninguno', ''], clientes.length? piezasCli(clientes,'Todavía no hay cuenta de clientes en OwnManager: este importe es lo que escribió el despachador. Ponle su tipo a cada cliente en Configuración ▸ Clientes marcados para separar lo que está por cobrar de lo que ya estaba pagado.') : null);
   else{ const POR={ credito:'Es lo que escribió el despachador. Falta la cuenta del cliente para comprobar que se cobre.', prepago:'Es lo que escribió el despachador. Falta la cuenta del cliente para comprobar que su anticipo alcanzaba.', autoconsumo:'Es combustible de vehículos de la empresa: no se convierte en dinero. Falta el control por vehículo.', jarreo:'Es producto que debe regresar al tanque: no se convierte en dinero. Falta el registro de jarreos del encargado.', sin:'Estos clientes no tienen tipo (o se escribieron a mano como "otro"). Ponles su tipo en Configuración ▸ Clientes marcados.' };
-    for(const [k,etq,nt] of [...CLI_TIPOS.map(t=>[t[0], t[0]==='credito'?'Clientes de crédito':t[0]==='prepago'?'Clientes de prepago':t[1], t[3]]), ['sin','Clientes sin tipo','Declarado, sin clasificar']]){ const ls=clientes.filter(z=>tipoDe(z.cl)===k); if(!ls.length) continue;
+    for(const [k,etq,nt] of [...CLI_TIPOS.map(t=>[t[0], t[0]==='credito'?'Clientes de crédito':t[0]==='prepago'?'Clientes de débito':t[1], t[3]]), ['sin','Clientes sin tipo','Declarado, sin clasificar']]){ const ls=clientes.filter(z=>tipoDe(z.cl)===k); if(!ls.length) continue;
       fila('cli-'+k, etq, d.cli[k], null, [nt,''], piezasCli(ls, POR[k])); } }
   const conDif=d.cortes.filter(z=>z.dif!=null && Math.abs(z.dif)>0.005).length;
   fila('dif','Diferencia de los cortes', d.difCortes, null, [conDif? `${conDif} ${conDif===1?'corte':'cortes'} con diferencia` : 'Ningún corte con diferencia', d.difCortes<-x.tol?'neg':''], null);
   list.querySelector('[data-k="dif"] .r').textContent=concSigno(d.difCortes);
-  list.append(h('div',{class:'item b-fila fija cn-fin',id:'cd-fin'}, h('b',{}, x.estado==='falta'? 'Falta sin explicar' : (x.estado==='sobra'||x.estado==='sincorte')? 'Sobra sin explicar' : 'Sin explicar'), h('span',{class:'r'+(x.estado==='falta'?' neg':''),id:'cd-sin'}, concSigno(x.sin))));
+  list.append(h('div',{class:'item b-fila fija cn-fin',id:'cd-fin'}, h('b',{}, x.sin>0.005? 'Sobrante' : 'Merma'), h('span',{class:'r'+(x.estado==='falta'?' neg':''),id:'cd-sin'}, fmtMXN(Math.abs(x.sin)))));
   cont.append(list, concHasta(datos,'cd-hasta'));
 }
 
