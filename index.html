@@ -959,7 +959,12 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .cn .b-est{display:flex;justify-content:flex-end}.cn .chip{white-space:nowrap}
 .cn-nota{color:var(--muted);font-size:14.5px;min-width:0;text-align:right}
 .cn-nota.neg{color:var(--err);font-weight:600}
-.cn .item.b-fila.cn-fin{background:var(--surface2);min-height:58px}.cn-fin b{font-weight:700;grid-column:1/4}.cn-fin .r{grid-column:4;font-size:17px}
+.cn .item.b-fila.cn-fin{background:color-mix(in srgb,var(--fg) 7%,var(--surface));min-height:58px}
+/* 25-nov-2026 (pedido de Mauricio): el renglón abierto y su desglose se perdían entre el gris y el blanco. El renglón abierto toma un tinte del verde de la marca;
+   el desglose va sobre un fondo más marcado y cada mitad es una tarjeta blanca con su orilla. */
+.cn .item.b-fila.abierta{background:color-mix(in srgb,var(--mod) 20%,var(--surface))} .cn .item.b-fila.abierta .cn-nota:not(.neg){color:var(--fg)}
+.cn .b-det{background:color-mix(in srgb,var(--fg) 9%,var(--surface));gap:12px;padding:12px}
+.cn .b-det>div{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-sm);padding:12px 14px}.cn-fin b{font-weight:700;grid-column:1/4}.cn-fin .r{grid-column:4;font-size:17px}
 .cn-det{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cn-per{display:flex;align-items:baseline;gap:10px;margin:18px 0 0}.cn-per b{font:600 16px var(--font-body)}
 .cn-estado{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
@@ -968,12 +973,16 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .cn-modo{margin-top:18px}
 .cn-fechas{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:16px}
 .cn-fechas label{display:flex;flex-direction:column;gap:4px}.cn-fechas input[type=date]{width:auto}
-.cn-barra{display:flex;gap:2px;height:14px;margin-top:18px;border-radius:999px;overflow:hidden;background:var(--surface2)}
+/* 25-nov-2026 (pedido de Mauricio): la barra lleva el par de la marca, lima y negro, en vez de puros grises. Cada tramo se distingue también por claridad
+   (lima muy claro, negro, gris medio, rayado, rojo), no solo por el color; lo pendiente va rayado. */
+.cn-barra{display:flex;gap:2px;height:16px;margin-top:18px;border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--fg) 9%,var(--surface))}
 .cn-barra i{display:block;height:100%;min-width:3px}
-.cn-barra .ef,.cn-ley .ef{background:var(--fg)}.cn-barra .tj,.cn-ley .tj{background:var(--muted)}.cn-barra .cl,.cn-ley .cl{background:var(--line2)}
-.cn-barra .ca,.cn-ley .ca{background:var(--surface2);box-shadow:inset 0 0 0 1.5px var(--line2)}.cn-barra .si,.cn-ley .si{background:var(--err)}
+.cn-barra .ef,.cn-ley .ef{background:var(--mod);box-shadow:inset 0 0 0 1px color-mix(in srgb,#3D8B00 55%,transparent)}
+.cn-barra .tj,.cn-ley .tj{background:var(--fg)}.cn-barra .cl,.cn-ley .cl{background:var(--muted)}
+.cn-barra .ca,.cn-ley .ca{background:repeating-linear-gradient(135deg,var(--surface) 0 3px,color-mix(in srgb,var(--fg) 45%,var(--surface)) 3px 5px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 45%,var(--surface))}
+.cn-barra .si,.cn-ley .si{background:var(--err)}
 .cn-ley{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:10px;font-size:14px;color:var(--muted)}
-.cn-ley span{display:inline-flex;align-items:center;gap:7px}.cn-ley i{width:10px;height:10px;border-radius:3px;flex:none}
+.cn-ley span{display:inline-flex;align-items:center;gap:7px}.cn-ley i{width:12px;height:12px;border-radius:3px;flex:none}
 .cn-ley b{font:600 14px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--fg)}
 .bm .b-cab,.bm .item.b-fila{grid-template-columns:128px minmax(0,3fr) repeat(3,minmax(0,1fr))}
 .bm-fecha{white-space:nowrap}
@@ -1329,7 +1338,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.17.0';
+const OM_VERSION='2.18.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2904,6 +2913,26 @@ async function reporteTurnoSiCompleto(c){ }
 async function avisar(c){ }
 // ---- ADMIN (dueño y oficina)
 let adminTab='chat';
+// Cambiar de gasolinera (25-nov-2026, pedido de Mauricio): lo que se toca cambia al instante. El botón queda elegido de inmediato, lo de la otra gasolinera se quita
+// y aparece el símbolo de espera mientras llega su configuración; así no parece que la app se trabó.
+async function cambiarGasolinera(e, boton, grupo, head, main){
+  if(e.id===S.config.estacionId || grupo.dataset.cambiando) return; grupo.dataset.cambiando='1';
+  for(const b of grupo.children){ const on=b===boton; b.classList.toggle('on',on); b.setAttribute('aria-pressed',String(on)); }
+  const eb=head.querySelector('.eyebrow'); if(eb) eb.textContent=e.nombre;
+  for(const c of [...main.children]) if(c!==head) c.remove(); main.append(h('div',{id:'om-cambiando',style:'margin-top:26px'}, omLoader({tam:'medio', texto:'Abriendo '+e.nombre+'…'})));
+  const antes=S.estacionElegida; S.estacionElegida=e.id;
+  try{ await cargarConfig(); }catch(err){ S.estacionElegida=antes; try{ await cargarConfig(); }catch(e2){} toast('No se pudo abrir '+e.nombre+'. Revisa tu conexión.'); }
+  render();
+}
+// Al entrar a cualquier pantalla del menú: si sus datos tardan, a los 250 ms aparece el símbolo de espera debajo del título y se quita solo en cuanto la pantalla pinta algo.
+// Si la pantalla responde rápido no aparece (sin parpadeo). Devuelve la función que lo apaga.
+function omEsperaPantalla(main){
+  const n=main.children.length; let l=null;
+  const obs=new MutationObserver(()=>{ if([...main.children].filter(c=>c!==l).length>n){ clearTimeout(t); obs.disconnect(); if(l) l.remove(); } });
+  const t=setTimeout(()=>{ if(!main.isConnected || main.children.length>n) return; l=h('div',{'data-om-espera':'1',style:'margin-top:26px'}, omLoader({tam:'medio', texto:'Cargando…'})); main.append(l); }, 250);
+  obs.observe(main,{childList:true});
+  return ()=>{ clearTimeout(t); obs.disconnect(); if(l) l.remove(); };
+}
 async function renderAdmin(){
   if(!esTablero()){ go('login'); return; }
   // Menú por grupos (orden de Mauricio, 12-nov-2026): cada grupo se queda abierto hasta que él lo cierra.
@@ -2932,11 +2961,11 @@ async function renderAdmin(){
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ // Diseño v2: el mismo selector de gasolinera, a la vista en botones (antes lista desplegable).
-    const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:async()=>{ if(e.id===S.config.estacionId) return; S.estacionElegida=e.id; await cargarConfig(); render(); }},e.nombre))); head.append(selEst); }
+    const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:ev=>cambiarGasolinera(e, ev.currentTarget, selEst, head, main)},e.nombre))); head.append(selEst); }
   main.append(head);
-  const prev=app; app=main;
+  const prev=app; app=main; const finEspera=omEsperaPantalla(main);
   try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
-  finally{ app=prev; }
+  finally{ app=prev; finEspera(); }
 }
 
 // ---- ENCARGADO DE ESTACIÓN: descargas de producto (16-nov-2026)
@@ -2981,8 +3010,8 @@ async function renderEncargado(){
   // Tocar Descargas siempre lleva a la lista; una descarga a medias queda ahí como "por terminar".
   shell.append(navLateral(items, encTab, k=>{ encTab=k; if(k==='descargas'){ ENC.vista='lista'; ENC.detalle=null; } if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'estacion'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('estacion','movil'):null, encTab!=='chat'? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[encTab])));
-  const prev=app; app=main;
-  try{ await ({chat:oficinaChat, descargas:encDescargas, tareas:pantallaTareas, avisos:pantallaAvisos})[encTab](); } finally{ app=prev; }
+  const prev=app; app=main; const finEspera=omEsperaPantalla(main);
+  try{ await ({chat:oficinaChat, descargas:encDescargas, tareas:pantallaTareas, avisos:pantallaAvisos})[encTab](); } finally{ app=prev; finEspera(); }
 }
 function descargaResumen(d){
   const al=d.alertas||[]; const alertas=al.filter(a=>a.nivel==='alerta'), avisos=al.filter(a=>a.nivel!=='alerta');
@@ -3559,8 +3588,8 @@ async function renderLogistica(){
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, logTab, k=>{ logTab=k; logAlElegir(k); if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } render(); }, 'logistica'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('logistica','movil'):null, h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[logTab])));
-  const prev=app; app=main;
-  try{ await (logTab==='tareas'? pantallaTareas : LOG_PANTALLAS[logTab])(); } finally{ app=prev; }
+  const prev=app; app=main; const finEspera=omEsperaPantalla(main);
+  try{ await (logTab==='tareas'? pantallaTareas : LOG_PANTALLAS[logTab])(); } finally{ app=prev; finEspera(); }
 }
 
 // ---- TAREAS PARA TODAS LAS RAMAS (16-nov-2026)
@@ -5805,8 +5834,8 @@ async function renderOficina(){
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } render(); }, 'oficina'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, (oficinaTab==='hoy'||oficinaTab==='tareas'||oficinaTab==='elaborar'||oficinaTab==='avisos')? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
-  const prev=app; app=main;
-  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; }
+  const prev=app; app=main; const finEspera=omEsperaPantalla(main);
+  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; finEspera(); }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
@@ -6038,7 +6067,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla }; // solo para la prueba de humo
 boot();
 })();
 </script>
