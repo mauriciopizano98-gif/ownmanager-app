@@ -1336,7 +1336,7 @@ window.addEventListener('error', function(ev){ try{ if(document.querySelector('#
   var d=document.createElement('div'); d.id='om-caida'; d.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#0B0F14;color:#F3F4F6;font:15px/1.5 system-ui,sans-serif;text-align:center;z-index:999';
   d.innerHTML='<div style="max-width:380px"><div style="font-size:40px">⚠️</div><h2 style="margin:8px 0">OwnManager no pudo arrancar</h2><p style="color:#9AA3AF">'+(ev&&ev.message?String(ev.message).replace(/</g,'&lt;'):'Error al cargar')+'</p><p style="color:#9AA3AF;font-size:13px">Revisa tu conexión (datos o Wi-Fi) y vuelve a intentar.</p><button onclick="location.reload()" style="margin-top:10px;padding:14px 22px;border:0;border-radius:12px;background:#84FF00;color:#0B0F14;font:600 16px system-ui">Reintentar</button></div>';
   document.body.appendChild(d); }catch(_){ } }, true);
-if(!window.supabase || !window.supabase.createClient){ window.dispatchEvent(new ErrorEvent('error',{message:'No se pudo cargar la librería de conexión (vendor/supabase). Puede ser la conexión de datos.'})); }
+if(!window.supabase || !window.supabase.createClient){ window.dispatchEvent(new ErrorEvent('error',{message:'No se pudo cargar la librería de conexión. Puede ser la conexión de datos.'})); }
 </script>
 <script>
 (function(){
@@ -1350,7 +1350,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.19.1';
+const OM_VERSION='2.19.2';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1414,10 +1414,10 @@ window.__omPrueba={ turnoSugerido:()=>turnoSugerido(), turnosVisibles:()=>turnos
 
 // ---- utilidades
 // Aviso lateral (errores y confirmaciones): aparece a la derecha y se va solo a los 10 s.
-function aviso(msg, tipo='err', ms=10000, titulo){ let c=$('.avisos'); if(!c){ c=h('div',{class:'avisos'}); document.body.append(c); }
+function aviso(msg, tipo='err', ms=10000, titulo){ msg=omSinPistas(msg); titulo=omSinPistas(titulo); let c=$('.avisos'); if(!c){ c=h('div',{class:'avisos'}); document.body.append(c); }
   const el=h('div',{class:'aviso '+tipo}, h('div',{class:'tx'}, titulo?h('b',{},titulo):null, msg), h('button',{class:'x','aria-label':'Cerrar',onclick:()=>el.remove()},'×'), h('div',{class:'barra',style:`animation-duration:${ms}ms`}));
   c.append(el); setTimeout(()=>el.remove(), ms); return el; }
-function toast(msg, ms=2600){ let t=$('.toast'); if(t) t.remove(); t=h('div',{class:'toast'},msg); document.body.append(t); clearTimeout(S.toastT); S.toastT=setTimeout(()=>t.remove(),ms); }
+function toast(msg, ms=2600){ msg=omSinPistas(msg); let t=$('.toast'); if(t) t.remove(); t=h('div',{class:'toast'},msg); document.body.append(t); clearTimeout(S.toastT); S.toastT=setTimeout(()=>t.remove(),ms); }
 async function sha256(str){ const b=new TextEncoder().encode(str); const d=await crypto.subtle.digest('SHA-256',b); return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 const clone = x => x==null ? x : JSON.parse(JSON.stringify(x)); // los documentos de la base llegan congelados
@@ -1425,7 +1425,10 @@ let guardadoT=null; function programarGuardado(){ clearTimeout(guardadoT); guard
 // ---- Supabase (capa de datos) ------------------------------------------------
 const CFG = window.OM_CONFIG || {};
 const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
-function errSrv(e){ if(e instanceof Error && !e.raw) return e; const m=(e&&(e.hint||e.details||e.message))||String(e); const err=new Error(m); err.code=e&&e.code; err.raw=e; return err; }
+// Regla de Mauricio (25-nov-2026): ningún mensaje en pantalla nombra al proveedor del servidor ni sus menús (no dar pistas). Pasa por aquí todo lo que se enseña: avisos, toasts y errores del servidor.
+function omSinPistas(m){ if(typeof m!=='string' || !/supabase|edge function/i.test(m)) return m;
+  return m.replace(/https?:\/\/[^\s"')]*supabase[^\s"')]*/gi,'el servidor').replace(/Edge Functions?(\s*(→|->|▸|>)\s*Secrets)?/gi,'la configuración del servidor').replace(/\b(de|en|a)\s+Supabase\b/gi,(_,q)=>q.toLowerCase()==='de'?'del servidor':q+(q.toLowerCase()==='a'?'l':' el')+' servidor').replace(/supabase(\.co|-js)?/gi,'el servidor'); }
+function errSrv(e){ if(e instanceof Error && !e.raw){ if(e.message!==omSinPistas(e.message)){ try{ e.message=omSinPistas(e.message); }catch(_){} } return e; } const m=omSinPistas((e&&(e.hint||e.details||e.message))||String(e)); const err=new Error(m); err.code=e&&e.code; err.raw=e; return err; }
 // ---- Loader de marca OwnManager: el isotipo "Om" oficial (vectorizado del kit HD, marca/om-isotipo-trazos.json).
 // Opción A elegida por Mauricio: letras fijas, la línea se hace de izquierda a derecha y al final nace la gota.
 const OM_TRAZOS={ sw:"M1038,406 1021,389 997,373 991,370 989,370 980,365 975,364 969,361 966,361 963,359 960,359 959,358 956,358 955,357 952,357 951,356 948,356 943,354 928,352 927,351 919,351 918,350 911,350 910,349 898,349 897,348 851,348 850,349 835,349 834,350 813,351 812,352 797,353 796,354 790,354 789,355 783,355 782,356 776,356 775,357 758,359 757,360 753,360 752,361 748,361 747,362 742,362 741,363 737,363 736,364 732,364 731,365 727,365 726,366 712,368 711,369 703,370 698,372 694,372 693,373 690,373 689,374 686,374 685,375 682,375 681,376 678,376 677,377 674,377 673,378 670,378 669,379 654,382 650,384 639,386 628,390 625,390 618,393 615,393 614,394 608,395 601,398 598,398 579,405 576,405 575,406 546,415 543,417 526,422 523,424 518,425 515,427 507,429 499,433 486,437 483,439 481,439 478,441 476,441 473,443 471,443 468,445 461,447 456,450 454,450 451,452 444,454 439,457 432,459 418,466 416,466 411,469 409,469 400,474 398,474 391,478 389,478 376,485 374,485 368,489 366,489 309,518 300,524 291,528 289,530 284,532 277,537 265,543 260,547 257,548 245,556 291,533 293,533 302,528 304,528 315,522 317,522 333,514 340,512 347,508 349,508 352,506 359,504 364,501 366,501 369,499 371,499 384,493 389,492 402,486 404,486 410,483 421,480 424,478 426,478 432,475 443,472 446,470 448,470 461,465 464,465 465,464 467,464 489,456 492,456 499,453 502,453 509,450 512,450 516,448 519,448 520,447 526,446 530,444 533,444 537,442 540,442 541,441 552,439 556,437 559,437 560,436 563,436 564,435 567,435 572,433 576,433 577,432 580,432 581,431 584,431 589,429 593,429 594,428 597,428 602,426 606,426 611,424 615,424 616,423 620,423 621,422 625,422 626,421 630,421 631,420 636,420 637,419 641,419 642,418 646,418 647,417 652,417 653,416 658,416 659,415 664,415 665,414 670,414 671,413 676,413 677,412 683,412 684,411 690,411 691,410 697,410 698,409 705,409 706,408 713,408 714,407 722,407 723,406 732,406 733,405 743,405 744,404 755,404 756,403 770,403 771,402 796,402 797,401 851,402 852,403 864,403 865,404 875,404 876,405 891,406 892,407 909,409 910,410 914,410 915,411 919,411 920,412 924,412 925,413 929,413 930,414 937,415 944,418 947,418 951,420 957,421 960,423 962,423 973,428 975,428 984,433 986,433 990,435 992,437 997,439 1001,442 1013,430 1014,430 1028,417 1039,409Z", gt:"M1044,414 1033,436 1021,454 1009,469 999,484 992,499 992,502 990,507 990,524 991,525 991,528 992,529 993,534 999,545 1011,556 1025,562 1035,563 1036,564 1044,564 1045,563 1054,562 1055,561 1060,560 1070,554 1083,540 1089,528 1090,520 1091,519 1091,498 1090,497 1089,489 1088,488 1087,483 1085,480 1085,478 1073,456 1065,444 1062,441 1058,434 1055,431 1049,421 1046,418Z", o:"M585,572 578,565 577,565 571,559 563,553 555,549 553,547 536,539 534,539 524,535 521,535 520,534 517,534 512,532 501,531 500,530 493,530 492,529 457,529 456,530 440,531 439,532 434,532 433,533 419,535 418,536 415,536 414,537 399,540 398,541 375,548 372,550 367,551 362,554 355,556 344,562 342,562 332,567 330,569 321,573 319,575 314,577 304,584 301,585 268,609 253,623 252,623 237,638 237,639 225,652 210,673 204,685 202,687 197,697 197,699 193,706 193,708 188,721 188,724 186,728 186,732 185,733 185,737 184,738 182,765 183,766 183,775 184,776 184,781 185,782 185,786 186,787 187,794 190,800 190,802 193,807 193,809 199,820 208,833 227,852 249,867 263,874 265,874 270,877 278,879 281,881 284,881 288,883 291,883 292,884 295,884 300,886 304,886 305,887 318,888 319,889 328,889 329,890 359,890 360,889 371,889 372,888 378,888 379,887 385,887 386,886 390,886 391,885 396,885 397,884 405,883 409,881 416,880 417,879 437,873 440,871 447,869 452,866 454,866 476,855 478,853 493,845 505,836 509,834 521,824 522,824 527,819 528,819 536,811 537,811 559,788 570,773 574,769 582,757 583,754 587,749 588,746 590,744 601,721 602,716 607,705 607,702 608,701 610,691 611,690 611,686 612,685 612,681 613,680 613,676 614,675 614,668 615,667 615,641 614,640 614,633 613,632 613,628 612,627 610,616 609,615 608,610 606,607 606,605 599,591ZM493,611 505,623 508,629 510,631 510,633 512,636 512,638 514,642 515,651 516,652 516,670 515,671 514,683 512,687 512,690 511,691 509,699 505,706 505,708 501,716 499,718 494,728 483,743 478,748 478,749 462,765 439,782 416,794 414,794 411,796 409,796 399,800 395,800 394,801 385,802 384,803 379,803 378,804 353,804 352,803 348,803 347,802 343,802 342,801 335,800 322,794 308,783 299,771 294,760 294,757 292,752 292,746 291,745 291,732 292,731 293,719 294,718 295,711 296,710 297,705 299,702 299,700 308,682 322,662 340,643 341,643 347,637 348,637 356,630 373,619 378,617 380,615 400,606 402,606 412,602 419,601 420,600 424,600 425,599 429,599 430,598 437,598 438,597 453,597 454,598 461,598 462,599 471,600 477,603 479,603Z", m:"M1052,650 1049,644 1043,636 1032,627 1020,621 1018,621 1011,618 1002,617 1001,616 995,616 994,615 971,615 970,616 963,616 962,617 958,617 957,618 954,618 953,619 950,619 949,620 946,620 945,621 937,623 913,635 893,649 887,655 885,654 879,640 875,636 875,635 867,628 851,620 849,620 845,618 836,617 835,616 828,616 827,615 806,615 805,616 799,616 798,617 793,617 792,618 785,619 784,620 773,623 766,627 764,627 743,640 738,645 737,645 736,643 744,621 660,621 655,637 654,638 654,640 653,641 653,643 651,646 651,649 650,650 649,655 647,658 647,661 645,664 634,699 632,702 631,708 629,711 629,713 628,714 628,716 627,717 627,719 626,720 626,722 625,723 625,725 624,726 624,728 623,729 623,731 622,732 622,734 621,735 621,737 620,738 620,740 619,741 619,743 618,744 618,746 617,747 617,749 616,750 616,752 615,753 615,755 614,756 614,758 613,759 613,761 612,762 612,764 611,765 611,767 603,789 602,795 600,798 600,801 595,814 595,817 591,827 591,830 584,849 584,852 583,853 577,873 662,873 664,868 664,865 666,861 666,858 669,851 669,848 671,844 671,841 674,834 676,824 677,823 677,821 680,814 680,811 684,801 684,798 689,785 689,782 691,779 691,776 692,775 692,773 693,772 693,770 700,751 700,748 702,745 703,739 704,738 706,730 708,727 708,725 710,723 712,718 716,712 728,699 741,690 743,690 746,688 748,688 752,686 755,686 756,685 773,685 774,686 779,687 782,689 789,697 790,703 791,704 791,714 790,715 790,720 789,721 788,728 784,738 782,748 781,749 781,751 779,755 779,758 775,768 775,771 774,772 774,774 772,778 772,781 768,791 768,794 767,795 767,797 765,801 765,804 761,814 761,817 757,827 757,830 754,837 754,840 751,847 751,850 748,857 748,860 745,867 744,873 831,873 832,872 832,869 833,868 834,862 837,855 837,852 838,851 840,841 844,831 846,821 849,814 851,804 855,794 855,791 859,781 859,778 865,762 865,759 866,758 875,729 884,713 898,698 912,689 914,689 921,686 924,686 925,685 941,685 942,686 945,686 952,690 958,698 959,704 960,705 960,713 959,714 958,724 954,734 952,744 948,754 948,757 945,764 945,767 941,777 941,780 940,781 940,783 937,790 937,793 932,806 930,816 929,817 929,819 926,826 926,829 922,839 922,842 918,852 916,862 912,872 913,873 1001,873 1004,865 1004,862 1006,858 1006,855 1008,851 1008,848 1010,844 1010,841 1012,837 1012,834 1015,827 1015,824 1018,817 1018,814 1020,810 1022,800 1027,787 1027,784 1030,777 1030,774 1035,761 1035,758 1040,745 1040,742 1046,726 1046,723 1048,720 1048,717 1049,716 1049,714 1051,710 1051,707 1055,696 1056,683 1057,682 1057,670 1056,669 1056,663 1055,662 1055,659 1054,658Z" };
@@ -4235,7 +4238,7 @@ function escResultado(L){ // lo que leyó la IA de un ticket
       caja.append(h('table',{class:'esc-tabla',id:'esc-totales'}, h('thead',{}, h('tr',{}, h('th',{},'Tipo'), h('th',{class:'n'},'Operaciones'), h('th',{class:'n'},'Importe'))), tb, h('tfoot',{}, fila('Total',d.total_num,tot))));
       if((d.secciones||[]).length){ const ts=h('tbody',{}); for(const x of d.secciones){ ts.append(fila(x.nombre, x.ventas_num, x.ventas_importe)); if(x.puntos_importe!=null) ts.append(fila('· puntos', x.puntos_num, x.puntos_importe)); }
         caja.append(h('table',{class:'esc-tabla esc-secciones',id:'esc-secciones'}, h('thead',{}, h('tr',{}, h('th',{},'Por tipo de tarjeta'), h('th',{class:'n'},'Operaciones'), h('th',{class:'n'},'Importe'))), ts)); } }
-    else caja.append(h('p',{class:'small esc-qr',style:'margin:0;color:var(--warn);font-weight:600'},'La función leer-ticket de Supabase es la anterior: actualízala para leer el cierre de lote con la regla nueva (solo totales).'));
+    else caja.append(h('p',{class:'small esc-qr',style:'margin:0;color:var(--warn);font-weight:600'},'La función leer-ticket del servidor es la anterior: actualízala para leer el cierre de lote con la regla nueva (solo totales).'));
   } else if(r.tipo==='cliente_marcado'){
     // Regla del ticket de cliente marcado (20-nov-2026): interesan el cliente y el total para el corte, el folio (aclaraciones; que no se repita)
     // y quién atendió. La firma no hace falta. El cliente se enlaza por los primeros 12 dígitos de la cuenta; el despachador, por su nombre en tickets.
@@ -4255,7 +4258,7 @@ function escResultado(L){ // lo que leyó la IA de un ticket
   for(const x of (r.enlaces||[])) caja.append(h('p',{class:'small esc-enlace',style:`margin:0;color:var(--${x.coincide===true?'ok':x.coincide===false?'err':'warn'});font-weight:600`}, x.detalle));
   if(r.tipo==='deposito_cajero'){ const c2=r.cotejo, linea=(t,color)=>caja.append(h('p',{class:'small esc-qr',style:`margin:0;color:var(--${color});font-weight:600`},t));
     if(!L.qr) linea('No se encontró el código QR en la imagen: solo se leyó lo impreso.','warn');
-    else if(r.v==null) linea('Se leyó el QR, pero la función leer-ticket de Supabase es la anterior: actualízala para compararlo con lo impreso.','warn');
+    else if(r.v==null) linea('Se leyó el QR, pero la función leer-ticket del servidor es la anterior: actualízala para compararlo con lo impreso.','warn');
     else if(!r.qr || !r.qr.reconocido) linea('Se leyó un código QR, pero no tiene el formato del cajero.','warn');
     else { if(c2 && c2.diferencias===0 && c2.comparados>0) linea(`El QR y lo impreso coinciden en ${c2.comparados===1? '1 dato' : c2.comparados+' datos'}.`,'ok');
       else if(c2 && c2.comparados===0) linea('Se leyó el QR, pero de lo impreso no se pudo leer nada para compararlo.','warn');
@@ -4346,7 +4349,7 @@ async function adminEscaner(){
       enviar(); }
     const tramos=L.tramos;
     try{ const {data,error}=await sb.functions.invoke('leer-ticket',{ body:Object.assign({ estacion_id:estId, imagenes:tramos.map(u=>u.split(',')[1]), qr:L.qr? L.qr.texto : null }, ESC.modelo? { modelo:ESC.modelo } : {}) });
-      if(error){ let m=error.message||'No respondió el servidor'; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} throw new Error(/not found|404/i.test(m)? 'Falta instalar la función leer-ticket en Supabase.' : m); }
+      if(error){ let m=error.message||'No respondió el servidor'; try{ const j=await error.context.json(); if(j&&j.error) m=j.error; }catch(e){} throw new Error(/not found|404/i.test(m)? 'Falta instalar la función leer-ticket en el servidor.' : m); }
       if(!data || !data.ok) throw new Error((data&&data.error)||'La lectura falló'); L.res=data; }
     catch(e){ L.error=e.message||String(e); }
     if(L.res && L.res.legible!==false){ ESC.vistos.unshift({ qr:L.qr? L.qr.texto : null, firma:L.firma, modelo:L.modelo, breve:escBreve(L.res), hora:L.hora }); if(ESC.vistos.length>40) ESC.vistos.length=40; } // solo los que sí se leyeron bien: uno que salió mal se puede repetir
@@ -4468,7 +4471,7 @@ async function adminDesp(){
       h('label',{class:'f'},h('span',{class:'l'},'ID del cajero (el "No. Usuario" del ticket de depósito)'),idc), h('label',{class:'f'},h('span',{class:'l'},'Nombre en tickets (como sale en "Atendido")'),nt),
       h('button',{class:'btn primary block',id:'dt-guardar',onclick:()=>{ const a=idc.value.trim(), b=nt.value.trim().replace(/\s+/g,' '); if(a && !/^\d{1,12}$/.test(a)){ toast('El ID del cajero son solo números.'); return; } sh.remove(); res({ cajero_id:a||null, nombre_ticket:b||null }); }},'Guardar'))); document.body.append(sh); idc.focus(); });
   const sinAc=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
-  const guardarTickets=async d=>{ if(dt===null){ aviso('Falta correr el SQL 059 en Supabase para guardar estos datos.','err',9000,'Falta un paso'); return; } const v=await pedirTickets(d); if(!v) return;
+  const guardarTickets=async d=>{ if(dt===null){ aviso('Falta correr el SQL 059 en el servidor para guardar estos datos.','err',9000,'Falta un paso'); return; } const v=await pedirTickets(d); if(!v) return;
     if(v.nombre_ticket && dt.some(x=>x.id!==d.id && sinAc(x.nombre_ticket)===sinAc(v.nombre_ticket))){ aviso('Ese nombre en tickets ya lo tiene otro despachador.','err'); return; }
     try{ await sel(sb.from('despachadores').update(v).eq('id',d.id)); toast('Datos de tickets guardados.'); render(); }
     catch(e){ aviso(/duplicate|unique|23505/i.test((e.message||'')+(e.code||''))? 'Ese ID del cajero ya lo tiene otro despachador de esta estación.' : 'No se guardó: '+(e.message||e.code),'err'); } };
@@ -4538,7 +4541,7 @@ const satFmtD = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDat
 // Estado del servidor + resumen por empresa. Devuelve null (y pinta el aviso) si el enlace no responde.
 async function satCargar(box){
   let est; try{ est = await fnOficina({accion:'estado'},'sat-descarga'); }catch(e){ est={ok:false,error:e.message}; }
-  if(!est.ok){ box.append(h('div',{class:'card'}, h('b',{},'No se pudo consultar el enlace con el SAT'), h('p',{class:'small muted'},est.error||''), h('p',{class:'hint'},'Si la función sat-descarga todavía no está desplegada, primero hay que subirla en Supabase.'))); return null; }
+  if(!est.ok){ box.append(h('div',{class:'card'}, h('b',{},'No se pudo consultar el enlace con el SAT'), h('p',{class:'small muted'},est.error||''), h('p',{class:'hint'},'Si la función sat-descarga todavía no está desplegada, primero hay que subirla al servidor.'))); return null; }
   let resumen=[]; try{ resumen = await rpc('sat_resumen',{})||[]; }catch(e){ box.append(h('div',{class:'alert warn',style:'display:block'},'No se pudo leer el resumen del SAT (sat_resumen): '+(e.message||e.code||e)+'. ¿Ya corrió el SQL 033?')); }
   const porId={}; for(const r of resumen) porId[r.negocio_id]=r;
   return { est, negocios: est.negocios, porId };
@@ -4558,7 +4561,7 @@ async function satCertificados(){
   if(dueno) box.append(h('div',{class:'card stack'}, h('div',{class:'sechead'},h('h3',{},'Cómo funciona'),h('span',{class:'chip '+(est.bot&&est.llave_maestra?'ok':'warn')},est.bot&&est.llave_maestra?'Servidor listo':'Falta configurar el servidor')),
     h('p',{class:'small muted'},'Cada empresa sube aquí su e.firma (.cer, .key y contraseña) una sola vez. OwnManager la valida con el SAT, la guarda cifrada y desde entonces, cada 6 horas, pide las facturas recibidas, descarga los XML y los registra como facturas de proveedor a nombre del usuario "OwnManager SAT". Lo que la oficina ya había subido se marca "ya estaba"; nada se duplica.'),
     h('p',{class:'small muted'},'La e.firma nunca se puede volver a descargar ni ver: solo "cargada · vigente hasta". Quien la sube es el dueño; el resto solo ve el estado.'),
-    (!est.llave_maestra? h('p',{class:'small',style:'color:var(--warn)'},'Falta el secreto ',h('code',{},'SAT_LLAVE_MAESTRA'),' en Edge Functions → Secrets (una frase larga y aleatoria, mínimo 24 caracteres). Con ella se cifran las e.firmas guardadas.') : null),
+    (!est.llave_maestra? h('p',{class:'small',style:'color:var(--warn)'},'Falta el secreto ',h('code',{},'SAT_LLAVE_MAESTRA'),' en los secretos del servidor (una frase larga y aleatoria, mínimo 24 caracteres). Con ella se cifran las e.firmas guardadas.') : null),
     (!est.bot? h('p',{class:'small',style:'color:var(--warn)'},'Faltan ',h('code',{},'SAT_BOT_EMAIL'),' y ',h('code',{},'SAT_BOT_PASSWORD'),' (la cuenta robot que registra las facturas).') : null),
     faltan.length? h('p',{class:'small',style:'color:var(--warn)'},'Sin e.firma todavía: '+faltan.map(n=>n.nombre).join(' · ')) : h('p',{class:'small',style:'color:var(--ok)'},'Todas las empresas tienen su e.firma.')));
   for(const n of negocios){
@@ -4756,7 +4759,7 @@ async function fnOficina(body, nombre='registrar-comprobante'){
       headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+session.access_token, apikey:OM_CONFIG.SUPABASE_KEY }, body:JSON.stringify(body) });
     let j = await r.json().catch(()=>null);
     if(!j || typeof j!=='object') j={ ok:false, error:'El servidor no respondió bien ('+r.status+').' };
-    if(j.ok===undefined) j.ok=r.ok; if(!j.ok && !j.error) j.error='Error del servidor ('+r.status+').'; return j;
+    if(j.ok===undefined) j.ok=r.ok; if(!j.ok && !j.error) j.error='Error del servidor ('+r.status+').'; if(typeof j.error==='string') j.error=omSinPistas(j.error); return j;
   } finally{ omCarga(-1); }
 }
 async function cuentasOficina(force){
@@ -5003,7 +5006,7 @@ const pcFirma = d => d.map(x=>x.id+(x.en_banco?'1':'0')+(x.banco_hasta||'')).joi
 const pcFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /pagos_clientes_lista|schema cache/i.test(String((e.raw&&e.raw.message)||e.message||'')));
 // En el navegador, una función que no existe (o que no arrancó) no llega como 404: el navegador corta la llamada y solo dice "Failed to fetch" (visto el 25-nov-2026).
 const pcFaltaFuncion = j => !!j && (j.sinRespuesta || j.code==='NOT_FOUND' || /\(404\)|not found/i.test(String(j.error||j.message||'')));
-const PC_SIN_FUNCION='No hubo respuesta de la función «pago-cliente» de Supabase. Revisa que exista con ese nombre exacto en Edge Functions y que haya internet.';
+const PC_SIN_FUNCION='No hubo respuesta del servidor. Revisa que haya internet y vuelve a intentar; si sigue igual, avísale a Mauricio.';
 const pcMime = f => f.type || ({pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif'})[(String(f.name||'').split('.').pop()||'').toLowerCase()] || '';
 async function pagosClientes(){
   if(PC.w){ await pcWizard(); return; }
@@ -5013,7 +5016,7 @@ async function pagosClientes(){
     try{ PC.datos=(await cargar())||[]; PC.t=Date.now(); }
     catch(e){ cont.innerHTML='';
       cont.append(pcFaltaBase(e)
-        ? h('div',{class:'card empty',id:'pc-falta'}, h('b',{},'Esta sección todavía no está activada'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, S.rol==='dueno'? 'Falta correr en Supabase la migración 063 (Pagos de clientes) e instalar la función «pago-cliente». En cuanto estén, aquí se suben los comprobantes.' : 'En cuanto Mauricio la active, aquí se suben los comprobantes que mandan los clientes.'))
+        ? h('div',{class:'card empty',id:'pc-falta'}, h('b',{},'Esta sección todavía no está activada'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, S.rol==='dueno'? 'Falta terminar la instalación de Pagos de clientes en el servidor (paso 29). En cuanto esté, aquí se suben los comprobantes.' : 'En cuanto Mauricio la active, aquí se suben los comprobantes que mandan los clientes.'))
         : h('div',{class:'card empty'}, 'No se pudieron cargar los pagos: '+(e.message||e.code)));
       return; }
     if(!cont.isConnected) return; }
@@ -6255,7 +6258,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso }; // solo para la prueba de humo
 boot();
 })();
 </script>
