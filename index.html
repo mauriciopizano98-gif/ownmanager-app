@@ -984,6 +984,17 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .cn-ley{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:10px;font-size:14px;color:var(--muted)}
 .cn-ley span{display:inline-flex;align-items:center;gap:7px}.cn-ley i{width:12px;height:12px;border-radius:3px;flex:none}
 .cn-ley b{font:600 14px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--fg)}
+/* Pagos de clientes (25-nov-2026): misma tabla de Bancos y Conciliación */
+.pc-cab{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px}.pc-cab p{margin:0;max-width:60ch}
+.pc .b-cab,.pc .item.b-fila{grid-template-columns:138px minmax(0,2.6fr) minmax(0,1fr) 196px}.pc .b-dia b{white-space:nowrap}
+.pc-cli{display:flex;flex-direction:column;min-width:0}.pc-cli b{font-weight:600;overflow-wrap:anywhere}.pc-cli .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc .b-est{display:flex;justify-content:flex-end}.pc .chip{white-space:nowrap}
+.pc .item.b-fila.abierta{background:color-mix(in srgb,var(--mod) 20%,var(--surface))}
+.pc .b-det{background:color-mix(in srgb,var(--fg) 9%,var(--surface));gap:12px;padding:12px}
+.pc .b-det>div{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r-sm);padding:12px 14px;min-width:0}.pc .b-det .ln b{white-space:normal;text-align:right;overflow-wrap:anywhere}
+.pc-ok{display:flex;align-items:center;gap:8px;color:var(--ok);font-weight:600;margin:0}.pc-mal{color:var(--err);font-weight:600;margin:0}
+.pc-sug{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border-radius:var(--r-sm);background:color-mix(in srgb,var(--mod) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--mod) 50%,var(--line))}
+.pc-sug b{font:600 20px/1.25 var(--font-body);overflow-wrap:anywhere}
 .bm .b-cab,.bm .item.b-fila{grid-template-columns:128px minmax(0,3fr) repeat(3,minmax(0,1fr))}
 .bm-fecha{white-space:nowrap}
 .bt .b-cab,.bt .item.b-fila{grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr))}
@@ -1075,7 +1086,8 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .b-det .ln:last-child{border-bottom:0}
 .b-det .ln b{font:600 14.5px var(--font-mono);font-stretch:80%;white-space:nowrap}
 @media (max-width:760px){
-  .tot.b-tot{grid-template-columns:repeat(2,minmax(0,1fr))} .tot.b-tot.cn-tot>:last-child{grid-column:1/-1}
+  .tot.b-tot{grid-template-columns:repeat(2,minmax(0,1fr))} .tot.b-tot.cn-tot>:last-child,.tot.b-tot.pc-tot>:last-child{grid-column:1/-1}
+  .pc .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .pc .b-dia{grid-area:1/1} .pc .b-est{grid-area:1/2} .pc-cli,.pc .b-fila .r{grid-column:1/3} .pc-cli .small{white-space:normal} .pc-cab .btn{width:100%}
   .b-tot div{border-bottom:1px solid var(--line)} .b-tot b{font-size:19px}
   .b-cab{display:none}
   .item.b-fila{padding:12px 14px;row-gap:6px}
@@ -1338,7 +1350,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.18.0';
+const OM_VERSION='2.19.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1359,7 +1371,7 @@ function nowMX(){
   return { fecha:`${g('year')}-${g('month')}-${g('day')}`, hora:hh, min:Number(g('minute')), hhmm:`${String(hh).padStart(2,'0')}:${g('minute')}` };
 }
 function addDays(fecha, d){ const [y,m,dd]=fecha.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,dd+d)); return t.toISOString().slice(0,10); }
-const NOMBRE_CAMPO={fecha:'fecha',total:'total',monto:'importe',serie:'serie',folio:'folio',referencia:'referencia',concepto:'concepto'};
+const NOMBRE_CAMPO={fecha:'fecha',total:'total',monto:'importe',importe:'importe',ordenante:'quién paga',cuenta_origen:'cuenta de origen',serie:'serie',folio:'folio',referencia:'referencia',concepto:'concepto'};
 function chipEditado(cambios, fem){
   const partes=Object.entries(cambios||{}).map(([k,v])=>`${NOMBRE_CAMPO[k]||k}: ${v.de??'—'} → ${v.a??'—'}`);
   return h('span',{class:'chip edit',title:partes.join('\n')||'Datos cambiados a mano'}, fem?'editada':'editado');
@@ -2944,27 +2956,27 @@ async function renderAdmin(){
     navTareas(),
     ['glog','viaje','Logística',[['lviajes','viaje','Viajes'],['lunidades','unidad','Unidades'],['loperadores','desp','Operadores'],['lclientes','clientes','Clientes'],...(dueno?[['lajustes','config','Ajustes']]:[])]],
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
-    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pclientes','clientes','Pagos de clientes']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
     ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos'],['bdeposito','depositos','Depósito manual']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados'],...(dueno&&S.config.escanerTickets?[['escaner','camara','Prueba del escáner']]:[])]],
     ['eliminados','anulados','Eliminados y cancelados']]; // 20-nov-2026: todo lo eliminado, cancelado o anulado vive aquí (dueño y Contabilidad), no en las listas de trabajo
-  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
   if(dueno) Object.assign(titulos,{ cdia:'Conciliación · Diaria', cacum:'Conciliación · Acumulado', chist:'Conciliación · Histórico' });
   if(dueno && S.config.escanerTickets) titulos.escaner='Prueba del escáner'; // escáner de tickets, etapa 1: con el interruptor apagado esta pantalla no existe
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist','eliminados'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','pclientes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist','eliminados'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='pclientes'){ PC.w=null; PC.abre=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ // Diseño v2: el mismo selector de gasolinera, a la vista en botones (antes lista desplegable).
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:ev=>cambiarGasolinera(e, ev.currentTarget, selEst, head, main)},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main; const finEspera=omEsperaPantalla(main);
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, pclientes:pagosClientes, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
   finally{ app=prev; finEspera(); }
 }
 
@@ -4367,7 +4379,7 @@ const ELI_CATS=[['cortes','Cortes'],['descargas','Descargas'],['tareas','Tareas 
 const ELI_TOPE=50;
 async function eliCargar(){
   const pide=async arma=>{ try{ const {data,error}=await arma(); if(error) return []; return data||[]; }catch(e){ return []; } }; // lo que un perfil no puede ver simplemente no sale
-  const [cortes, descargas, tareas, avisos, cargas, hojas, pagos, facturas, viajes, precios, borrados, usuarios, proveedores, islas, cuentas, reemplazos]=await Promise.all([
+  const [cortes, descargas, tareas, avisos, cargas, hojas, pagos, facturas, viajes, precios, borrados, usuarios, proveedores, islas, cuentas, reemplazos, pagosCli]=await Promise.all([
     pide(()=>sb.from('cortes').select('*, despachadores(nombre)').eq('estado','anulado').order('anulado_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('descargas').select('*').eq('estado','anulada').order('anulada_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('tareas').select('*').eq('estado','cancelada').order('cancelada_en',{ascending:false}).limit(ELI_TOPE)),
@@ -4380,7 +4392,8 @@ async function eliCargar(){
     pide(()=>sb.from('cambios_precio').select('*').eq('estado','cancelado').order('cancelado_en',{ascending:false}).limit(ELI_TOPE)),
     pide(()=>sb.from('bitacora').select('*').eq('accion','eliminar').in('tabla',['facturas','pagos','estados_cuenta']).order('en',{ascending:false}).limit(150)),
     pide(()=>sb.from('usuarios').select('id, nombre')), pide(()=>sb.from('proveedores').select('id, nombre').limit(2000)), pide(()=>sb.from('islas').select('id, nombre')), bancoCuentas().catch(()=>[]),
-    pide(()=>sb.from('banco_reemplazos').select('*').order('hecho_en',{ascending:false}).limit(ELI_TOPE)) ]);   // 062; si la tabla aún no existe, simplemente no sale nada
+    pide(()=>sb.from('banco_reemplazos').select('*').order('hecho_en',{ascending:false}).limit(ELI_TOPE)),
+    pide(()=>sb.from('pagos_clientes').select('*').not('anulado_en','is',null).order('anulado_en',{ascending:false}).limit(ELI_TOPE)) ]);   // 063; igual: si la tabla aún no existe, no sale nada   // 062; si la tabla aún no existe, simplemente no sale nada
   const quien=id=>{ const u=usuarios.find(x=>x.id===id); return u? u.nombre : null; };
   const est=id=>{ const e=(S.estaciones||[]).find(x=>x.id===id); return e? e.nombre : null; };
   const isla=id=>{ const x=islas.find(q=>q.id===id); return x? x.nombre : null; };
@@ -4397,6 +4410,7 @@ async function eliCargar(){
   for(const v of viajes) pon('logistica','Cancelado', v.actualizado_en, une('Viaje '+(v.folio!=null? v.folio : ''), fmtFecha(v.fecha), v.destino), une(v.producto, v.litros? fmtInt(v.litros)+' L' : null), v.actualizado_por_nombre, v.cancelado_motivo, {viaje:v});
   for(const f of facturas) pon('facturas','Cancelada', f.cancelado_en, une('Factura '+sf(f), f.emisor_nombre, fmtMonto(f.total)), une(neg(f.negocio_id), 'del '+fmtFecha(f.fecha)), quien(f.cancelado_por), f.motivo_cancelacion);
   for(const g of pagos) pon('pagos','Anulado', g.anulado_en, une('Pago a '+(prov(g.proveedor_id)||'proveedor'), fmtMonto(g.monto)), une(neg(g.negocio_id), 'del '+fmtFecha(g.fecha), g.referencia? 'folio '+g.referencia : null, g.concepto), quien(g.anulado_por), g.motivo_anulacion);
+  for(const g of pagosCli) pon('pagos','Anulado', g.anulado_en, une('Pago de cliente: '+g.cliente_nombre, fmtMonto(g.importe)), une(est(g.estacion_id), 'del '+fmtFecha(g.fecha), g.folio? 'folio '+g.folio : null, g.concepto, g.creado_por_nombre? 'lo subió '+g.creado_por_nombre : null), g.anulado_por_nombre||quien(g.anulado_por), g.anulado_motivo);
   for(const b of borrados){ const x=b.antes||{}; const motivo=b.despues&&b.despues.motivo; const por=quien(b.usuario_id);
     if(b.tabla==='facturas') pon('facturas','Eliminada', b.en, une('Factura '+sf(x), x.emisor_nombre, x.total!=null? fmtMonto(x.total) : null), une(neg(x.negocio_id), x.fecha? 'del '+fmtFecha(x.fecha) : null), por, motivo);
     else if(b.tabla==='pagos') pon('pagos','Eliminado', b.en, une('Pago a '+(prov(x.proveedor_id)||'proveedor'), x.monto!=null? fmtMonto(x.monto) : null), une(neg(x.negocio_id), x.fecha? 'del '+fmtFecha(x.fecha) : null, x.referencia? 'folio '+x.referencia : null, x.concepto), por, motivo);
@@ -4410,7 +4424,7 @@ async function eliCargar(){
     pon('bancos','Cancelada', H.cancelada_en, une('Hoja de depósito '+H.folio, cta(H.cuenta_id), fmtMXN(tot)), une(r.length===1? '1 depósito' : r.length+' depósitos', H.creada_por_nombre? 'la hizo '+H.creada_por_nombre : null), quien(H.cancelada_por), H.cancelada_motivo); }
   for(const c of precios) pon('precios','Cancelado', c.cancelado_en, une('Cambio de precio programado', est(c.estacion_id)), une('para '+fmtFecha(fechaMX(c.programado_para))+' '+fmtHora(c.programado_para), Object.entries(c.precios||{}).map(([k,v])=>k+' '+fmtMonto(v)).join(' · '), c.nota), quien(c.cancelado_por), null);
   out.sort((x,y)=>x.cuando<y.cuando?1:x.cuando>y.cuando?-1:0);
-  out.tope=[cortes,descargas,tareas,avisos,cargas,hojas,pagos,facturas,viajes,precios].some(l=>l.length>=ELI_TOPE);
+  out.tope=[cortes,descargas,tareas,avisos,cargas,hojas,pagos,facturas,viajes,precios,pagosCli].some(l=>l.length>=ELI_TOPE);
   return out;
 }
 const eliFirma = d => d.map(x=>x.cat+x.cuando+x.titulo).join('|');
@@ -4975,6 +4989,178 @@ async function renderWizardPago(cuentas, fijo){
       r.factura_ligada? h('p',{class:'small',style:'color:'+(r.factura_ligada.cuadra?'var(--ok)':'var(--warn)')},'Quedó ligado a la factura '+(r.factura_ligada.concepto_pago||'')+(r.factura_ligada.cuadra?'.':' · el importe no coincide con el total de la factura ('+fmtMonto(r.factura_ligada.total)+').')) : h('p',{class:'small muted'},'No se ligó a ninguna factura; cuando llegue la factura con ese concepto se ligará sola.'),
       h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='comprobantes'; else adminTab='comprobantes'; render(); }},'Ver comprobantes')));
   }
+}
+
+// ===== PAGOS DE CLIENTES (25-nov-2026) =====
+// La oficina sube el comprobante que le manda el cliente (PDF, captura o foto de la hoja impresa); la IA lo lee y la app sugiere de qué cliente es.
+// REGLA de Mauricio: el comprobante solo avisa. El pago cuenta cuando aparece en los movimientos del banco (lo liga la base, migración 063).
+// Servidor: función "pago-cliente" (IA + Drive) y RPC pagos_clientes_lista / ligar_pagos_clientes / anular_pago_cliente. Solo el dueño anula.
+const PC={ w:null, est:'', per:'mes', abre:null, datos:null, t:0, ligaT:0 };
+const PC_PLAZO=3;   // días que tiene el pago para aparecer en el banco (25-nov-2026)
+// 'banco' ya cayó · 'nocayo' venció su plazo y el banco ya está subido más allá de ese día · 'espera' lo demás (incluye: venció pero falta subir el banco)
+function pcEstado(r){ if(r.en_banco) return 'banco'; return (r.banco_hasta && r.banco_hasta>addDays(r.fecha,PC_PLAZO))? 'nocayo' : 'espera'; }
+const pcFirma = d => d.map(x=>x.id+(x.en_banco?'1':'0')+(x.banco_hasta||'')).join('|');
+const pcFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /pagos_clientes_lista|schema cache/i.test(String((e.raw&&e.raw.message)||e.message||'')));
+const pcFaltaFuncion = j => !!j && (j.code==='NOT_FOUND' || /\(404\)|not found/i.test(String(j.error||j.message||'')));
+const pcMime = f => f.type || ({pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif'})[(String(f.name||'').split('.').pop()||'').toLowerCase()] || '';
+async function pagosClientes(){
+  if(PC.w){ await pcWizard(); return; }
+  const cont=h('div',{id:'pc'}); app.append(cont);
+  const cargar=()=>rpc('pagos_clientes_lista',{ p_desde:addDays(nowMX().fecha,-400), p_hasta:null });
+  if(!PC.datos){ cont.append(omEsperando(['Cargando pagos de clientes…','Revisando lo que ya cayó en el banco…']));
+    try{ PC.datos=(await cargar())||[]; PC.t=Date.now(); }
+    catch(e){ cont.innerHTML='';
+      cont.append(pcFaltaBase(e)
+        ? h('div',{class:'card empty',id:'pc-falta'}, h('b',{},'Esta sección todavía no está activada'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, S.rol==='dueno'? 'Falta correr en Supabase la migración 063 (Pagos de clientes) e instalar la función «pago-cliente». En cuanto estén, aquí se suben los comprobantes.' : 'En cuanto Mauricio la active, aquí se suben los comprobantes que mandan los clientes.'))
+        : h('div',{class:'card empty'}, 'No se pudieron cargar los pagos: '+(e.message||e.code)));
+      return; }
+    if(!cont.isConnected) return; }
+  else if(Date.now()-PC.t>15000){ const antes=pcFirma(PC.datos); PC.t=Date.now(); cargar().then(n=>{ n=n||[]; const cambio=pcFirma(n)!==antes; PC.datos=n; if(cambio && cont.isConnected) render(); }).catch(()=>{}); }   // sin parpadeo: se pinta lo último visto y se pone al día atrás
+  // Por si el banco se subió desde otra parte: se intenta ligar lo pendiente, a lo mucho una vez por minuto.
+  if(Date.now()-PC.ligaT>60000 && PC.datos.some(r=>!r.en_banco)){ PC.ligaT=Date.now(); rpc('ligar_pagos_clientes').then(n=>{ if(n>0){ PC.datos=null; if(cont.isConnected) render(); } }).catch(()=>{}); }
+  cont.innerHTML='';
+  const hoy=nowMX().fecha; const ests=(S.estaciones||[]).filter(e=>PC.datos.some(r=>r.estacion_id===e.id)); const varias=ests.length>1; const nomEst=id=>{ const e=ests.find(x=>x.id===id); return e? e.nombre : ''; };   // el filtro de estación solo sale si hay pagos de más de una
+  if(PC.est && !ests.some(e=>e.id===PC.est)) PC.est='';
+  cont.append(h('div',{class:'pc-cab'}, h('p',{class:'small muted'},'El comprobante que manda el cliente solo avisa del pago. Cuenta hasta que aparece en los movimientos del banco.'),
+    h('button',{class:'btn primary',id:'pc-subir',onclick:()=>{ PC.w={paso:'archivo'}; render(); }}, ico('subir'), 'Subir evidencia')));
+  const fil=h('div',{class:'filtros',style:'margin-top:14px'});
+  if(varias){ const s=h('select',{class:PC.est?'on':'',title:'Estación',id:'pc-est'}, h('option',{value:''},'Todas las estaciones'), ...ests.map(e=>h('option',{value:e.id,selected:e.id===PC.est},e.nombre))); s.addEventListener('change',()=>{ PC.est=s.value; PC.abre=null; render(); }); fil.append(s); }
+  const sp=h('select',{title:'Periodo',id:'pc-per',class:PC.per!=='mes'?'on':''}, ...[['mes','Este mes'],['pasado','Mes pasado'],['todo','Todo']].map(([v,l])=>h('option',{value:v,selected:v===PC.per},l))); sp.addEventListener('change',()=>{ PC.per=sp.value; PC.abre=null; render(); }); fil.append(sp);
+  cont.append(fil);
+  const mes=hoy.slice(0,7), pasado=addDays(mes+'-01',-1).slice(0,7); const enPer=r=>PC.per==='todo' || r.fecha.slice(0,7)===(PC.per==='mes'? mes : pasado);
+  // Lo que no ha caído se ve siempre, sea del mes que sea: es lo que hay que atender.
+  const rows=PC.datos.filter(r=>(!PC.est || r.estacion_id===PC.est) && (!r.en_banco || enPer(r))).map(r=>Object.assign({e:pcEstado(r)}, r));
+  if(!rows.length){ cont.append(h('div',{class:'card empty',id:'pc-vacio',style:'margin-top:14px'}, h('b',{},PC.datos.length? 'No hay pagos en este periodo' : 'Todavía no hay pagos de clientes'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, PC.datos.length? 'Prueba con otro periodo.' : 'Cuando un cliente mande su comprobante por WhatsApp, súbelo aquí con «Subir evidencia»: PDF, captura o foto de la hoja.'))); return; }
+  const orden={nocayo:0, espera:1, banco:2}; rows.sort((a,b)=> orden[a.e]-orden[b.e] || (a.fecha<b.fecha?1:a.fecha>b.fecha?-1:0) || (a.creado_en<b.creado_en?1:-1));
+  const T={banco:0, espera:0, nocayo:0}, N={banco:0, espera:0, nocayo:0}; for(const r of rows){ T[r.e]+=Number(r.importe); N[r.e]++; }
+  cont.append(h('div',{class:'tot b-tot pc-tot',id:'pc-tot',style:'margin-top:4px;--n:3'}, bancoDato(`En el banco · ${N.banco}`, fmtMXN(T.banco)), bancoDato(`Avisado, sin caer · ${N.espera}`, fmtMXN(T.espera)), bancoDato(`No cayó en su plazo · ${N.nocayo}`, fmtMXN(T.nocayo), N.nocayo?'neg':'')));
+  const list=h('div',{class:'list b-tabla pc',id:'pc-lista',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Fecha'), h('span',{},'Cliente'), h('span',{class:'r'},'Importe'), h('span',{},'')));
+  for(const r of rows){ const abierta=PC.abre===r.id; const vence=addDays(r.fecha,PC_PLAZO);
+    const chip= r.e==='banco'? h('span',{class:'chip ok'},'En el banco') : r.e==='nocayo'? h('span',{class:'chip err'},'No cayó en su plazo') : h('span',{class:'chip warn'},'Avisado, sin caer');
+    const sub=[varias&&!PC.est? nomEst(r.estacion_id) : null, r.e==='espera'&&hoy>vence? 'falta subir el banco' : null, r.ordenante, r.concepto].filter(Boolean).join(' · ');
+    const fila=h('div',{class:'item b-fila'+(abierta?' abierta':''),'data-pago':r.id,'data-estado':r.e,role:'button',tabindex:'0','aria-expanded':abierta?'true':'false','aria-label':`Ver el detalle del pago de ${r.cliente_nombre}`},
+      h('span',{class:'b-dia'}, h('b',{},fmtFecha(r.fecha))), h('span',{class:'pc-cli'}, h('b',{},r.cliente_nombre), sub? h('span',{class:'small muted'},sub) : null),
+      h('span',{class:'r','data-l':'Importe'},fmtMXN(r.importe)), h('span',{class:'b-est'},chip));
+    const alternar=()=>{ PC.abre=abierta? null : r.id; render(); };
+    fila.addEventListener('click',alternar); fila.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); alternar(); } });
+    list.append(fila); if(abierta) list.append(pcDetalle(r, hoy)); }
+  cont.append(list);
+  cont.append(h('p',{class:'small muted',style:'margin:12px 0 0;max-width:80ch'}, `Un pago tiene ${PC_PLAZO} días para aparecer en el banco. Si se vence el plazo y el banco ya está subido, queda como «No cayó en su plazo» para revisarlo con el cliente.`));
+}
+function pcDetalle(r, hoy){
+  const vence=addDays(r.fecha,PC_PLAZO); const ln=(k,v)=> v? h('div',{class:'ln'}, h('span',{},k), h('b',{},String(v))) : null;
+  const subido=r.creado_en? new Date(r.creado_en).toLocaleString('es-MX',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+  const comp=h('div',{}, h('h4',{},'Lo que dice el comprobante'), ln('Quién paga',r.ordenante), ln('Banco',r.banco_origen), ln('Cuenta de origen',r.cuenta_origen4? '···'+r.cuenta_origen4 : null), ln('Concepto',r.concepto), ln('Folio',r.folio), ln('Estado que trae',r.estado_banco),
+    h('p',{class:'small muted',style:'margin:10px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap'}, `Lo subió ${r.creado_por_nombre||'la oficina'}${subido? ' el '+subido : ''}`, r.cambios&&Object.keys(r.cambios).length? chipEditado(r.cambios,false) : null));
+  const banco=h('div',{}, h('h4',{},'En el banco'));
+  if(r.e==='banco') add(banco, h('p',{class:'pc-ok'}, ico('palomita',18), `Cayó el ${fmtFecha(r.banco_fecha)}${r.banco_cuenta? ' en '+r.banco_cuenta : ''}`),
+    h('p',{class:'small muted',style:'margin:6px 0 0'}, r.ligado_por==='folio'? 'Se reconoció por el folio de la operación.' : r.ligado_por==='concepto'? 'Se reconoció por el importe y el concepto.' : 'Se reconoció por el importe y la fecha: era el único depósito por esa cantidad.'));
+  else if(r.e==='nocayo') add(banco, h('p',{class:'pc-mal'},'No apareció en el banco'),
+    h('p',{class:'small muted',style:'margin:6px 0 0'}, `Tenía hasta el ${fmtFecha(vence)} y el banco ya está subido hasta el ${fmtFecha(r.banco_hasta)}. Hay que revisarlo con el cliente: puede que la transferencia no haya salido, que la mandara a otra cuenta o que el importe sea distinto.`));
+  else add(banco, h('p',{style:'margin:0;font-weight:600'},'Todavía no aparece'),
+    h('p',{class:'small muted',style:'margin:6px 0 0'}, hoy>vence
+      ? `Su plazo venció el ${fmtFecha(vence)}, pero ${r.banco_hasta? 'el banco solo está subido hasta el '+fmtFecha(r.banco_hasta) : 'todavía no se suben movimientos del banco'}: falta subir el banco para saber si cayó.`
+      : `Tiene hasta el ${fmtFecha(vence)} para aparecer. ${r.banco_hasta? 'El banco está subido hasta el '+fmtFecha(r.banco_hasta)+'.' : 'Todavía no se suben movimientos del banco.'}`));
+  add(banco, h('div',{class:'row',style:'margin-top:12px'},
+    r.archivo_drive_id? h('button',{class:'btn sm ghost','data-ver':r.id,onclick:ev=>{ ev.stopPropagation(); verArchivo(r.archivo_drive_id,{fn:'pago-cliente',nombre:r.archivo_nombre}); }}, ico('archivo',18),'Ver comprobante') : null,
+    S.rol==='dueno'? h('button',{class:'btn sm ghost danger','data-anular':r.id,onclick:ev=>{ ev.stopPropagation(); pcAnular(r); }},'Anular') : null));   // solo el dueño (regla de Mauricio, 25-nov-2026)
+  return h('div',{class:'b-det pc-det','data-det':r.id}, comp, banco);
+}
+function pcAnular(r){
+  const sheet=h('div',{class:'sheet',onclick:e=>{ if(e.target===sheet) sheet.remove(); }});
+  const motivo=h('input',{type:'text',id:'pc-motivo',placeholder:'Motivo (obligatorio): p. ej. era de otro cliente'});
+  const btn=h('button',{class:'btn big block',id:'pc-anular',style:'background:var(--err);color:var(--neon-fg);border-color:var(--err)',disabled:true},'Anular el pago');
+  motivo.addEventListener('input',()=>{ btn.disabled=motivo.value.trim().length<5; });
+  btn.addEventListener('click',async()=>{ btn.disabled=true; btn.textContent='Anulando…';
+    try{ await rpc('anular_pago_cliente',{p_id:r.id, p_motivo:motivo.value.trim()}); sheet.remove(); PC.datos=null; PC.abre=null; toast('Pago anulado. Queda en Eliminados y cancelados.',5000); render(); }
+    catch(e){ btn.disabled=false; btn.textContent='Anular el pago'; aviso(e.message||e.code,'err',12000,'No se anuló'); } });
+  sheet.append(h('div',{class:'in stack'}, h('h3',{},'¿Anular este pago?'), h('p',{class:'muted',style:'margin:0'},`${r.cliente_nombre} · ${fmtFecha(r.fecha)} · ${fmtMXN(r.importe)}`),
+    h('p',{class:'small muted',style:'margin:0'},'El comprobante deja de contar. Si ya estaba ligado con un depósito del banco, ese depósito queda libre. Se anota con tu usuario y el motivo.'),
+    motivo, btn, h('button',{class:'btn ghost block',onclick:()=>sheet.remove()},'No anular')));
+  document.body.append(sheet);
+}
+// ---- Subir evidencia → la IA lee → confirmar datos y cliente → guardar
+async function pcLeer(f){
+  const w=PC.w; if(!f || !w) return;
+  let blob=f, mime=pcMime(f);
+  // Fotos del teléfono (HEIC o muy pesadas): se pasan a JPG para que la IA las pueda leer. PDF y capturas van tal cual.
+  if(/^image\//.test(mime) && (!/^image\/(jpeg|png|webp)$/.test(mime) || f.size>3*1024*1024)){ const c=await comprimirImagen(f).catch(()=>null); if(c && c!==f){ blob=c; mime='image/jpeg'; } }
+  if(!/^(application\/pdf|image\/(jpeg|png|webp))$/.test(mime)){ aviso('Ese archivo no se puede leer. Tiene que ser el PDF, una captura de pantalla o una foto.','err',10000,'No se puede leer'); return; }
+  if(blob.size>8*1024*1024){ aviso('El archivo pasa de 8 MB. Si es una foto, tómale captura de pantalla y sube la captura.','err',10000,'Archivo muy pesado'); return; }
+  w.archivo={ nombre:f.name||'comprobante', mime, b64:await archivoABase64(blob) }; w.paso='leyendo'; render();
+  const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime },'pago-cliente').catch(e=>({ok:false,error:e.message}));
+  if(PC.w!==w) return;   // se canceló mientras leía
+  if(!j.ok){ w.paso='archivo'; render(); aviso(pcFaltaFuncion(j)? 'Falta instalar en Supabase la función «pago-cliente». Avísale a Mauricio.' : (j.error||'No se pudo leer el comprobante.'),'err',12000,'No se pudo leer'); return; }
+  const ia=j.extraido||{}; const ests=j.estaciones||[];
+  w.a=j; w.sug=j.sugerencia||null; w.otro=!w.sug;
+  w.form={ estacionId:j.estacion_id||(ests.length===1? ests[0].id : ''), clienteId:'', fecha:ia.fecha||'', importe:ia.importe!=null? String(ia.importe) : '', concepto:ia.concepto||'', folio:ia.folio||'' };
+  w.original={ fecha:w.form.fecha, importe:w.form.importe, concepto:w.form.concepto, folio:w.form.folio }; w.editando=!w.form.fecha || !w.form.importe;   // si la IA no leyó la fecha o el importe, se abren para escribirlos
+  w.paso='confirmar'; render();
+}
+async function pcWizard(){
+  const w=PC.w; const card=h('div',{class:'card stack',id:'pc-w',style:'margin-bottom:12px;max-width:760px'}); app.append(card);
+  const cerrar=h('button',{class:'btn sm ghost',id:'pc-cerrar',onclick:()=>{ PC.w=null; render(); }}, w.paso==='listo'? 'Volver a la lista' : 'Cancelar');
+  if(w.paso==='archivo'){
+    const inp=h('input',{type:'file',accept:'application/pdf,image/*',style:'display:none',id:'pc-archivo'}); inp.addEventListener('change',()=>pcLeer(inp.files[0]));
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 1 de 2 · Evidencia'), cerrar),
+      h('p',{class:'muted',style:'margin:0'},'Sube lo que mandó el cliente, tal como llegó: el PDF del banco, la captura de pantalla o la foto de la hoja impresa.'),
+      h('button',{class:'btn primary big block',id:'pc-elegir',onclick:()=>abrirArchivo(inp)}, ico('subir'), 'Subir evidencia'), inp,
+      h('p',{class:'small muted',style:'margin:0'},'PDF, JPG o PNG de hasta 8 MB.'));
+    return; }
+  if(w.paso==='leyendo'){ add(card, h('div',{class:'sechead'}, h('h3',{},'Leyendo el comprobante…'), cerrar), omEsperando(['La IA está leyendo '+w.archivo.nombre+'…','Buscando la cuenta que recibe…','Buscando de qué cliente es…'])); return; }
+  if(w.paso==='confirmar'){
+    const a=w.a, f=w.form, ia=a.extraido||{}; const ests=a.estaciones||[]; const est=ests.find(e=>e.id===f.estacionId)||null; const clientes=est? est.clientes : [];
+    const sug=(w.sug && !w.otro && clientes.some(c=>c.id===w.sug.cliente_id))? w.sug : null;
+    const msg=h('div',{class:'small',id:'pc-msg',style:'color:var(--err);min-height:1.3em'});
+    const fecha=h('input',{type:'date',value:f.fecha,max:nowMX().fecha}); fecha.addEventListener('input',()=>f.fecha=fecha.value);
+    const imp=h('input',{type:'number',step:'0.01',min:'0',inputmode:'decimal',value:f.importe,placeholder:'0.00'}); imp.addEventListener('input',()=>f.importe=imp.value);
+    const conc=h('input',{type:'text',value:f.concepto,placeholder:'Concepto de pago'}); conc.addEventListener('input',()=>f.concepto=conc.value);
+    const fol=h('input',{type:'text',value:f.folio,placeholder:'Folio de la operación'}); fol.addEventListener('input',()=>f.folio=fol.value);
+    const cF=campoRO('Fecha del pago',fecha,f.fecha? fmtFechaLarga(f.fecha) : 'No se leyó'), cI=campoRO('Importe',imp,f.importe!==''? fmtMXN(Number(f.importe)) : 'No se leyó'), cC=campoRO('Concepto',conc,f.concepto||'—'), cO=campoRO('Folio',fol,f.folio||'—');
+    cF.reset=()=>{ fecha.value=f.fecha; }; cI.reset=()=>{ imp.value=f.importe; }; cC.reset=()=>{ conc.value=f.concepto; }; cO.reset=()=>{ fol.value=f.folio; };
+    const bloqueo=bloqueoDatos(w,[cF,cI,cC,cO],'pago');
+    const guardar=async b=>{ msg.textContent='';
+      if(!f.estacionId){ msg.textContent='Elige la estación.'; return; }
+      if(!f.clienteId){ msg.textContent='Elige de qué cliente es.'; return; }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(f.fecha)){ msg.textContent='Falta la fecha del pago: toca Editar y escríbela.'; return; }
+      if(!(Number(f.importe)>0)){ msg.textContent='Falta el importe: toca Editar y escríbelo.'; return; }
+      card.querySelectorAll('button').forEach(x=>x.disabled=true); const txt=b.textContent; b.textContent='Guardando…';
+      const j=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, estacion_id:f.estacionId, cliente_id:f.clienteId, cuenta_id:a.cuenta? a.cuenta.id : null,
+        fecha:f.fecha, importe:Number(f.importe), concepto:f.concepto.trim()||null, folio:f.folio.trim()||null, ordenante:ia.ordenante||null, cuenta_origen:ia.cuenta_origen||null, extraido:ia },'pago-cliente').catch(e=>({ok:false,error:e.message}));
+      if(PC.w!==w) return;
+      if(!j.ok){ if(j.codigo==='comprobante_duplicado'||j.codigo==='pago_repetido'){ PC.w={paso:'archivo'}; render(); } else { card.querySelectorAll('button').forEach(x=>x.disabled=false); b.textContent=txt; }
+        aviso(j.error||'No se pudo guardar el pago.','err',12000,'No se guardó'); return; }
+      w.paso='listo'; w.r=j; PC.datos=null; PC.abre=null; render(); };
+    // Cambiar de estación: los clientes son otros y lo aprendido también; se vuelve a pedir la sugerencia para esa estación.
+    const selEst=h('select',{id:'pc-estacion'}, h('option',{value:''},'— Elige la estación —'), ...ests.map(e=>h('option',{value:e.id,selected:e.id===f.estacionId},e.nombre)));
+    selEst.addEventListener('change',async()=>{ f.estacionId=selEst.value; f.clienteId=''; w.sug=null; w.otro=true; render();
+      if(!f.estacionId) return; const de=f.estacionId;
+      try{ const s=await rpc('sugerir_cliente_pago',{ p_estacion:de, p_cuenta:ia.cuenta_origen||null, p_ordenante:ia.ordenante||null, p_concepto:ia.concepto||null }); if(PC.w===w && f.estacionId===de && s){ w.sug=s; w.otro=false; render(); } }catch(e){} });
+    const paga=[ia.ordenante||null, ia.cuenta_origen? 'cuenta ···'+String(ia.cuenta_origen).slice(-4) : null, ia.banco_origen||null].filter(Boolean).join(' · ');
+    let bloqueCli;
+    if(sug){ bloqueCli=h('div',{class:'pc-sug',id:'pc-sug'}, h('span',{class:'small muted'},'Parece que es de'), h('b',{},sug.cliente_nombre), sug.razon? h('span',{class:'small muted'},sug.razon) : null,
+        h('div',{class:'row',style:'margin-top:10px'}, h('button',{class:'btn primary',id:'pc-si',onclick:e=>{ f.clienteId=sug.cliente_id; guardar(e.currentTarget); }},'Sí, guardar'),
+          h('button',{class:'btn ghost',id:'pc-no',onclick:()=>{ w.otro=true; f.clienteId=''; render(); }},'No, es de otro cliente'))); }
+    else { const cli=h('select',{id:'pc-cliente'}, h('option',{value:''},'— Elige al cliente —'), ...clientes.map(c=>h('option',{value:c.id,selected:c.id===f.clienteId},c.nombre))); cli.addEventListener('change',()=>{ f.clienteId=cli.value; });
+      bloqueCli=h('div',{class:'stack',style:'gap:10px'}, h('label',{class:'f'}, h('span',{class:'l'},'¿De qué cliente es?'), cli,
+          h('span',{class:'small muted',style:'display:block;margin-top:6px'}, !est? 'Primero elige la estación.' : !clientes.length? 'Esta estación no tiene clientes marcados activos. Se dan de alta en Configuración ▸ Clientes marcados.' : w.sug? 'Elige al cliente correcto: la app lo recuerda para la próxima.' : 'La app todavía no reconoce a quién paga así. Elígelo una vez y la próxima lo sugiere sola.')),
+        h('button',{class:'btn primary big block',id:'pc-guardar',onclick:e=>guardar(e.currentTarget)},'Guardar pago')); }
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Paso 2 de 2 · Confirmar'), cerrar),
+      h('p',{class:'small muted',style:'margin:0'}, `${w.archivo.nombre} · leído por IA${Number(ia.confianza??0.5)<0.7? ' · revisa bien los datos (lectura dudosa)' : ''}`),
+      a.aviso? h('div',{id:'pc-aviso',style:'padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:14px'},a.aviso) : null,
+      ia.notas? h('p',{class:'small muted',style:'margin:0'},'Nota de la IA: '+ia.notas) : null,
+      ests.length>1? h('label',{class:'f'}, h('span',{class:'l'},'Estación'+(a.cuenta? ' · llegó a '+a.cuenta.alias : '')), selEst) : (a.cuenta? h('p',{class:'small muted',style:'margin:0'},'Llegó a '+a.cuenta.alias) : null),
+      bloqueo.fila, h('div',{class:'grid2'}, cF.el, cI.el), h('div',{class:'grid2'}, cC.el, cO.el),
+      paga? h('p',{class:'small muted',id:'pc-paga',style:'margin:4px 0 0'},'Quién paga: '+paga) : h('p',{class:'small muted',id:'pc-paga',style:'margin:4px 0 0'},'El comprobante no trae el nombre de quien paga.'),
+      bloqueCli, msg,
+      h('p',{class:'small muted',style:'margin:0'}, (ia.estado? `El comprobante dice «${ia.estado}». ` : '')+'Se guarda como avisado: cuenta hasta que aparezca en los movimientos del banco.'));
+    return; }
+  if(w.paso==='listo'){ const p=(w.r&&w.r.pago)||{}; const vence=p.fecha? addDays(p.fecha,PC_PLAZO) : null;
+    add(card, h('div',{class:'sechead'}, h('h3',{},'Pago guardado'), cerrar),
+      h('p',{style:'margin:0'}, h('b',{},w.r.cliente||p.cliente_nombre||''), p.fecha? ` · ${fmtFecha(p.fecha)} · ${fmtMXN(p.importe)}` : ''),
+      p.en_banco? h('p',{class:'pc-ok',id:'pc-res'}, ico('palomita',18), `Ya está en el banco${p.banco_fecha? ': cayó el '+fmtFecha(p.banco_fecha) : ''}.`)
+        : h('p',{id:'pc-res',style:'margin:0'}, `Queda avisado. Va a contar cuando aparezca en los movimientos del banco${vence? '; tiene hasta el '+fmtFecha(vence) : ''}.`),
+      h('div',{class:'row'}, h('button',{class:'btn primary',id:'pc-otro',onclick:()=>{ PC.w={paso:'archivo'}; render(); }},'Subir otra evidencia'), h('button',{class:'btn ghost',id:'pc-ver',onclick:()=>{ PC.w=null; render(); }},'Ver pagos de clientes'))); }
 }
 
 // ---- Consulta · Comprobantes (archivos de pagos y facturas, por mes) y Estados de cuenta
@@ -5826,16 +6012,16 @@ async function renderOficina(){
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy']]],
     navTareas(),
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
-    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pclientes','clientes','Pagos de clientes']]],
     ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]], // los estados de cuenta los sube Central (regla del servidor)
     ['gbancos','banco','Bancos',[['bdeposito','depositos','Depósito manual']]]]; // 19-nov-2026: la oficina registra la hoja antes de ir al banco; los movimientos del banco no los ve
-  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', bdeposito:'Depósito manual'};
+  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', bdeposito:'Depósito manual'};
   if(!titulos[oficinaTab]) oficinaTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } render(); }, 'oficina'), main); app.append(shell);
+  shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='pclientes'){ PC.w=null; PC.abre=null; } render(); }, 'oficina'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, (oficinaTab==='hoy'||oficinaTab==='tareas'||oficinaTab==='elaborar'||oficinaTab==='avisos')? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main; const finEspera=omEsperaPantalla(main);
-  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; finEspera(); }
+  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, pclientes:pagosClientes, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; finEspera(); }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
@@ -6067,7 +6253,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC }; // solo para la prueba de humo
 boot();
 })();
 </script>
