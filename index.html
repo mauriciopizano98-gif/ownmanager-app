@@ -1089,7 +1089,21 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .b-det .ln>span{display:flex;flex-direction:column;min-width:0}
 .b-det .ln:last-child{border-bottom:0}
 .b-det .ln b{font:600 14.5px var(--font-mono);font-stretch:80%;white-space:nowrap}
+/* Pagos del mes */
+.pm-acc{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.pm.rev .b-cab,.pm.rev .item.b-fila{grid-template-columns:72px minmax(0,1fr) 120px minmax(0,490px)}
+.pm.res .b-cab,.pm.res .item.b-fila{grid-template-columns:minmax(0,2.2fr) minmax(0,1.3fr) 90px 150px 220px}
+.pm.rev .item.b-fila{cursor:default}
+.pm-det{padding:14px 18px 16px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.pm-det .ln{display:grid;grid-template-columns:72px 120px minmax(0,1fr) 130px;gap:14px;padding:6px 0;font-size:14.5px}
+.pm-det .ln span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.pm-det .pie{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.pm-cierre{display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center;padding:12px 16px;margin-top:14px}
+.pm-cierre>span{display:inline-flex;align-items:center;gap:8px}.pm-cierre b{font-weight:600}
+.pm-entrega{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:760px){
+  .pm .b-cab{display:none} .pm.rev .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .pm.rev .b-dia{display:none} .pm.rev .pm-acc{grid-column:1/3;justify-content:flex-start}
+  .pm.res .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .pm.res .pm-nf{display:none} .pm.res .pm-est{grid-area:2/1} .pm.res .b-est{grid-area:2/2} .pm-det .ln{grid-template-columns:70px minmax(0,1fr) auto} .pm-det .ln .c{display:none} .pm-entrega .btn{width:100%}
   .tot.b-tot{grid-template-columns:repeat(2,minmax(0,1fr))} .tot.b-tot.cn-tot>:last-child,.tot.b-tot.pc-tot>:last-child{grid-column:1/-1}
   .pc .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .pc .b-dia{grid-area:1/1} .pc .b-est{grid-area:1/2} .pc-cli,.pc .b-fila .r{grid-column:1/3} .pc-cli .small{white-space:normal} .pc-cab .btn{width:100%}
   .b-tot div{border-bottom:1px solid var(--line)} .b-tot b{font-size:19px}
@@ -1354,7 +1368,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.20.1';
+const OM_VERSION='2.21.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -2980,19 +2994,19 @@ async function renderAdmin(){
     navTareas(),
     ['glog','viaje','Logística',[['lviajes','viaje','Viajes'],['lunidades','unidad','Unidades'],['loperadores','desp','Operadores'],['lclientes','clientes','Clientes'],...(dueno?[['lajustes','config','Ajustes']]:[])]],
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
-    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pclientes','clientes','Pagos de clientes']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pmes','acumulado','Pagos del mes'],['pclientes','clientes','Pagos de clientes']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
     ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos'],['bdeposito','depositos','Depósito manual']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados'],...(dueno&&S.config.escanerTickets?[['escaner','camara','Prueba del escáner']]:[])]],
     ['eliminados','anulados','Eliminados y cancelados']]; // 20-nov-2026: todo lo eliminado, cancelado o anulado vive aquí (dueño y Contabilidad), no en las listas de trabajo
-  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
+  const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', pmes:'Pagos del mes', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
   if(dueno) Object.assign(titulos,{ cdia:'Conciliación · Diaria', cacum:'Conciliación · Acumulado', chist:'Conciliación · Histórico' });
   if(dueno && S.config.escanerTickets) titulos.escaner='Prueba del escáner'; // escáner de tickets, etapa 1: con el interruptor apagado esta pantalla no existe
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','pclientes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist','eliminados'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','pclientes','pmes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist','eliminados'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='pclientes'){ PC.w=null; PC.abre=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
@@ -3000,7 +3014,7 @@ async function renderAdmin(){
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:ev=>cambiarGasolinera(e, ev.currentTarget, selEst, head, main)},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main; const finEspera=omEsperaPantalla(main);
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, pclientes:pagosClientes, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, pclientes:pagosClientes, pmes:pagosDelMes, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
   finally{ app=prev; finEspera(); }
 }
 
@@ -5070,6 +5084,118 @@ const pcFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /pag
 const pcFaltaFuncion = j => !!j && (j.sinRespuesta || j.code==='NOT_FOUND' || /\(404\)|not found/i.test(String(j.error||j.message||'')));
 const PC_SIN_FUNCION='No hubo respuesta del servidor. Revisa que haya internet y vuelve a intentar; si sigue igual, avísale a Mauricio.';
 const pcMime = f => f.type || ({pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif'})[(String(f.name||'').split('.').pop()||'').toLowerCase()] || '';
+// ---- PAGOS DEL MES (26-nov-2026) ---------------------------------------------------------------
+// Sustituye la hoja compartida donde cada oficina anotaba las facturas por pagar a fin de mes. Al revés que la hoja: todas las
+// facturas del mes llegan solas a "Por revisar" y la oficina le dice a cada una qué se hace; con todo revisado entrega el cierre.
+// Oficina: revisa y entrega su estación. Dueño: ve todo y también puede revisar. Contabilidad (central): solo ve.
+const PM={ mes:null, datos:null, t:0, vista:'revisar', neg:'', abre:null, cambia:null, motivo:null, ocupado:false };
+const PM_MOTIVO={ comisiones:'Comisiones', pagada:'Pagada', caja_chica:'Caja chica' };
+const PM_CAJA_TOPE=2000;   // una factura de caja chica debe ser en efectivo y de no más de $2,000 (dicho por Mauricio)
+const pmFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /pagos_mes|schema cache/i.test(String((e.raw&&e.raw.message)||e.message||'')));
+const pmDia = f => new Date(String(f).slice(0,10)+'T12:00:00Z').toLocaleDateString('es-MX',{timeZone:'UTC',day:'numeric',month:'short'}).replace('.','');   // "24 nov": corto, para que quepa en la tabla
+const pmHora = t => new Date(t).toLocaleString('es-MX',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const pmSugerido = s => !s? '' : s.destino==='pagar'? 'se paga este mes' : s.destino==='no_pago'? 'no requiere pago · '+(PM_MOTIVO[s.motivo]||'').toLowerCase() : '';
+// Una factura de caja chica que no cumple: pasa del tope o el CFDI no dice que se pagó en efectivo (forma de pago 01).
+const pmCajaMal = r => r.motivo==='caja_chica' && (Number(r.total)>PM_CAJA_TOPE? 'Pasa de '+fmtMXN(PM_CAJA_TOPE).replace(/\.00$/,'') : (r.forma_pago && r.forma_pago!=='01')? 'No dice efectivo' : '');
+async function pmRecargar(){ const d=await rpc('pagos_mes',{p_mes:PM.mes+'-01'}); d._mes=PM.mes; PM.datos=d; PM.t=Date.now(); }
+async function pmMarcar(r, destino, motivo){ if(PM.ocupado) return; PM.ocupado=true;
+  try{ await rpc('pagos_mes_marcar',{p_factura:r.id, p_mes:PM.mes+'-01', p_destino:destino, p_motivo:motivo||null}); PM.cambia=null; PM.motivo=null; await pmRecargar(); }
+  catch(e){ aviso('No se pudo guardar: '+(e.hint||e.message||e.code)); }
+  PM.ocupado=false; render(); }
+function pmIrAPagar(){ OF.wizard=null; if(S.rol==='oficina') oficinaTab='apago'; else adminTab='apago'; render(); }
+async function pagosDelMes(){
+  if(!PM.mes) PM.mes=nowMX().fecha.slice(0,7);
+  const cont=h('div',{id:'pm'}); app.append(cont);
+  if(!PM.datos || PM.datos._mes!==PM.mes){ cont.append(omEsperando(['Cargando las facturas del mes…','Casi listo…']));
+    try{ await pmRecargar(); }
+    catch(e){ cont.innerHTML='';
+      cont.append(pmFaltaBase(e)
+        ? h('div',{class:'card empty',id:'pm-falta'}, h('b',{},'Esta sección todavía no está activada'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, S.rol==='dueno'? 'Falta terminar la instalación de Pagos del mes en el servidor (paso 31). En cuanto esté, aquí aparecen las facturas del mes.' : 'En cuanto Mauricio la active, aquí aparecen las facturas del mes.'))
+        : h('div',{class:'card empty'}, 'No se pudieron cargar los pagos del mes: '+(e.message||e.code)));
+      return; }
+    if(!cont.isConnected) return; }
+  else if(Date.now()-PM.t>15000 && !PM.ocupado){ const antes=JSON.stringify(PM.datos); PM.t=Date.now(); pmRecargar().then(()=>{ if(JSON.stringify(PM.datos)!==antes && cont.isConnected) render(); }).catch(()=>{}); }   // sin parpadeo: se pinta lo último visto y se pone al día atrás
+  cont.innerHTML='';
+  const D=PM.datos, negs=D.negocios||[], puede=!!D.puede_marcar, varias=negs.length>1; const nomNeg=id=>(negs.find(n=>n.id===id)||{}).nombre||'';
+  if(PM.neg && !negs.some(n=>n.id===PM.neg)) PM.neg='';
+  const irMes=d=>()=>{ PM.mes=logMesMas(PM.mes,d); PM.vista='revisar'; PM.abre=null; PM.cambia=null; PM.motivo=null; render(); };
+  const mesNom=logMes(PM.mes), mesCorto=mesNom.split(' ')[0].toLowerCase(); const sigMes=logMes(logMesMas(PM.mes,1)).split(' ')[0].toLowerCase();
+  const nav=h('div',{class:'per-nav'}, h('button',{class:'btn sm',id:'pm-ant',title:'Mes anterior','aria-label':'Mes anterior',onclick:irMes(-1)},'‹'), h('b',{id:'pm-mes',style:'min-width:150px;text-align:center'},mesNom), h('button',{class:'btn sm',id:'pm-sig',title:'Mes siguiente','aria-label':'Mes siguiente',onclick:irMes(1)},'›'));
+  const filtroNeg=()=> varias? h('div',{class:'tabs est-filtro',id:'pm-neg',role:'group','aria-label':'Estación',style:'margin-top:14px'}, ...[['','Todas']].concat(negs.map(n=>[n.id,n.nombre])).map(([id,t])=>h('button',{class:PM.neg===id?'on':'','aria-pressed':PM.neg===id?'true':'false',onclick:()=>{ PM.neg=id; PM.abre=null; PM.cambia=null; PM.motivo=null; render(); }},t))) : null;
+  const antesDeEmpezar=PM.mes < String(D.desde||'').slice(0,7);
+  const todas=(D.facturas||[]).slice(); const faltan=id=>todas.filter(r=>r.negocio_id===id && r.lugar==='revisar').length;
+  if(antesDeEmpezar){ add(cont, nav, h('div',{class:'card empty',id:'pm-antes',style:'margin-top:14px'}, h('b',{},'Pagos del mes empieza en '+logMes(String(D.desde).slice(0,7)).toLowerCase()), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'},'Los meses anteriores no se piden revisar.'))); return; }
+
+  // ================= Vista del dueño y de Contabilidad: todas las estaciones =================
+  if(varias && !PM.neg){
+    add(cont, h('div',{class:'pc-cab'}, h('p',{class:'small muted'},'Lo que cada oficina marcó para pagarse este mes. Al subir el comprobante, la factura pasa a pagada.')), nav, filtroNeg());
+    const cierre=h('div',{class:'card pm-cierre',id:'pm-cierre'}, h('span',{class:'small muted'},'Cierre de '+mesCorto));
+    for(const n of negs){ const f=faltan(n.id), tiene=todas.some(r=>r.negocio_id===n.id);
+      cierre.append(h('span',{'data-neg':n.id}, h('b',{},n.nombre), n.cierre? h('span',{class:'chip ok'},'Entregado el '+pmHora(n.cierre.en)) : f? h('span',{class:'chip warn'}, f===1?'Falta 1 por revisar':`Faltan ${f} por revisar`) : tiene? h('span',{class:'chip'},'Sin entregar') : h('span',{class:'chip'},'Sin facturas'))); }
+    cont.append(cierre);
+    const suma=arr=>arr.reduce((s,r)=>s+Number(r.total),0); const porPagar=todas.filter(r=>r.lugar==='pagar'), pagadas=todas.filter(r=>r.lugar==='pagada'), revisar=todas.filter(r=>r.lugar==='revisar'), tarde=todas.filter(r=>r.tarde && r.lugar!=='pagada' && r.lugar!=='no_pago');
+    cont.append(h('div',{class:'tot b-tot',id:'pm-tot',style:'margin-top:14px;--n:4'}, bancoDato(`Por pagar · ${porPagar.length}`, fmtMXN(suma(porPagar))), bancoDato(`Pagadas · ${pagadas.length}`, fmtMXN(suma(pagadas))), bancoDato(`Por revisar · ${revisar.length}`, fmtMXN(suma(revisar))), bancoDato(`Llegó después del cierre · ${tarde.length}`, fmtMXN(suma(tarde)), tarde.length?'neg':'')));
+    // Por proveedor y estación: lo que se paga, lo ya pagado y lo que llegó tarde
+    const G=new Map(); for(const r of todas){ if(!(r.lugar==='pagar'||r.lugar==='pagada'||(r.tarde&&r.lugar==='revisar'))) continue; const k=r.negocio_id+'|'+r.proveedor_id; if(!G.has(k)) G.set(k,{k, negocio_id:r.negocio_id, proveedor:r.proveedor, filas:[]}); G.get(k).filas.push(r); }
+    const grupos=[...G.values()].map(g=>{ const t=g.filas.some(r=>r.tarde&&r.lugar!=='pagada'), pag=g.filas.filter(r=>r.lugar==='pagada').length; return Object.assign(g,{tarde:t, pag, total:suma(g.filas), orden:t?0:pag===g.filas.length?2:1}); }).sort((a,b)=>a.orden-b.orden || b.total-a.total);
+    if(!grupos.length) cont.append(h('div',{class:'card empty',id:'pm-vacio',style:'margin-top:14px'}, h('b',{},'Todavía no hay facturas marcadas para pagar en '+mesCorto), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, revisar.length? 'Las oficinas tienen '+revisar.length+' por revisar.' : 'Cuando las oficinas revisen sus facturas, aquí aparece lo que hay que pagar.')));
+    else { const list=h('div',{class:'list b-tabla pm res',id:'pm-lista',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Proveedor'), h('span',{},'Estación'), h('span',{class:'r'},'Facturas'), h('span',{class:'r'},'Importe'), h('span',{},'')));
+      for(const g of grupos){ const abierta=PM.abre===g.k;
+        const chip= g.tarde? h('span',{class:'chip err'},'Llegó después del cierre') : g.pag===g.filas.length? h('span',{class:'chip ok'}, g.filas.length===1&&g.filas[0].pago_fecha? 'Pagada el '+pmDia(g.filas[0].pago_fecha) : 'Pagada') : g.pag? h('span',{class:'chip warn'},`Por pagar · ${g.filas.length-g.pag} de ${g.filas.length}`) : h('span',{class:'chip warn'},'Por pagar');
+        const fila=h('div',{class:'item b-fila'+(abierta?' abierta':''),'data-grupo':g.k,role:'button',tabindex:'0','aria-expanded':abierta?'true':'false'}, h('span',{class:'pc-cli'}, h('b',{},g.proveedor)), h('span',{class:'small muted pm-est'},nomNeg(g.negocio_id)), h('span',{class:'r pm-nf'},String(g.filas.length)), h('span',{class:'r'},fmtMXN(g.total)), h('span',{class:'b-est',style:'text-align:right'},chip));
+        const alternar=()=>{ PM.abre=abierta? null : g.k; render(); }; fila.addEventListener('click',alternar); fila.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); alternar(); } });
+        list.append(fila);
+        if(abierta){ const det=h('div',{class:'pm-det'}); for(const r of g.filas.slice().sort((a,b)=>a.fecha<b.fecha?-1:1)) det.append(h('div',{class:'ln'}, h('span',{},pmDia(r.fecha)), h('span',{},[r.serie,r.folio].filter(Boolean).join('-')||'—'), h('span',{class:'muted c'}, [r.concepto, r.lugar==='pagada'? 'pagada'+(r.pago_fecha?' el '+pmDia(r.pago_fecha):'') : r.lugar==='revisar'? 'por revisar' : null].filter(Boolean).join(' · ')), h('span',{},fmtMXN(r.total))));
+          const quien=[...new Set(g.filas.map(r=>r.marcado_por).filter(Boolean))].join(', ');
+          det.append(h('div',{class:'pie'}, h('span',{class:'small muted'}, quien? 'Marcadas por '+quien : 'Sin marcar todavía'), (S.rol==='dueno' && g.pag<g.filas.length)? h('button',{class:'btn sm',onclick:e=>{ e.stopPropagation(); pmIrAPagar(); }},'Subir comprobante de pago') : null));
+          list.append(det); } }
+      cont.append(list); }
+    // Caja chica: lo que cada estación pagó en efectivo y se repone a fin de mes
+    const caja=negs.map(n=>{ const f=todas.filter(r=>r.negocio_id===n.id && r.lugar==='no_pago' && r.motivo==='caja_chica'); return {n, f, mal:f.filter(pmCajaMal).length}; }).filter(x=>x.f.length);
+    if(caja.length){ const lc=h('div',{class:'list b-tabla pm res',id:'pm-caja',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Caja chica del mes'), h('span',{},'Estación'), h('span',{class:'r'},'Facturas'), h('span',{class:'r'},'A reponer'), h('span',{},'')));
+      for(const x of caja) lc.append(h('div',{class:'item b-fila',style:'cursor:pointer',onclick:()=>{ PM.neg=x.n.id; PM.vista='no_pago'; render(); }}, h('span',{class:'pc-cli'}, h('b',{},'Caja chica')), h('span',{class:'small muted pm-est'},x.n.nombre), h('span',{class:'r pm-nf'},String(x.f.length)), h('span',{class:'r'},fmtMXN(suma(x.f))), h('span',{class:'b-est',style:'text-align:right'}, x.mal? h('span',{class:'chip warn'}, x.mal===1?'1 por revisar':`${x.mal} por revisar`) : h('span',{class:'chip'},'En regla'))));
+      add(cont, lc, h('p',{class:'small muted',style:'margin:10px 0 0;max-width:80ch'},`Una factura de caja chica debe decir que se pagó en efectivo y no pasar de ${fmtMXN(PM_CAJA_TOPE).replace(/\.00$/,'')}; las que no cumplen salen "por revisar".`)); }
+    return;
+  }
+
+  // ================= Vista de una estación: revisar y entregar el cierre =================
+  const neg=PM.neg || (negs[0]||{}).id || ''; const N=negs.find(n=>n.id===neg)||{}; const filas=todas.filter(r=>r.negocio_id===neg);
+  const L={revisar:[],pagar:[],pagada:[],no_pago:[],despues:[]}; for(const r of filas) (L[r.lugar]||L.revisar).push(r);
+  const nRev=L.revisar.length; const tardeN=filas.filter(r=>r.tarde && r.lugar==='revisar').length;
+  const entrega=h('div',{class:'pm-entrega',id:'pm-entrega'});
+  if(N.cierre) add(entrega, h('span',{class:'chip ok',id:'pm-entregado'},`Cierre entregado el ${pmHora(N.cierre.en)}${N.cierre.por?' · '+N.cierre.por:''}`), tardeN? h('span',{class:'chip err'}, tardeN===1?'Llegó 1 después':`Llegaron ${tardeN} después`) : null);
+  else if(puede){ const b=h('button',{class:'btn primary',id:'pm-entregar',disabled:nRev>0||!filas.length},'Entregar cierre de '+mesCorto);
+    b.addEventListener('click', async()=>{ b.disabled=true; b.textContent='Entregando…';
+      try{ await rpc('pagos_mes_entregar',{p_negocio:neg, p_mes:PM.mes+'-01'}); await pmRecargar(); aviso('Cierre de '+mesCorto+' entregado.','ok',6000); }catch(e){ aviso('No se pudo entregar: '+(e.hint||e.message||e.code)); }
+      render(); });
+    add(entrega, nRev? h('span',{class:'small muted',id:'pm-faltan'}, nRev===1?'Falta 1 por revisar':`Faltan ${nRev} por revisar`) : null, b); }
+  else add(entrega, h('span',{class:'chip'+(nRev?' warn':''),id:'pm-estado'}, nRev? (nRev===1?'Falta 1 por revisar':`Faltan ${nRev} por revisar`) : 'Sin entregar'));
+  add(cont, h('div',{class:'pc-cab'}, h('p',{class:'small muted'}, puede? 'Aquí llegan solas todas las facturas del mes. Dile a cada una qué se hace con ella; cuando no quede ninguna por revisar, entrega el cierre.' : 'Lo que la oficina marcó para cada factura del mes.'), entrega), nav, filtroNeg());
+  const TABS=[['revisar','Por revisar'],['pagar','Se pagan este mes'],['pagada','Ya pagadas'],['no_pago','No requieren pago'],['despues','Después']]; if(!TABS.some(t=>t[0]===PM.vista)) PM.vista='revisar';
+  cont.append(h('div',{class:'tabs est-filtro',id:'pm-tabs',role:'group','aria-label':'Qué se hace',style:'margin-top:14px'}, ...TABS.map(([k,t])=>h('button',{class:PM.vista===k?'on':'','data-vista':k,'aria-pressed':PM.vista===k?'true':'false',onclick:()=>{ PM.vista=k; PM.cambia=null; PM.motivo=null; render(); }},`${t} · ${L[k].length}`))));
+  const lista=L[PM.vista].slice().sort((a,b)=> (b.tarde?1:0)-(a.tarde?1:0) || (a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0));
+  if(!lista.length){ const vacio={revisar: filas.length? 'No queda ninguna por revisar' : 'Todavía no llegan facturas de '+mesCorto, pagar:'Ninguna marcada para pagarse este mes', pagada:'Ninguna pagada todavía', no_pago:'Ninguna marcada como "no requiere pago"', despues:'Ninguna se dejó para después'}[PM.vista];
+    cont.append(h('div',{class:'card empty',id:'pm-vacio',style:'margin-top:14px'}, h('b',{},vacio), PM.vista==='revisar'&&filas.length&&puede&&!N.cierre? h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'},'Ya puedes entregar el cierre.') : null)); }
+  else { const list=h('div',{class:'list b-tabla pm rev',id:'pm-lista',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Fecha'), h('span',{},'Proveedor'), h('span',{class:'r'},'Importe'), h('span',{class:'r'}, PM.vista==='revisar'&&puede? 'Qué se hace' : '')));
+    const bt=(txt,fn,cls)=>{ const b=h('button',{class:'btn sm'+(cls?' '+cls:''),disabled:PM.ocupado},txt); b.addEventListener('click',e=>{ e.stopPropagation(); fn(); }); return b; };
+    for(const r of lista){ const acc=h('span',{class:'pm-acc'});
+      const tres=()=>add(acc, bt('Se paga este mes',()=>pmMarcar(r,'pagar')), bt('No requiere pago',()=>{ PM.motivo=r.id; PM.cambia=null; render(); }), bt('Después',()=>pmMarcar(r,'despues'),'ghost'));
+      if(PM.vista==='revisar'){
+        if(!puede){ if(r.sugerido&&pmSugerido(r.sugerido)) acc.append(h('span',{class:'chip'},'Sugerido: '+pmSugerido(r.sugerido))); }
+        else if(PM.motivo===r.id) add(acc, ...Object.entries(PM_MOTIVO).map(([k,t])=>bt(t,()=>pmMarcar(r,'no_pago',k))), bt('Regresar',()=>{ PM.motivo=null; render(); },'ghost'));
+        else if(r.sugerido && pmSugerido(r.sugerido) && PM.cambia!==r.id) add(acc, h('span',{class:'chip'},'Sugerido: '+pmSugerido(r.sugerido)), bt('Confirmar',()=>pmMarcar(r,r.sugerido.destino,r.sugerido.motivo)), bt('Cambiar',()=>{ PM.cambia=r.id; PM.motivo=null; render(); },'ghost'));
+        else tres(); }
+      else { const mal=pmCajaMal(r);
+        add(acc, PM.vista==='pagar'? h('span',{class:'chip warn'},'Por pagar') : PM.vista==='pagada'? h('span',{class:'chip ok'}, r.pago_fecha? 'Pagada el '+pmDia(r.pago_fecha) : 'Pagada') : PM.vista==='no_pago'? h('span',{class:'chip'},PM_MOTIVO[r.motivo]||'No requiere pago') : h('span',{class:'chip'},'Pasa a '+sigMes),
+          mal? h('span',{class:'chip warn'},mal) : null,
+          (PM.vista==='pagar' && S.rol==='dueno')? bt('Subir comprobante',pmIrAPagar) : null,
+          (puede && PM.vista!=='pagada')? bt('Cambiar',()=>pmMarcar(r,'quitar'),'ghost') : null); }
+      const sub=[[r.serie,r.folio].filter(Boolean).join('-')? 'Factura '+[r.serie,r.folio].filter(Boolean).join('-') : null, r.concepto, r.viene_de? 'viene de '+pmDia(r.viene_de) : null, (r.tarde&&PM.vista==='revisar')? 'llegó después del cierre' : null, (PM.vista!=='revisar'&&r.marcado_por)? 'la marcó '+r.marcado_por : null].filter(Boolean).join(' · ');
+      list.append(h('div',{class:'item b-fila','data-factura':r.id,'data-lugar':r.lugar}, h('span',{class:'b-dia'}, h('b',{},pmDia(r.fecha))), h('span',{class:'pc-cli'}, h('b',{},r.proveedor), sub? h('span',{class:'small muted'},sub) : null), h('span',{class:'r'},fmtMXN(r.total)), acc)); }
+    cont.append(list); }
+  if(PM.vista==='revisar' && puede && lista.length) cont.append(h('p',{class:'small muted',style:'margin:12px 0 0;max-width:86ch'},'Las sugerencias salen de lo que ya se contestó antes para ese proveedor. Si falta una factura que todavía no llega del SAT, agrégala en Facturas ▸ Agregar factura.'));
+  if(PM.vista==='no_pago' && L.no_pago.some(r=>r.motivo==='caja_chica')) cont.append(h('p',{class:'small muted',style:'margin:12px 0 0;max-width:86ch'},`Caja chica: ${L.no_pago.filter(r=>r.motivo==='caja_chica').length} facturas por ${fmtMXN(L.no_pago.filter(r=>r.motivo==='caja_chica').reduce((s,r)=>s+Number(r.total),0))}. Deben decir que se pagaron en efectivo y no pasar de ${fmtMXN(PM_CAJA_TOPE).replace(/\.00$/,'')}.`));
+}
 async function pagosClientes(){
   if(PC.w){ await pcWizard(); return; }
   const cont=h('div',{id:'pc'}); app.append(cont);
@@ -6079,16 +6205,16 @@ async function renderOficina(){
     ['cortes','cortes','Cortes',[['hoy','hoy','Hoy']]],
     navTareas(),
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
-    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pclientes','clientes','Pagos de clientes']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pmes','acumulado','Pagos del mes'],['pclientes','clientes','Pagos de clientes']]],
     ['gestados','banco','Estados de cuenta',[['estados','buscar','Consultar estados de cuenta']]], // los estados de cuenta los sube Central (regla del servidor)
     ['gbancos','banco','Bancos',[['bdeposito','depositos','Depósito manual']]]]; // 19-nov-2026: la oficina registra la hoja antes de ir al banco; los movimientos del banco no los ve
-  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', bdeposito:'Depósito manual'};
+  const titulos={chat:'Asistente', hoy:'Hoy', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', facturas:'Agregar factura', apago:'Agregar pago', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', pmes:'Pagos del mes', estados:'Consultar estados de cuenta', proveedores:'Lista de proveedores', bdeposito:'Depósito manual'};
   if(!titulos[oficinaTab]) oficinaTab='chat';
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
   shell.append(navLateral(items, oficinaTab, k=>{ oficinaTab=k; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='pclientes'){ PC.w=null; PC.abre=null; } render(); }, 'oficina'), main); app.append(shell);
   main.append(h('div',{}, window.innerWidth<=760? logoModulo('oficina','movil'):null, (oficinaTab==='hoy'||oficinaTab==='tareas'||oficinaTab==='elaborar'||oficinaTab==='avisos')? h('p',{class:'eyebrow'},ESTACION):null, h('h1',{},titulos[oficinaTab])));
   const prev=app; app=main; const finEspera=omEsperaPantalla(main);
-  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, pclientes:pagosClientes, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; finEspera(); }
+  try{ await ({chat:oficinaChat, hoy:adminHoy, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, facturas:agregarFactura, apago:agregarPago, cfacturas:consultaFacturas, pagos:consultaPagos, pclientes:pagosClientes, pmes:pagosDelMes, comprobantes:consultaComprobantes, estados:consultaEstados, proveedores:adminProveedores, bdeposito:bancoDeposito})[oficinaTab](); } finally{ app=prev; finEspera(); }
 }
 
 // Carga de marca para listas y esperas de IA: la gota se llena mientras rotan frases cortas.
