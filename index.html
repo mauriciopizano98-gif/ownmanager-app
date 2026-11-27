@@ -1368,7 +1368,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.22.0';
+const OM_VERSION='2.23.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -5127,7 +5127,8 @@ async function renderWizardPago(cuentas, fijo){
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       ia.notas? h('p',{class:'small muted'},'Nota de la IA: '+ia.notas):null,
       h('label',{class:'f'},h('span',{class:'l'},'Cuenta de retiro (define el negocio)'),cta),
-      h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(ia.beneficiario?' · el banco dice: '+ia.beneficiario:'')),prov, provNombre),
+      h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(ia.beneficiario?' · el banco dice: '+ia.beneficiario:'')),prov, provNombre,
+        a.proveedor_por_factura? h('span',{class:'small muted',id:'pago-por-factura'},`El banco lo escribe distinto. Se reconoció por la factura ${a.proveedor_por_factura.concepto_pago||''}, que trae este concepto de pago.`) : null),
       bloqueo.fila,
       h('div',{class:'grid2'}, cFecha.el, cMonto.el),
       h('div',{class:'grid2'}, cRefe.el, h('label',{class:'f'},h('span',{class:'l'},'Método'),met)),
@@ -5150,7 +5151,7 @@ async function renderWizardPago(cuentas, fijo){
     const r=w.resultado;
     add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
       h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
-      r.factura_ligada? h('p',{class:'small',style:'color:'+(r.factura_ligada.cuadra?'var(--ok)':'var(--warn)')},'Quedó ligado a la factura '+(r.factura_ligada.concepto_pago||'')+(r.factura_ligada.cuadra?'.':' · el importe no coincide con el total de la factura ('+fmtMonto(r.factura_ligada.total)+').')) : h('p',{class:'small muted'},'No se ligó a ninguna factura; cuando llegue la factura con ese concepto se ligará sola.'),
+      r.factura_ligada? h('p',{class:'small',style:'color:'+(r.factura_ligada.cuadra?'var(--ok)':'var(--warn)')},'Quedó ligado a la factura '+(r.factura_ligada.concepto_pago||'')+(r.factura_ligada.cuadra?'.':' · el importe no coincide con el total de la factura ('+fmtMonto(r.factura_ligada.total)+').')) : h('p',{class:'small muted'},'No se ligó a ninguna factura; cuando llegue la factura con ese concepto se ligará sola. Mientras tanto queda en Comprobantes de pago, en «Pagos sin factura».'),
       h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='comprobantes'; else adminTab='comprobantes'; render(); }},'Ver comprobantes')));
   }
 }
@@ -5448,9 +5449,13 @@ async function consultaComprobantes(){
   let negocios=[]; try{ negocios=negociosOficina(cuentasOperativas(await cuentasOficina())); }catch(e){}
   app.append(barraBuscar(CO.texto, 'Buscar', v=>{ CO.texto=v; render(); }), barraFiltros(negocios));
   const espera=omEsperando(['Buscando facturas pagadas…','Casi listo…']); app.append(espera);
+  // Los pagos sin factura se piden al mismo tiempo, para que la pantalla llegue completa y no brinque.
+  const sueltosP=rpc('pagos_sin_factura',{ p_negocio:FL.negocio||null }).catch(()=>null);   // sin el paso 33 instalado: no hay bloque y todo sigue igual
   let rows=[]; try{ const rg=rangoFiltro(); rows=await rpc('buscar_facturas',{ p_texto:CO.texto||null, p_negocio:FL.negocio||null, p_desde:rg.desde, p_hasta:rg.hasta, p_estado:'pagada', p_limite:200 }); }
   catch(e){ espera.remove(); app.append(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+  const sueltos=await sueltosP;
   espera.remove();
+  psfBloque(sueltos);
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(CO.texto||hayFiltros())?'Sin resultados':'Todavía no hay facturas pagadas'), (CO.texto||hayFiltros())?'':'Cuando una factura tenga su pago ligado, aquí aparece su expediente.')); return; }
   const list=h('div',{class:'list'});
   for(const r of rows){
@@ -5468,6 +5473,72 @@ async function consultaComprobantes(){
       h('div',{style:'text-align:right'}, h('b',{},fmtMonto(r.total)), h('div',{},h('span',{class:'chip ok'},'pagada')))));
   }
   app.append(list);
+}
+// ---- Pagos sin factura (27-nov-2026). Un pago registrado que no encontró su factura no salía en ninguna pantalla
+// y su comprobante no se podía volver a subir. Aquí se ven, con la factura que parece ser la suya, y se ligan.
+const PSF={ todos:false };
+const PSF_ERR={ factura_ya_pagada:'Esa factura ya tiene su pago.', factura_cancelada:'Esa factura está cancelada.', factura_invalida:'Esa factura no está a tu alcance.', pago_invalido:'Ese pago no se puede ligar: está anulado o es de otro negocio.', sin_permiso:'Tu cuenta no puede ligar pagos.' };
+function psfBloque(sueltos){
+  if(!Array.isArray(sueltos)) return;
+  let L=sueltos;
+  if(CO.texto){ const q=CO.texto.toLowerCase(), qn=q.replace(/[$,\s]/g,''); L=L.filter(r=>[r.proveedor,r.concepto,r.referencia,r.sugerida_concepto_pago,r.sugerida_proveedor,r.negocio].filter(Boolean).join(' ').toLowerCase().includes(q) || (qn && String(Number(r.monto).toFixed(2)).includes(qn))); }
+  if(!L.length) return;
+  const card=h('div',{class:'card stack',id:'psf',style:'margin-bottom:14px'});
+  const tot=L.reduce((s,r)=>s+Number(r.monto),0);
+  card.append(h('div',{class:'sechead'}, h('h3',{},'Pagos sin factura'), h('span',{class:'chip warn',style:'display:inline-flex;align-items:center;gap:6px'}, ico('alerta'), `${L.length} · ${fmtMonto(tot)}`)),
+    h('p',{class:'small muted',style:'margin:0;max-width:80ch'},'Están registrados, pero ninguna factura quedó pagada con ellos. Lígalos a su factura para que aparezca su expediente.'));
+  const list=h('div',{class:'list'}); const ver=PSF.todos? L : L.slice(0,5);
+  for(const r of ver){
+    const det=[r.negocio, r.cuenta, r.concepto?'concepto '+r.concepto:null, r.referencia?'folio '+r.referencia:null].filter(Boolean).join(' · ');
+    const acciones=h('div',{class:'row',style:'margin-top:6px'});
+    if(r.sugerida_id) acciones.append(h('button',{class:'btn sm primary',onclick:()=>psfConfirmar(r,{ id:r.sugerida_id, concepto_pago:r.sugerida_concepto_pago, total:r.sugerida_total, fecha:r.sugerida_fecha, proveedor:r.sugerida_proveedor })},'Ligar a la factura '+(r.sugerida_concepto_pago||'')));
+    acciones.append(h('button',{class:'btn sm ghost',onclick:()=>psfElegir(r)}, r.sugerida_id?'Elegir otra factura':'Elegir factura'), btnArchivo(r.comprobante_drive_id,'Ver comprobante'));
+    if(S.rol==='dueno' && r.estado==='registrado') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular'));
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
+        r.sugerida_id? h('div',{class:'small',style:'margin-top:2px'},`Parece ser de la factura ${r.sugerida_concepto_pago} de ${r.sugerida_proveedor} · ${fmtMonto(r.sugerida_total)}`+(r.sugerida_cuadra?'':' · el importe no coincide')) : null, acciones),
+      h('div',{style:'text-align:right'}, h('b',{},fmtMonto(r.monto)), h('div',{},h('span',{class:'chip warn',style:'white-space:nowrap'},'sin factura')))));
+  }
+  card.append(list);
+  if(L.length>5) card.append(h('button',{class:'btn sm ghost',style:'align-self:flex-start',onclick:()=>{ PSF.todos=!PSF.todos; render(); }}, PSF.todos?'Ver menos':`Ver los ${L.length}`));
+  app.append(card);
+}
+// Antes de ligar se enseña qué pago con qué factura, y qué va a cambiar.
+function psfConfirmar(r, f){
+  document.querySelectorAll('.sheet').forEach(x=>x.remove());
+  const distinto = !!f.proveedor && f.proveedor!==r.proveedor; const cuadra=Math.abs(Number(f.total)-Number(r.monto))<0.01;
+  const ln=(k,v)=> v? h('div',{class:'ln',style:'display:flex;justify-content:space-between;gap:12px'}, h('span',{class:'muted'},k), h('b',{style:'text-align:right'},String(v))) : null;
+  const nota=(txt)=>h('div',{style:'padding:8px 10px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:14px;display:flex;gap:8px;align-items:flex-start'}, ico('alerta'), h('span',{},txt));
+  const btn=h('button',{class:'btn primary'},'Ligar');
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Ligar el pago a su factura'),
+    h('div',{}, h('h4',{style:'margin:0 0 4px'},'Pago'), ln('Fecha',fmtFecha(r.fecha)), ln('Proveedor',r.proveedor), ln('Importe',fmtMonto(r.monto)), ln('Concepto',r.concepto)),
+    h('div',{}, h('h4',{style:'margin:0 0 4px'},'Factura'), ln('Concepto de pago',f.concepto_pago||'s/f'), ln('Fecha',fmtFecha(f.fecha)), ln('Proveedor',f.proveedor), ln('Total',fmtMonto(f.total))),
+    cuadra? null : nota(`El importe del pago (${fmtMonto(r.monto)}) no coincide con el total de la factura (${fmtMonto(f.total)}).`),
+    distinto? nota(`El pago está con «${r.proveedor}». Al ligarlo pasa a «${f.proveedor}», que es el proveedor de la factura.`) : null,
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Cancelar'), btn)));
+  btn.addEventListener('click',async()=>{ btn.dataset.ocupado='Ligando…'; btn.disabled=true;
+    try{ const j=await rpc('ligar_pago_a_factura',{ p_pago:r.id, p_factura:f.id }); sheet.remove();
+      aviso(`${j&&j.proveedor||f.proveedor} · ${fmtMonto(f.total)}`+(j&&j.proveedor_cambiado?` · el pago pasó de «${j.proveedor_anterior}» a este proveedor`:''),'ok',8000,`Factura ${f.concepto_pago||''} pagada`); render(); }
+    catch(e){ btn.disabled=false; delete btn.dataset.ocupado; const c=String((e.raw&&e.raw.message)||e.message||''); aviso(PSF_ERR[c]||e.message||e.code,'err',10000,'No se pudo ligar'); } });
+  document.body.append(sheet);
+}
+// Elegir a mano: facturas sin pagar de ese negocio. Primero las del mismo importe y las de ese proveedor.
+function psfElegir(r){
+  document.querySelectorAll('.sheet').forEach(x=>x.remove());
+  const zona=h('div',{class:'list'}); const inp=h('input',{type:'search',placeholder:'Buscar',value:''}); let turno=0;
+  const cargar=async()=>{ const yo=++turno; zona.replaceChildren(omEsperando(['Buscando facturas sin pagar…'],'chico'));
+    let fs=[]; try{ fs=await rpc('buscar_facturas',{ p_texto:inp.value.trim()||null, p_negocio:r.negocio_id, p_estado:'registrada', p_limite:200 })||[]; }
+    catch(e){ if(yo===turno) zona.replaceChildren(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
+    if(yo!==turno) return;
+    const peso=f=>(Math.abs(Number(f.total)-Number(r.monto))<0.01?2:0)+(f.proveedor_id===r.proveedor_id?1:0);
+    fs=fs.filter(f=>!f.pago_id).sort((x,y)=>peso(y)-peso(x) || (x.fecha<y.fecha?1:x.fecha>y.fecha?-1:0)).slice(0,60);
+    if(!fs.length){ zona.replaceChildren(h('div',{class:'card empty'}, h('b',{},inp.value.trim()?'Sin resultados':'No hay facturas sin pagar en '+r.negocio), inp.value.trim()?'Prueba con otra palabra.':'Cuando llegue la factura, aquí aparece para ligarla.')); return; }
+    zona.replaceChildren(...fs.map(f=>h('div',{class:'item',onclick:()=>psfConfirmar(r,f)}, h('div',{class:'l'}, h('b',{},`${f.concepto_pago||'s/f'} · ${f.proveedor}`), h('span',{class:'small muted'},`${fmtFecha(f.fecha)}${f.concepto?' · '+f.concepto:''}`)),
+      h('div',{style:'text-align:right'}, h('b',{},fmtMonto(f.total)), Math.abs(Number(f.total)-Number(r.monto))<0.01? h('div',{},h('span',{class:'chip ok',style:'white-space:nowrap'},'mismo importe')) : null)))); };
+  let espera=null; inp.addEventListener('input',()=>{ clearTimeout(espera); espera=setTimeout(cargar,350); });
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('div',{class:'sechead'}, h('h3',{},'Elegir la factura'), h('button',{class:'btn sm ghost',onclick:()=>sheet.remove()},'Cerrar')),
+    h('p',{class:'small muted',style:'margin:0'},`Pago del ${fmtFecha(r.fecha)} · ${r.proveedor} · ${fmtMonto(r.monto)}${r.concepto?' · concepto '+r.concepto:''}`),
+    h('label',{class:'f'}, h('span',{class:'l'},'Factura sin pagar de '+r.negocio), inp), zona));
+  document.body.append(sheet); cargar();
 }
 async function consultaEstados(){
   let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
