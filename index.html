@@ -1354,7 +1354,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.20.0';
+const OM_VERSION='2.20.1';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1972,6 +1972,27 @@ async function depositosDe(despId, fecha, turno){
 }
 function recordarDeposito(d){ try{ const all=JSON.parse(localStorage.getItem('om_depositos')||'[]'); all.push(d); const corte=Date.now()-3*86400e3; localStorage.setItem('om_depositos', JSON.stringify(all.filter(x=>new Date(x.en).getTime()>corte))); }catch(e){} }
 function sumaDenominaciones(deps){ const b={}, m={}; for(const d of deps){ for(const [k,v] of Object.entries(d.billetes||{})) b[k]=(b[k]||0)+(Number(v)||0); for(const [k,v] of Object.entries(d.monedas||{})) m[k]=(m[k]||0)+(Number(v)||0); } return {billetes:b, monedas:m}; }
+// Los depósitos a caja fuerte del turno se suman SOLOS a la columna "Depositado" del arqueo, sin botón (pedido de Mauricio, 26-nov-2026:
+// el botón "Sumar depósitos nuevos al arqueo" confundía y era un paso de más). Cada depósito se suma una sola vez: d.depositosIds lleva los ya sumados.
+// Se llama cada vez que se pinta el paso del dinero, en cualquier sección, para que también entren los que se registraron con el corte ya abierto.
+let _depSinc=null;
+function sincronizarDepositos(c, d){
+  if(_depSinc && _depSinc.d===d) return _depSinc.p;
+  const p=(async()=>{ let n=0;
+    try{ const deps=await depositosDe(c.despachadorId, c.fecha, c.turno);
+      // de aquí en adelante todo es de corrido (sin esperas): dos llamadas seguidas no pueden sumar dos veces el mismo depósito
+      d.depositos=deps.map(x=>({id:x.id,hora:x.hora,total:x.total,billetes:x.billetes||{},monedas:x.monedas||{}}));
+      const primera=!d.depositosIds; const conocidos=new Set(d.depositosIds||[]); const nuevos=deps.filter(x=>!conocidos.has(x.id));
+      if(nuevos.length){ const s=sumaDenominaciones(nuevos);
+        for(const [k,v] of Object.entries(s.billetes)) d.efectivo.billetes[k]=(Number(d.efectivo.billetes[k])||0)+v;
+        for(const [k,v] of Object.entries(s.monedas)) d.efectivo.monedas[k]=(Number(d.efectivo.monedas[k])||0)+v; }
+      d.depositosIds=[...conocidos,...nuevos.map(x=>x.id)]; n=nuevos.length;
+      if(n || primera) programarGuardado();
+    }catch(e){}
+    if(_depSinc && _depSinc.p===p) _depSinc=null;
+    return n; })();
+  _depSinc={d,p}; return p;
+}
 function totalDenominaciones(billetes, monedas){ return Math.round((BILLETES.reduce((s,b)=>s+b*(Number(billetes?.[b])||0),0)+MONEDAS.reduce((s,mo)=>s+mo*(Number(monedas?.[mo])||0),0))*100)/100; }
 async function renderDeposito(){
   const me=S.me; const tc=turnoEnCurso();
@@ -2499,6 +2520,7 @@ function renderDinero(adelanto){
   const c=S.corte; for(const l of c.lecturas) if(l.inicial!=null&&l.final!=null) l.litros=Math.round((l.final-l.inicial)*1000)/1000;
   c.dinero = c.dinero || { tarjetas:[], efectivo:{billetes:{},monedas:{},extra:{billetes:{},monedas:{}}}, clientes:[], comentario:'', seccion:'tarjetas' };
   const d=c.dinero; if(!Array.isArray(d.tarjetas)) d.tarjetas=[]; d.efectivo=d.efectivo||{billetes:{},monedas:{}}; d.efectivo.extra=d.efectivo.extra||{billetes:{},monedas:{}}; d.efectivo.extra.billetes=d.efectivo.extra.billetes||{}; d.efectivo.extra.monedas=d.efectivo.extra.monedas||{}; d.clientes=d.clientes||[];
+  sincronizarDepositos(c,d).then(n=>{ if(n>0 && S.corte===c && S.screen==='corte' && c.dinero===d) render(); });   // si entró un depósito nuevo, se vuelve a pintar con las cantidades ya sumadas
   const noche=false, cerradaNoche=false; // 13-nov-2026: en la noche el dinero se captura con la misma pantalla que de día (sin atajos ni textos extra)
   const ORDEN=adelanto?['tarjetas','arqueo','clientes','aceites']:(noche&&!d.masNoche? (cerradaNoche?['resumen']:['arqueo','resumen']) : ['tarjetas','arqueo','clientes','aceites','resumen']); if(!ORDEN.includes(d.seccion)) d.seccion=ORDEN[0]; secDinero=d.seccion;
   const venta=calcVenta(c); const tol=S.config.toleranciaPesos??50;
@@ -2542,19 +2564,14 @@ function renderDinero(adelanto){
   else if(secDinero==='arqueo'){
     body.append(h('h3',{},'Arqueo de efectivo entregado'), h('p',{class:'small muted'},'La columna “Depositado” trae lo que ya metiste a la caja fuerte durante el turno. En “En mano” agrega lo que traes al cerrar, sin borrar la primera columna. Las dos se suman.'));
     const depBox=h('div',{}); body.append(depBox);
-    // Depósitos a caja fuerte del turno: la primera vez se suman solos al arqueo; los que lleguen después se ofrecen con un botón
+    // Depósitos a caja fuerte del turno: ya vienen sumados en la columna "Depositado" (sincronizarDepositos); aquí solo se listan.
     (async()=>{ try{
-      const deps=await depositosDe(c.despachadorId, c.fecha, c.turno);
-      d.depositos=deps.map(x=>({id:x.id,hora:x.hora,total:x.total,billetes:x.billetes||{},monedas:x.monedas||{}}));
-      const conocidos=new Set(d.depositosIds||[]); const nuevos=deps.filter(x=>!conocidos.has(x.id));
-      const aplicar=()=>{ const s=sumaDenominaciones(nuevos); for(const [k,v] of Object.entries(s.billetes)) d.efectivo.billetes[k]=(Number(d.efectivo.billetes[k])||0)+v; for(const [k,v] of Object.entries(s.monedas)) d.efectivo.monedas[k]=(Number(d.efectivo.monedas[k])||0)+v; d.depositosIds=[...conocidos,...nuevos.map(x=>x.id)]; programarGuardado(); render(); };
-      if(!d.depositosIds){ d.depositosIds=[]; if(nuevos.length){ aplicar(); return; } programarGuardado(); }
+      await sincronizarDepositos(c,d); const deps=d.depositos||[];
       depBox.innerHTML=''; if(!deps.length) return;
       const tot=deps.reduce((s,x)=>s+x.total,0);
       const box=h('div',{class:'depbox stack'}, h('div',{class:'sechead'},h('b',{},'🔒 Depósitos a caja fuerte en este turno'),h('span',{class:'chip ok'},`${deps.length} · ${fmtMXN(tot)}`)));
       for(const x of deps) box.append(h('div',{class:'money small'},h('span',{},`${x.hora} · ${resumenDen(x)}`),h('b',{},fmtMXN(x.total))));
-      if(nuevos.length) box.append(h('button',{class:'btn block',onclick:aplicar},`Sumar ${nuevos.length} depósito${nuevos.length>1?'s':''} nuevo${nuevos.length>1?'s':''} al arqueo`));
-      else box.append(h('p',{class:'hint'},'Ya están sumados en las cantidades de abajo. Si entregas más efectivo aparte, solo agrégalo.'));
+      box.append(h('p',{class:'hint'},'Ya están sumados en las cantidades de abajo. Si entregas más efectivo aparte, solo agrégalo.'));
       depBox.append(box);
     }catch(e){} })();
     const efTotal=h('div',{});
