@@ -1368,7 +1368,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.21.0';
+const OM_VERSION='2.22.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -1514,9 +1514,13 @@ function corteDesdeServidor(j){
       inicial: l.inicial==null?null:Number(l.inicial), inicialPrevia: l.inicial_previa==null?null:Number(l.inicial_previa), inicialCorregida: !!l.inicial_corregida, motivo: l.motivo_correccion||'',
       final: l.final==null?null:Number(l.final), litros: l.litros==null?null:Number(l.litros), origen: l.origen||null, lecturaIA: l.lectura_ia==null?null:Number(l.lectura_ia), legibleIA: l.legible_ia,
       motivoCero: l.motivo_cero||null, omitida: l.origen==='manual' && l.motivo_cero==='Bomba cerrada en este turno (sin venta)', fotoId: l.foto_id||null, fotoEn: foto?foto.tomada_en||foto.subida_en:null, fotoT:-1 }; }).sort((a,b)=>a.orden-b.orden||a.manguera.localeCompare(b.manguera));
+  // Noche en un solo corte (27-nov-2026): el corte lleva lecturas de varias islas. Se nombra con todas ("Islas 1+2") y sus lecturas van isla por isla.
+  const islaDe = l=>(S.mangPorUuid[l.mangueraId]||{}).islaId; const idsIsla = lecturas.length? [...new Set(lecturas.map(islaDe).filter(Boolean))] : (Array.isArray(c._islas)? c._islas : []);
+  const islasC = S.config.islas.filter(i=>idsIsla.includes(i.uuid)); const unido = islasC.length>1;
+  if(unido && lecturas.length){ const pos={}; S.config.islas.forEach((i,k)=>{ pos[i.uuid]=k; }); const pd=l=>pos[islaDe(l)]??99; lecturas.sort((a,b)=>pd(a)-pd(b)||a.orden-b.orden||a.manguera.localeCompare(b.manguera)); }
   const dinero = c.dinero ? clone(c.dinero) : null;
   const aceites = c.aceites ? clone(c.aceites) : (dinero&&dinero._aceites ? {vendidas:dinero._aceites} : null);
-  return { id:c.id, estacionId:c.estacion_id, islaId:c.isla_id, isla: isla?isla.id:null, islaNombre: isla?isla.nombre:'Isla', fecha:c.fecha, turno:c.turno, turnoNombre:turnoNombre(c.turno),
+  return { id:c.id, estacionId:c.estacion_id, islaId:c.isla_id, isla: isla?isla.id:null, islaNombre: unido? nombreIslas(islasC) : (isla?isla.nombre:'Isla'), islasUnidas: unido? islasC.map(i=>i.id) : null, unidaA: c._unidaA||null, unidaCorte: c._unidaCorte||null, fecha:c.fecha, turno:c.turno, turnoNombre:turnoNombre(c.turno),
     despachadorId:c.despachador_id, despachadorNombre:despNombre, estado:c.estado, paso:c.paso||'lecturas', abiertoEn:c.abierto_en, evidenciaEn:c.evidencia_en, enviadoEn:c.enviado_en, horaEnvio:c.enviado_en?fmtHora(c.enviado_en):null,
     totales:c.totales||null, venta:c.venta||null, dinero, aceites, calidad:c.calidad||null, hash:c.hash||null, islaOmitida:c.estado==='omitida', motivoOmision:c.motivo_omision||null,
     revisadoEn:c.revisado_en||null, observacion:c.observacion||null, anuladoEn:c.anulado_en||null, motivoAnulacion:c.motivo_anulacion||null, lecturas, fotos };
@@ -1538,6 +1542,8 @@ function abrirTablero(){ if(S.rol==='oficina'){ go('oficina'); } else if(esTable
 function iniciales(n){ return n.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase(); }
 function mangueras(islaId){ const isla=S.config.islas.find(i=>i.id===islaId); return isla? isla.mangueras : []; }
 function islaNombre(id){ const i=S.config.islas.find(x=>x.id===id); return i? i.nombre : `Isla ${id}`; }
+// Nombre de un corte que lleva varias islas: "Islas 1+2" (igual que lo escribe el servidor en correos y reportes).
+function nombreIslas(islas){ const ns=islas.map(i=>String(i.nombre||'')); return ns.every(n=>/^Isla \S+$/.test(n))? 'Islas '+ns.map(n=>n.replace(/^Isla /,'')).join('+') : ns.join(' + '); }
 function turnoNombre(id){ const t=S.config.turnos.find(x=>x.id===id); return t? `${t.nombre} (${t.inicio}–${t.fin})` : `Turno ${id}`; }
 function snapshotHot(){ return { screen:S.screen, meId:S.me?S.me.id:null, corteId:S.corte?S.corte.id:null }; }
 function lightbox(src){ const lb=h('div',{class:'lightbox',onclick:()=>lb.remove()}, h('img',{src}), h('button',{class:'btn sm'},'Cerrar')); document.body.append(lb); }
@@ -1613,7 +1619,7 @@ async function cargarConfig(){
     sel(sb.from('aceites').select('*').eq('estacion_id',estId).order('marca').order('nombre')),
     sel(sb.from('despachadores').select('id,estacion_id,clave,nombre,activo,alta,baja,bloqueado_hasta,velador').eq('estacion_id',estId).order('nombre')) ]);
   S.mangPorUuid={}; for(const m of mangs) S.mangPorUuid[m.id]={id:m.clave, uuid:m.id, lado:m.lado, producto:m.producto, orden:m.orden, islaId:m.isla_id, codigo:m.codigo_pantalla||null};
-  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), precios:est.precios||{}, terminales:est.terminales||[], afiliaciones:Array.isArray(est.afiliaciones)? est.afiliaciones : [], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[], cierraProductoDescarga:est.cierra_producto_descarga!==false, direccion:est.direccion||'', escanerTickets:est.escaner_tickets===true,
+  S.config = { estacionId:est.id, nombre:est.nombre, logoData:est.logo_data||null, logoRatio:null, remitente:est.remitente||'', remitenteNombre:est.remitente_nombre||'', turnos:est.turnos||[], islaNocturna:Number(est.isla_nocturna||1), nocheUnCorte:est.noche_un_corte===true, islasNoche:(Array.isArray(est.islas_noche)&&est.islas_noche.length)? est.islas_noche.map(Number) : null, precios:est.precios||{}, terminales:est.terminales||[], afiliaciones:Array.isArray(est.afiliaciones)? est.afiliaciones : [], toleranciaPesos:Number(est.tolerancia_pesos??50), maxLitrosTurno:Number(est.max_litros_turno??8000), aceitesPorIsla:!!est.aceites_por_isla, clientesMarcados:Array.isArray(est.clientes_marcados)?est.clientes_marcados:[], correosAviso:Array.isArray(est.correos_aviso)?est.correos_aviso:[], cierraProductoDescarga:est.cierra_producto_descarga!==false, direccion:est.direccion||'', escanerTickets:est.escaner_tickets===true,
     islas: islas.map(i=>({ id:i.numero, uuid:i.id, nombre:i.nombre, mangueras: mangs.filter(m=>m.isla_id===i.id).map(m=>S.mangPorUuid[m.id]), productos:[...new Set(mangs.filter(m=>m.isla_id===i.id).map(m=>m.producto))] })),
     aceites: aceites.map(a=>({ id:a.clave, uuid:a.id, marca:a.marca, nombre:a.nombre, precio:Number(a.precio), activo:a.activo })) };
   for(const i of S.config.islas) for(const m of i.mangueras) m.producto=m.producto;
@@ -1748,6 +1754,7 @@ function hechoNoche(x){ return !!(x&&(x.estado==='enviado'||x.estado==='omitida'
 function ordenNoche(){ const i1=islaNocturna(); return [i1, ...S.config.islas.filter(i=>i.id!==i1.id)]; }
 function guardarNoche(o){ S.noche=Object.assign(S.noche||{},o); try{ localStorage.setItem('om_noche', JSON.stringify(S.noche)); }catch(_){} }
 async function nocheAuto(){
+  if(S.config.nocheUnCorte) return nocheUnida();   // Grupo Pizano: varias islas de noche, un solo corte por tramo
   const wrap=h('div',{class:'stack noche'}); app.append(wrap);
   const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Un momento…'})); wrap.append(cargando);
   const st=await estadoNoche(); const i1=islaNocturna();
@@ -1803,10 +1810,69 @@ async function nocheAuto(){
   cargando.remove();
   wrap.append(pantallaFin({titulo:'Noche cerrada', texto:'', boton:'Listo, gracias', onclick:salir, extra: await botonPDFNoche(st)}));
 }
+// ---- NOCHE EN UN SOLO CORTE (27-nov-2026, Grupo Pizano). El velador despacha de noche en la Isla 1 (gasolinas) y en la Isla 2 (diésel).
+//  · Medianoche: graba las islas de la noche (estaciones.islas_noche), una por una; las demás se cierran solas "no se usó".
+//  · Cierre (desde las 00:30): graba todas las islas, igual que siempre.
+//  · En la computadora, los cortes de ese tramo se UNEN en uno solo (unir_cortes_noche) antes del dinero: los litros de todas las islas
+//    se suman y tarjetas, arqueo, clientes y aceites se capturan una sola vez. Si la Isla 3 vendió, va en ese mismo corte.
+function islasMedianoche(st){ const base=(S.config.islasNoche&&S.config.islasNoche.length)? S.config.islasNoche : [islaNocturna().id];
+  return S.config.islas.filter(i=> base.includes(i.id) || st.e1.some(y=>y.isla===i.id && y.estado==='abierto' && y.mio)); }
+// Abre (o continúa) el corte de UNA isla en el tramo indicado, sin cerrar ninguna otra.
+async function abrirIslaNoche(st, n, isla){
+  const turno = n===1? st.t1.id : st.t2.id; const fecha = n===1? st.d1 : st.d2; const estados = n===1? st.e1 : st.e2;
+  guardarNoche({ tramo:n, turno, fecha:st.d1, islaId: islaNocturna().id, activa: isla.id });
+  const x=estados.find(y=>y.isla===isla.id && y.estado==='abierto' && y.mio);
+  const id = (x&&x.id)? x.id : await rpc('abrir_corte',{p_token:S.token, p_isla:isla.uuid, p_fecha:fecha, p_turno:turno});
+  await cargarCorte(id);
+}
+async function nocheUnida(){
+  const wrap=h('div',{class:'stack noche'}); app.append(wrap);
+  const cargando=h('div',{class:'card'},omLoader({tam:'medio',texto:'Un momento…'})); wrap.append(cargando);
+  const st=await estadoNoche(); const i1=islaNocturna();
+  // Aquí una isla cuenta como grabada solo si TODAS sus bombas tienen foto: lo que falte se graba antes de juntar las islas.
+  const fotosDe=await fotosDeAbiertos([...st.e1,...st.e2], true);
+  const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; return !!fotosDe[x.id]; };
+  guardarNoche({ fecha:st.d1, islaId:i1.id });
+  const salir=()=>{ S.corte=null; S.frames=[]; S.me=null; S.noche=null; go('login'); };
+  const texto=(t)=>{ const el=cargando.querySelector('.txt'); if(el) el.textContent=t; };
+  const tarjeta=(titulo, sub)=>{ cargando.remove(); wrap.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},titulo), h('p',{class:'muted'},sub), h('button',{class:'btn primary big block',onclick:salir},'Salir'))); };
+  // Un tramo. Devuelve true si ya dejó una pantalla puesta; false si el tramo no tiene nada pendiente.
+  const tramo=async(n, estados, islas, fecha, turno)=>{
+    guardarNoche({tramo:n, turno, activa:(islas[0]||i1).id});
+    const ajena=estados.find(y=>y.estado==='abierto' && !y.mio);
+    if(ajena){ const ia=S.config.islas.find(i=>i.id===ajena.isla)||i1; tarjeta(ia.nombre+' abierta por '+ajena.quien, 'Solo esa persona puede continuarla.'); return true; }
+    if(n===1){ // medianoche: las islas que no son de la noche se cierran solas
+      for(const i of S.config.islas){ const y=estados.find(z=>z.isla===i.id); if(islas.some(z=>z.id===i.id) || (y&&y.estado)) continue;
+        texto('Cerrando '+i.nombre+'…');
+        const idOm=await rpc('registrar_isla_omitida',{p_token:S.token, p_isla:i.uuid, p_fecha:fecha, p_turno:turno, p_motivo:'Bomba cerrada en la noche (sin venta) · tramo '+etqNoche().r1});
+        if(y) Object.assign(y,{ id:idOm, estado:'omitida', mio:true }); else estados.push({ id:idOm, isla:i.id, estado:'omitida', mio:true, quien:'' }); } }
+    const sinFotos=islas.find(i=>!conFotos(estados.find(y=>y.isla===i.id)));
+    if(sinFotos && !esTelefono()){ tarjeta('Falta grabar la '+sinFotos.nombre, n===1? 'La medianoche se graba desde el teléfono; después regresa aquí para el dinero.' : 'Graba las islas desde el teléfono y luego regresa aquí para el dinero.'); return true; }
+    if(sinFotos){ texto((n===1?'Medianoche · ':'Cierre · ')+sinFotos.nombre+'…'); await abrirIslaNoche(st, n, sinFotos); return true; }
+    const abiertos=estados.filter(y=>y.estado==='abierto' && y.mio);
+    if(!abiertos.length) return false;   // todo entregado en este tramo
+    if(esTelefono()){ cargando.remove(); wrap.append(pantallaFin({titulo:'Fotos listas', texto: n===1? 'El dinero de la medianoche se captura en la computadora.' : 'Las islas tienen fotos. El dinero se captura en la computadora.', boton:'Listo', onclick:salir})); return true; }
+    // Computadora: un solo corte con todo lo grabado; si nada se movió en ninguna isla, se sella solo "sin ventas".
+    texto('Juntando las islas en un solo corte…');
+    const id=await rpc('unir_cortes_noche',{p_token:S.token, p_fecha:fecha, p_turno:turno});
+    texto('Revisando las lecturas…');
+    if(await intentarSinVentas(id)){ render(); return true; }
+    await cargarCorte(id); return true;
+  };
+  try{
+    if(!st.t1Listo && await tramo(1, st.e1, islasMedianoche(st), st.d1, st.t1.id)) return;
+    if(!st.t2Listo && !cierrePermitido()){ cargando.remove(); wrap.append(pantallaFin({titulo:'Medianoche enviada', texto:'El cierre de la noche se abre a partir de las 00:30.', boton:'Salir', onclick:salir})); return; }
+    if(!st.t2Listo && await tramo(2, st.e2, ordenNoche(), st.d2, st.t2.id)) return;
+  }catch(e){ fallaNoche(e); return; }
+  cargando.remove();
+  wrap.append(pantallaFin({titulo:'Noche cerrada', texto:'', boton:'Listo, gracias', onclick:salir, extra: await botonPDFNoche(st)}));
+}
 // Para cada corte abierto del velador dice si ya tiene al menos una foto/cuadro de video guardado (mi_corte → lecturas.foto_id).
-async function fotosDeAbiertos(estados){
+// `todas`: solo cuenta si TODAS sus bombas tienen foto (noche en un solo corte).
+async function fotosDeAbiertos(estados, todas){
   const out={}; const abiertos=(estados||[]).filter(x=>x&&x.estado==='abierto'&&x.mio&&x.id);
-  await Promise.all(abiertos.map(async x=>{ try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); out[x.id]=!!(j&&(j.lecturas||[]).some(l=>l.foto_id)); }catch(_){ out[x.id]=false; } }));
+  const lista=l=>!!l.foto_id || (l.origen==='manual' && !!l.motivo_cero);
+  await Promise.all(abiertos.map(async x=>{ try{ const j=await rpc('mi_corte',{p_token:S.token, p_corte:x.id}); const ls=(j&&j.lecturas)||[]; out[x.id]= todas? (ls.length>0 && ls.every(lista)) : ls.some(l=>l.foto_id); }catch(_){ out[x.id]=false; } }));
   return out;
 }
 // Intenta sellar una isla de la noche como "sin ventas": si faltan lecturas de la IA las pide aquí (la computadora también puede),
@@ -1866,6 +1932,12 @@ function siguienteFotosNoche(c){
       return;
     }
     box.append(h('p',{class:'small',style:'color:var(--ok)'},`✓ La IA leyó las ${ms.length} bombas de ${c.islaNombre}.`));
+    if(tramo===1 && S.config.nocheUnCorte){ // medianoche con varias islas (Isla 1 y diésel): la siguiente que falte
+      const f1=await fotosDeAbiertos(st.e1, true); const con1=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; if(x.id===c.id) return true; return !!f1[x.id]; };
+      const sig1=islasMedianoche(st).find(i=>!con1(st.e1.find(y=>y.isla===i.id)));
+      if(sig1) box.append(h('button',{class:'btn primary big block',onclick:()=>{ abrirArchivo(vidGlobal); abrirIslaNoche(st,1,sig1).catch(fallaNoche); }},`Ahora graba la ${sig1.nombre}`));
+      else box.append(h('p',{class:'muted'},'El dinero de la medianoche se captura en la computadora.'), h('button',{class:'btn primary big block',onclick:salir},'Listo'));
+      return; }
     if(tramo===1){ box.append(h('button',{class:'btn primary big block',onclick:salir},'Listo')); return; }
     const fotosDe=await fotosDeAbiertos(st.e2);
     const conFotos=(x)=>{ if(!x) return false; if(hechoNoche(x)) return true; if(x.id===c.id) return true; return !!fotosDe[x.id]; };
@@ -2143,6 +2215,7 @@ function moneyInput(id, value, onChange){
 function codigoBonito(c){ c=String(c||'').toUpperCase(); const m=c.match(/^([AB])N?(\d+)$/); return m? `Lado ${m[1]} · Nº ${Number(m[2])}` : (c||'—'); }
 function renderEvidencia(){
   const c=S.corte; const ms=c.lecturas; const noche=esCorteNoche(c);
+  if(c.islasUnidas){ app.append(h('div',{class:'card stack',style:'text-align:center'}, h('h2',{},'Este corte ya junta varias islas'), h('p',{class:'muted'},'Ya no se graba desde aquí. Si una lectura quedó mal, corrígela en la computadora, en Lecturas; si falta una foto, avisa a administración.'), h('button',{class:'btn primary big block',onclick:()=>{ S.corte=null; S.frames=[]; S.me=null; go('login'); }},'Salir'))); return; }
   const card=h('div',{class:'card stack'});
   if(noche) card.append(h('h2',{},`Graba la ${c.islaNombre}`), h('p',{class:'muted'},'Un solo video, pasando despacio por la pantalla de cada bomba.'));
   else card.append(h('h2',{},'1. Fotos del totalizador'), h('p',{class:'muted'},'Graba un solo video de máximo 40 segundos, de preferencia en horizontal, deteniéndote 2 o 3 segundos frente a la pantalla de cada bomba. La IA busca cada bomba por el código de la pantalla ("b n1") y lee el contador; tú solo confirmas.'));
@@ -2463,7 +2536,7 @@ function renderLecturas(){
   for(const l of c.lecturas) list.append(filaLectura(l));
   const totBox=h('div',{class:'tot',id:'tot'});
   const btn=h('button',{class:'btn primary big block',onclick:async()=>{ if(!recalcular()){ const f=c.lecturas.filter(l=>l.inicial==null||l.final==null||l.litros<0||(l.inicialCorregida&&!l.motivo)).map(l=>l.manguera); toast('Revisa '+f.join(', ')+': falta una lectura, hay litros negativos o una inicial corregida sin motivo.',5000); return; } c.paso='dinero'; c.dinero=c.dinero||{ tarjetas:[], efectivo:{billetes:{},monedas:{}}, clientes:[], comentario:'' }; c.dinero.seccion='tarjetas'; await guardarAvance(); render(); }},'Continuar con el dinero del turno');
-  card.append(list, h('div',{}, h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Litros vendidos en el turno'), totBox), btn, h('button',{class:'btn ghost block',onclick:()=>{ if(window.__confirmRepetir){ c.lecturas.forEach(l=>{l.fotoId=null;l.final=null;l.lecturaIA=null;l.origen=null;}); S.frames=[]; render(); } else { window.__confirmRepetir=true; toast('Toca otra vez para repetir las fotos (se descartan las actuales).'); setTimeout(()=>window.__confirmRepetir=false,4000); } }},'Repetir fotos'));
+  card.append(list, h('div',{}, h('p',{class:'eyebrow',style:'margin-bottom:8px'},'Litros vendidos en el turno'), totBox), btn, ...(c.islasUnidas? [] : [h('button',{class:'btn ghost block',onclick:()=>{ if(window.__confirmRepetir){ c.lecturas.forEach(l=>{l.fotoId=null;l.final=null;l.lecturaIA=null;l.origen=null;}); S.frames=[]; render(); } else { window.__confirmRepetir=true; toast('Toca otra vez para repetir las fotos (se descartan las actuales).'); setTimeout(()=>window.__confirmRepetir=false,4000); } }},'Repetir fotos')]));
   app.append(card); recalcular();
   if(c.lecturas.some(l=>l.fotoId && l.final==null && l.lecturaIA==null && l.legibleIA==null)) leerConIA(c, true);
 }
@@ -3978,9 +4051,20 @@ function navLateral(items, actual, onpick, mod){
     marcar(); }); setTimeout(marcar, 400);
   return nav;
 }
+// Noche en un solo corte: marca qué islas lleva cada corte unido (_islas) y qué renglones van dentro de otro corte (_unidaA, _unidaCorte).
+// Solo consulta en las estaciones que lo usan; si la tabla aún no existe o no responde, todo sigue como antes.
+async function unionesDe(rows){
+  if(!S.config || !S.config.nocheUnCorte || !rows || !rows.length) return rows;
+  try{ const fs=rows.map(r=>r.fecha).filter(Boolean).sort(); if(!fs.length) return rows;
+    const us=(await sel(sb.from('cortes_unidos').select('corte_id,isla_id,corte_isla_id').eq('estacion_id',S.config.estacionId).gte('fecha',fs[0]).lte('fecha',fs[fs.length-1])))||[];
+    for(const r of rows){ const mias=us.filter(u=>u.corte_id===r.id); if(mias.length>1) r._islas=mias.map(u=>u.isla_id);
+      const en=us.find(u=>u.corte_isla_id===r.id); if(en){ const pr=us.find(u=>u.corte_id===en.corte_id && !u.corte_isla_id); const i=pr&&S.config.islas.find(x=>x.uuid===pr.isla_id); r._unidaCorte=en.corte_id; r._unidaA=i?i.nombre:'otra isla'; } }
+  }catch(e){}
+  return rows;
+}
 async function cortesTablero(filtro){
   let q=sb.from('cortes').select('*, despachadores(nombre)').eq('estacion_id',S.config.estacionId);
-  q=filtro(q); const rows=await sel(q);
+  q=filtro(q); const rows=await unionesDe(await sel(q));
   return rows.map(r=>corteDesdeServidor(Object.assign({},r,{despachador_nombre:r.despachadores&&r.despachadores.nombre})));
 }
 async function adminHoy(){
@@ -4004,8 +4088,8 @@ async function adminHoy(){
     for(const tu of S.config.turnos){ m.append(h('div',{class:'h',style:'text-align:left'},tu.nombre,h('br'),h('span',{class:'small',style:'font-weight:400'},tu.inicio),pdfTurnoBtn(tu)));
       for(const i of S.config.islas){ const c=cs.find(x=>x.turno===tu.id&&x.isla===i.id&&x.estado!=='abierto')||cs.find(x=>x.turno===tu.id&&x.isla===i.id);
         if(!c) m.append(h('div',{class:'c none'},'sin corte'));
-        else if(c.estado==='omitida') m.append(h('div',{class:'c sent',onclick:()=>verCorte(c.id)},h('b',{},'no se usó'),h('span',{},(c.despachadorNombre||'').split(' ')[0])));
-        else if(c.estado==='enviado'){ const dd=c.dinero?.diferencia; m.append(h('div',{class:'c sent'+(dd!=null&&Math.abs(dd)>tol?' open':''),onclick:()=>verCorte(c.id)},h('b',{},fmtInt(c.totales?.litros||0)+' L'),h('span',{},(c.despachadorNombre||'').split(' ')[0]), dd!=null? h('span',{class:'small num'},(dd>0?'+':'')+fmtMXN(dd)) : null, c.revisadoEn? h('span',{class:'small'},'✓ revisado'):null)); }
+        else if(c.estado==='omitida') m.append(h('div',{class:'c sent',onclick:()=>verCorte(c.unidaCorte||c.id)},h('b',{},c.unidaA? 'en '+c.unidaA : 'no se usó'),h('span',{},(c.despachadorNombre||'').split(' ')[0])));
+        else if(c.estado==='enviado'){ const dd=c.dinero?.diferencia; m.append(h('div',{class:'c sent'+(dd!=null&&Math.abs(dd)>tol?' open':''),onclick:()=>verCorte(c.id)},h('b',{},fmtInt(c.totales?.litros||0)+' L'),h('span',{},(c.despachadorNombre||'').split(' ')[0]), c.islasUnidas? h('span',{class:'small'},'corte unido') : null, dd!=null? h('span',{class:'small num'},(dd>0?'+':'')+fmtMXN(dd)) : null, c.revisadoEn? h('span',{class:'small'},'✓ revisado'):null)); }
         else m.append(h('div',{class:'c open',onclick:()=>verCorte(c.id)},h('b',{},'abierto'),h('span',{},(c.despachadorNombre||'').split(' ')[0]))); } }
     box.append(nav, h('div',{class:'hoy-paneles'}, h('section',{}, h('h3',{class:'sec-t'},'Litros'), h('div',{class:'card'}, totBox)), h('section',{}, h('h3',{class:'sec-t'},'Dinero'), h('div',{class:'card'}, dineroBox))),
       h('section',{}, h('h3',{class:'sec-t'},'Cortes'), h('div',{class:'card stack'}, h('p',{class:'eyebrow'},'Turno × isla'), m)));
@@ -4016,11 +4100,11 @@ async function adminCortes(){
   let cs=[]; try{ cs=await cortesTablero(q=>q.neq('estado','anulado').order('abierto_en',{ascending:false}).limit(60)); }catch(e){ app.append(h('div',{class:'card empty'},'No se pudo cargar: '+(e.message||e.code))); return; }
   const list=h('div',{class:'list'});
   if(!cs.length) list.append(h('div',{class:'card empty'},h('b',{},'Aún no hay cortes'),'Cuando los despachadores envíen su primer corte aparecerá aquí.'));
-  for(const c of cs){ const qc=c.calidad; list.append(h('div',{class:'item',onclick:()=>verCorte(c.id)}, h('div',{class:'l'},h('b',{},`${fmtFecha(c.fecha)} · ${c.islaNombre} · ${c.turnoNombre}`),h('span',{class:'small muted'},`${c.despachadorNombre}${c.horaEnvio?' · enviado '+c.horaEnvio:''}`)), h('div',{class:'row',style:'gap:6px;flex-wrap:nowrap'}, qc&&qc.puntos!=null? h('span',{class:'chip '+(qc.puntos>=90?'ok':qc.puntos>=75?'acc':qc.puntos>=60?'warn':'err')},`${qc.puntos}`):null, c.estado==='enviado'? h('span',{class:'chip ok num'},fmtInt(c.totales?.litros||0)+' L') : c.estado==='omitida'? h('span',{class:'chip'},'no se usó') : h('span',{class:'chip warn'},'abierto')))); }
+  for(const c of cs){ const qc=c.calidad; list.append(h('div',{class:'item',onclick:()=>verCorte(c.id)}, h('div',{class:'l'},h('b',{},`${fmtFecha(c.fecha)} · ${c.islaNombre} · ${c.turnoNombre}`),h('span',{class:'small muted'},`${c.despachadorNombre}${c.horaEnvio?' · enviado '+c.horaEnvio:''}`)), h('div',{class:'row',style:'gap:6px;flex-wrap:nowrap'}, qc&&qc.puntos!=null? h('span',{class:'chip '+(qc.puntos>=90?'ok':qc.puntos>=75?'acc':qc.puntos>=60?'warn':'err')},`${qc.puntos}`):null, c.estado==='enviado'? h('span',{class:'chip ok num'},fmtInt(c.totales?.litros||0)+' L') : c.estado==='omitida'? h('span',{class:'chip'},c.unidaA? 'en '+c.unidaA : 'no se usó') : h('span',{class:'chip warn'},'abierto')))); }
   app.append(list);
 }
 async function cargarCorteTablero(id){
-  const row=await sel(sb.from('cortes').select('*, despachadores(nombre)').eq('id',id).maybeSingle()); if(!row) return null;
+  const row=await sel(sb.from('cortes').select('*, despachadores(nombre)').eq('id',id).maybeSingle()); if(!row) return null; await unionesDe([row]);
   const [lect, fotos, vac]=await Promise.all([ sel(sb.from('lecturas').select('*, mangueras(clave,lado,producto,orden)').eq('corte_id',id)), sel(sb.from('fotos').select('*').eq('corte_id',id)), sel(sb.from('ventas_aceite').select('*').eq('corte_id',id)) ]);
   const c=corteDesdeServidor({corte:Object.assign({},row,{despachador_nombre:row.despachadores&&row.despachadores.nombre}), lecturas:lect, fotos, aceites:vac});
   await firmarFotos(fotos); return c;
@@ -4032,7 +4116,8 @@ async function verCorte(id){
   const card=h('div',{class:'card stack',style:'margin-top:10px'});
   card.append(h('div',{}, h('p',{class:'eyebrow'},`${fmtFecha(c.fecha)} · ${c.turnoNombre}`), h('h2',{},`${c.islaNombre} · ${c.despachadorNombre}`), h('p',{class:'small muted'},`Abierto ${fmtHora(c.abiertoEn)}${c.enviadoEn?' · enviado '+fmtHora(c.enviadoEn):''}`)),
     h('div',{class:'row'}, h('span',{class:'chip '+(c.estado==='enviado'?'ok':c.estado==='anulado'?'err':'warn')},c.estado), c.revisadoEn? h('span',{class:'chip ok'},'revisado por oficina'):h('span',{class:'chip'},'sin revisar')));
-  if(c.estado==='omitida') card.append(h('p',{class:'muted'},'Isla marcada como no usada en el turno: '+(c.motivoOmision||'')));
+  if(c.estado==='omitida') card.append(c.unidaA? h('p',{class:'muted'},'Esta isla va dentro del corte de '+c.unidaA+' (la noche se entrega en un solo corte). ', c.unidaCorte? h('a',{href:'#',onclick:e=>{ e.preventDefault(); verCorte(c.unidaCorte); }},'Ver ese corte') : null) : h('p',{class:'muted'},'Isla marcada como no usada en el turno: '+(c.motivoOmision||'')));
+  if(c.islasUnidas) card.append(h('p',{class:'small muted'},'Corte unido de la noche: lleva las lecturas de '+c.islaNombre+' y un solo dinero.'));
   if(c.estado==='anulado') card.append(h('div',{class:'alert err',style:'display:block'},`Anulado ${fmtFecha((c.anuladoEn||'').slice(0,10))} ${fmtHora(c.anuladoEn)} · ${c.motivoAnulacion||''}`));
   if(c.totales) card.append(h('div',{class:'tot'},...Object.entries(c.totales.porProducto||{}).map(([p,v])=>h('div',{},h('span',{class:'small muted'},p),h('b',{},fmtL(v)))), h('div',{},h('span',{class:'small muted'},'Total'),h('b',{},fmtL(c.totales.litros)))));
   if(c.lecturas.length) card.append(h('div',{class:'tscroll'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Manguera'),h('th',{class:'r'},'Inicial'),h('th',{class:'r'},'Final'),h('th',{class:'r'},'Litros'),h('th',{class:'r'},'IA'))),
@@ -6446,7 +6531,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, cortesTablero, adminHoy, adminCortes, verCorte, pdfDelCorte, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso }; // solo para la prueba de humo
 boot();
 })();
 </script>
