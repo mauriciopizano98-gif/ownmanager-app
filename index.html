@@ -1368,7 +1368,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.23.0';
+const OM_VERSION='2.24.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -3387,6 +3387,7 @@ function pushAbrir(d){ try{ const t=d&&d.tipo; if(!t || !S.usuario) return;
     if(t==='tarea_nueva'){ TAR.vista='lista'; TAR.t=null; if(S.rol==='encargado'){ encTab='tareas'; go('encargado'); } else if(S.rol==='oficina'){ oficinaTab='tareas'; go('oficina'); } else if(S.rol==='logistica'){ logTab='tareas'; go('logistica'); } else if(esTablero()){ adminTab='tareas'; go('admin'); } }
     else if(t==='tarea_hecha' && esTablero()){ adminTab='elaborar'; go('admin'); }
     else if(t==='descarga_enviada' && esTablero()){ DESC.detalle=null; adminTab='descargas'; go('admin'); }
+    else if(t==='pago_devuelto' && esTablero()){ PC.datos=null; PC.abre=d.pago||null; PC.per='todo'; adminTab='pclientes'; go('admin'); }
   }catch(e){ console.warn('notificaciones', e); } }
 // Celulares del Kiosko: 5 minutos antes de que termine cada turno. Se revisa cada 20 segundos con el reloj del teléfono.
 function avisoCorteLocal(){ try{ if(!esApk() || S.rol!=='kiosco' || !S.config || !Array.isArray(S.config.turnos) || S.corte) return; // con un corte ya abierto no hace falta recordarlo
@@ -5029,10 +5030,10 @@ async function consultaPagos(){
   for(const r of rows){
     const chip = r.estado==='conciliado'? h('span',{class:'chip ok'},'conciliado') : r.estado==='anulado'? h('span',{class:'chip err'},'anulado') : h('span',{class:'chip acc'},'registrado');
     const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null, r.concepto, r.factura_concepto_pago?'paga la factura '+r.factura_concepto_pago:null].filter(Boolean).join(' · ');
-    const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
+    const it=h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor||'Sin factura'}`), h('span',{class:'small muted'},det),
       h('div',{class:'row',style:'margin-top:6px'}, btnArchivo(r.comprobante_drive_id,'Ver comprobante'),
         S.rol==='dueno' && r.estado==='registrado' ? h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular') : null,
-        S.rol==='dueno' ? h('button',{class:'btn sm ghost danger',onclick:()=>eliminarUI('pago',r,`${r.proveedor} · ${fmtFecha(r.fecha)} · ${fmtMonto(r.monto)}`)},'Borrar') : null)),
+        S.rol==='dueno' ? h('button',{class:'btn sm ghost danger',onclick:()=>eliminarUI('pago',r,`${r.proveedor||'Sin factura'} · ${fmtFecha(r.fecha)} · ${fmtMonto(r.monto)}`)},'Borrar') : null)),
       h('div',{style:'text-align:right'}, h('b',{style:r.estado==='anulado'?'text-decoration:line-through;opacity:.6':''},fmtMonto(r.monto)), h('div',{class:'row',style:'justify-content:flex-end;gap:4px'},chip, r.editado?chipEditado(r.cambios,false):null)));
     list.append(it);
   }
@@ -5040,7 +5041,7 @@ async function consultaPagos(){
 }
 function anularPagoUI(r){
   const motivo=h('textarea',{rows:'3',placeholder:'Por qué se anula (obligatorio)'});
-  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Anular pago'), h('p',{class:'muted'},`${fmtFecha(r.fecha)} · ${r.proveedor} · ${fmtMonto(r.monto)}`),
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Anular pago'), h('p',{class:'muted'},[fmtFecha(r.fecha), r.proveedor||(r.concepto?'concepto '+r.concepto:null), fmtMonto(r.monto)].filter(Boolean).join(' · ')),
     h('p',{class:'small muted'},'El pago no se borra: queda marcado como anulado, con quién, cuándo y por qué. El comprobante sigue en Drive.'), motivo,
     h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Cancelar'),
       h('button',{class:'btn danger',onclick:async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); return; } try{ await rpc('anular_pago',{p_pago:r.id,p_motivo:motivo.value.trim()}); sheet.remove(); toast('Pago anulado.'); render(); }catch(e){ aviso(e.message||e.code,'err',10000,'No se pudo anular'); } }},'Anular'))));
@@ -5076,11 +5077,11 @@ async function renderWizardPago(cuentas, fijo){
     const inp=h('input',{type:'file',accept:'application/pdf,image/*',style:'display:none'});
     inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
       if(f.size>8*1024*1024){ toast('El archivo pasa de 8 MB.'); return; }
-      w.archivo={ nombre:f.name, mime:f.type||'application/pdf', b64:await archivoABase64(f) }; w.paso='leyendo'; render();
+      w.archivo={ nombre:f.name, mime:f.type||'application/pdf', b64:await archivoABase64(f) }; w.pend=null; w.paso='leyendo'; render();
       const j=await fnOficina({ accion:'analizar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, nombre_archivo:f.name }).catch(e=>({ok:false,error:e.message}));
       if(!j.ok){ w.paso='archivo'; render(); aviso(j.error||('No se pudo leer el comprobante'+(j.codigo?' ('+j.codigo+')':'')+'.'),'err',10000,'No se puede registrar'); return; }
       const ia=j.extraido||{};
-      w.analisis=j; w.form={ cuentaId:j.cuenta?j.cuenta.id:'', proveedorId:(j.proveedores_posibles||[])[0]?j.proveedores_posibles[0].id:'', proveedorNombre:ia.beneficiario||ia.nombre_corto||'',
+      w.analisis=j; w.form={ cuentaId:j.cuenta?j.cuenta.id:'',
         fecha:ia.fecha||nowMX().fecha, monto:ia.monto!=null?String(ia.monto):'', referencia:ia.folio||ia.clave_rastreo||'', concepto:ia.concepto||'',
         factura:(ia.concepto&&/^[A-Z]{0,5}-?\d{3,}$/i.test(ia.concepto))?ia.concepto:'', facturaId:j.factura_sugerida?j.factura_sugerida.id:'', metodo:ia.tipo&&ia.tipo!=='otro'?ia.tipo:'transferencia' };
       w.original={ fecha:w.form.fecha, monto:w.form.monto, referencia:w.form.referencia, concepto:w.form.concepto }; w.editando=false;
@@ -5094,27 +5095,29 @@ async function renderWizardPago(cuentas, fijo){
     const a=w.analisis, f=w.form, ia=a.extraido||{};
     const cta=h('select',{}, h('option',{value:''},'— Elige la cuenta de retiro —'), ...(a.cuentas_disponibles||[]).map(c=>h('option',{value:c.id,selected:c.id===f.cuentaId},`${c.alias}${c.ultimos4?' ···'+c.ultimos4:''} · ${c.negocio}`)));
     cta.addEventListener('change',()=>f.cuentaId=cta.value);
-    const posibles=a.proveedores_posibles||[];
-    const prov=h('select',{}, ...posibles.map(p=>h('option',{value:p.id,selected:p.id===f.proveedorId},p.nombre+(p.rfc?' · '+p.rfc:''))), h('option',{value:'__nuevo',selected:!f.proveedorId},posibles.length?'Otro / nuevo proveedor…':'Nuevo proveedor'));
-    const provNombre=h('input',{type:'text',placeholder:'Nombre del proveedor',value:f.proveedorNombre,style:prov.value==='__nuevo'?'':'display:none'});
-    prov.addEventListener('change',()=>{ f.proveedorId=prov.value==='__nuevo'?'':prov.value; provNombre.style.display=prov.value==='__nuevo'?'':'none'; armarFacturas(); });
-    provNombre.addEventListener('input',()=>f.proveedorNombre=provNombre.value);
+    // Regla de Mauricio (27-nov-2026): del comprobante solo importan la cuenta de retiro y el concepto. Aquí no se elige ni se crea proveedor:
+    // el pago toma el de la factura que paga.
     const fecha=h('input',{type:'date',value:f.fecha}); fecha.addEventListener('input',()=>f.fecha=fecha.value);
     const monto=h('input',{type:'number',step:'0.01',min:'0',inputmode:'decimal',value:f.monto}); monto.addEventListener('input',()=>{ f.monto=monto.value; armarFacturas(); });
     const refe=h('input',{type:'text',value:f.referencia,placeholder:'Folio / clave de rastreo'}); refe.addEventListener('input',()=>f.referencia=refe.value);
     const conc=h('input',{type:'text',value:f.concepto,placeholder:'Concepto de pago'}); conc.addEventListener('input',()=>f.concepto=conc.value);
     const fact=h('input',{type:'text',value:f.factura,placeholder:'Folio de la factura que paga (opcional)'}); fact.addEventListener('input',()=>f.factura=fact.value);
-    const pend=a.facturas_pendientes||[]; const sug=a.factura_sugerida||null;
+    const pend=w.pend||(w.pend=(a.facturas_pendientes||[]).slice()); const sug=a.factura_sugerida||null;
     const selFact=h('select',{}); const notaFact=h('span',{class:'small muted'});
-    const armarFacturas=()=>{ const mias=pend.filter(x=>x.proveedor_id===f.proveedorId);
-      selFact.replaceChildren(h('option',{value:''},mias.length?'— Sin factura por ahora —':'Este proveedor no tiene facturas sin pagar'), ...mias.map(x=>h('option',{value:x.id,selected:x.id===f.facturaId},`${x.concepto_pago||'s/f'} · ${fmtFecha(x.fecha)} · ${fmtMonto(x.total)}`)));
+    const armarFacturas=()=>{ const mias=pend;
+      selFact.replaceChildren(h('option',{value:''},'— Sin factura por ahora —'), ...mias.map(x=>h('option',{value:x.id,selected:x.id===f.facturaId},`${x.concepto_pago||'s/f'} · ${fmtFecha(x.fecha)} · ${fmtMonto(x.total)}${x.proveedor?' · '+x.proveedor:''}`)));
       selFact.style.display=mias.length?'':'none'; fact.style.display=mias.length?'none':'';
       if(!mias.some(x=>x.id===f.facturaId)) f.facturaId='';
       const el=mias.find(x=>x.id===f.facturaId);
       notaFact.textContent= el && sug && sug.id===el.id ? (sug.por==='concepto'?'El concepto del comprobante trae el de esta factura.':'Coincide por importe; revisa que sea la factura correcta.')
-        : el ? (Math.abs(Number(el.total)-Number(f.monto))<0.01?'':'El importe no coincide con el total de la factura ('+fmtMonto(el.total)+').') : ''; };
+        : el ? (Math.abs(Number(el.total)-Number(f.monto))<0.01?'':'El importe no coincide con el total de la factura ('+fmtMonto(el.total)+').')
+        : (mias.length? 'Sin factura, el pago se guarda y espera en Comprobantes de pago, en «Pagos sin factura».' : 'No hay una factura sin pagar con ese concepto. El pago se guarda y espera en Comprobantes de pago, en «Pagos sin factura».'); };
     selFact.addEventListener('change',()=>{ f.facturaId=selFact.value; const el=pend.find(x=>x.id===f.facturaId); f.factura=el?(el.concepto_pago||''):f.factura; armarFacturas(); });
     armarFacturas();
+    // Buscar entre todas las facturas sin pagar del negocio de la cuenta elegida (por ejemplo, cuando el proveedor pidió otra referencia).
+    const negocioDe=()=>{ const c=(a.cuentas_disponibles||[]).find(x=>x.id===f.cuentaId); return c&&c.negocio_id? {id:c.negocio_id,nombre:c.negocio} : (a.cuenta&&a.cuenta.id===f.cuentaId? {id:a.cuenta.negocio_id,nombre:a.cuenta.negocio} : null); };
+    const buscaFact=h('button',{class:'btn sm ghost',type:'button',id:'pago-buscar-factura',style:'align-self:flex-start;margin-top:6px',onclick:()=>{ const n=negocioDe(); if(!n){ msg.textContent='Elige primero la cuenta de retiro.'; return; }
+      facturaSheet({ negocio_id:n.id, negocio:n.nombre, monto:f.monto, pie:`Pago del ${fmtFecha(f.fecha)} · ${fmtMonto(f.monto)}${f.concepto?' · concepto '+f.concepto:''}` }, x=>{ if(!pend.some(y=>y.id===x.id)) pend.unshift({ id:x.id, fecha:x.fecha, total:x.total, concepto_pago:x.concepto_pago, proveedor_id:x.proveedor_id, proveedor:x.proveedor, negocio_id:x.negocio_id }); f.facturaId=x.id; f.factura=x.concepto_pago||f.factura; armarFacturas(); }); }},'Buscar otra factura');
     const met=h('select',{}, ...[['transferencia','Transferencia'],['spei','SPEI'],['cheque','Cheque'],['efectivo','Efectivo'],['tarjeta','Tarjeta'],['otro','Otro']].map(([v,l])=>h('option',{value:v,selected:v===f.metodo},l))); met.addEventListener('change',()=>f.metodo=met.value);
     const msg=h('div',{class:'small muted'});
     const conf=Number(ia.confianza??0.5);
@@ -5127,30 +5130,29 @@ async function renderWizardPago(cuentas, fijo){
       a.aviso? h('div',{style:'padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px'},a.aviso):null,
       ia.notas? h('p',{class:'small muted'},'Nota de la IA: '+ia.notas):null,
       h('label',{class:'f'},h('span',{class:'l'},'Cuenta de retiro (define el negocio)'),cta),
-      h('label',{class:'f'},h('span',{class:'l'},'Proveedor'+(ia.beneficiario?' · el banco dice: '+ia.beneficiario:'')),prov, provNombre,
-        a.proveedor_por_factura? h('span',{class:'small muted',id:'pago-por-factura'},`El banco lo escribe distinto. Se reconoció por la factura ${a.proveedor_por_factura.concepto_pago||''}, que trae este concepto de pago.`) : null),
       bloqueo.fila,
       h('div',{class:'grid2'}, cFecha.el, cMonto.el),
       h('div',{class:'grid2'}, cRefe.el, h('label',{class:'f'},h('span',{class:'l'},'Método'),met)),
-      h('div',{class:'grid2'}, cConc.el, h('label',{class:'f'},h('span',{class:'l'},'Factura que paga'),selFact,fact,notaFact)),
+      h('div',{class:'grid2'}, cConc.el, h('div',{class:'f'},h('label',{class:'f',style:'margin:0'},h('span',{class:'l'},'Factura que paga'),selFact,fact,notaFact),buscaFact)),
       msg,
       h('button',{class:'btn primary big block',onclick:async e=>{
         if(!f.cuentaId){ msg.textContent='Elige la cuenta de retiro.'; return; }
-        if(!f.proveedorId && !f.proveedorNombre.trim()){ msg.textContent='Escribe el nombre del proveedor.'; return; }
         if(!/^\d{4}-\d{2}-\d{2}$/.test(f.fecha)){ msg.textContent='Revisa la fecha.'; return; }
         if(!(Number(f.monto)>0)){ msg.textContent='Revisa el importe.'; return; }
         const b=e.currentTarget; b.dataset.ocupado=''; b.disabled=true; msg.textContent='Subiendo a Drive y registrando…';
         const j=await fnOficina({ accion:'registrar', archivo_base64:w.archivo.b64, mime:w.archivo.mime, cuenta_id:f.cuentaId,
-          proveedor_id:f.proveedorId||null, proveedor_nombre:f.proveedorId?null:f.proveedorNombre.trim(), fecha:f.fecha, monto:Number(f.monto),
+          proveedor_id:(pend.find(x=>x.id===f.facturaId)||{}).proveedor_id||null, proveedor_nombre:null, fecha:f.fecha, monto:Number(f.monto),
           referencia:f.referencia.trim()||null, concepto:f.concepto.trim()||null, factura:f.factura.trim()||null, factura_id:f.facturaId||null, metodo:f.metodo, extraido_ia:ia }).catch(err=>({ok:false,error:err.message}));
-        if(!j.ok){ b.disabled=false; msg.textContent=''; if(j.codigo==='comprobante_duplicado'){ w.paso='archivo'; } render(); aviso(j.error||'No se pudo registrar el pago.','err',10000,'No se puede registrar'); return; }
-        w.paso='listo'; w.resultado=j; OF.cuentas=null; render(); aviso(`${j.proveedor} · ${j.archivo}`,'ok',6000,'Pago registrado'); }},'Registrar pago'));
+        if(!j.ok){ b.disabled=false; msg.textContent=''; if(j.codigo==='comprobante_duplicado'){ w.paso='archivo'; } render();
+          const viejo=/Falta el proveedor/i.test(j.error||'');   // la función anterior del servidor todavía pide proveedor
+          aviso(viejo? 'Este pago no trae factura y todavía no se puede guardar así: falta terminar la instalación del paso 34. Mientras tanto, elige la factura que paga.' : (j.error||'No se pudo registrar el pago.'),'err',12000,'No se puede registrar'); return; }
+        w.paso='listo'; w.resultado=j; w.pend=null; OF.cuentas=null; render(); aviso(`${j.proveedor? j.proveedor+' · ' : ''}${j.archivo}`,'ok',6000,'Pago registrado'); }},'Registrar pago'));
     return;
   }
   if(w.paso==='listo'){
     const r=w.resultado;
     add(card, h('div',{class:'sechead'}, h('h3',{},'✅ Pago registrado'), cerrar),
-      h('p',{class:'muted'},`${r.negocio} → ${r.proveedor}`), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
+      h('p',{class:'muted'}, r.proveedor? `${r.negocio} → ${r.proveedor}` : r.negocio), h('p',{class:'small muted'},'Archivo en Drive: '+r.archivo),
       r.factura_ligada? h('p',{class:'small',style:'color:'+(r.factura_ligada.cuadra?'var(--ok)':'var(--warn)')},'Quedó ligado a la factura '+(r.factura_ligada.concepto_pago||'')+(r.factura_ligada.cuadra?'.':' · el importe no coincide con el total de la factura ('+fmtMonto(r.factura_ligada.total)+').')) : h('p',{class:'small muted'},'No se ligó a ninguna factura; cuando llegue la factura con ese concepto se ligará sola. Mientras tanto queda en Comprobantes de pago, en «Pagos sin factura».'),
       h('div',{class:'row'}, h('a',{class:'btn ghost',href:r.drive,target:'_blank',rel:'noopener'},'Abrir en Drive'), h('button',{class:'btn primary',onclick:()=>{ OF.wizard={paso:'archivo'}; render(); }},'Registrar otro'), h('button',{class:'btn ghost',onclick:()=>{ OF.wizard={paso:'archivo'}; if(S.rol==='oficina') oficinaTab='comprobantes'; else adminTab='comprobantes'; render(); }},'Ver comprobantes')));
   }
@@ -5163,8 +5165,11 @@ async function renderWizardPago(cuentas, fijo){
 const PC={ w:null, est:'', per:'mes', abre:null, datos:null, t:0, ligaT:0 };
 const PC_PLAZO=3;   // días que tiene el pago para aparecer en el banco (25-nov-2026)
 // 'banco' ya cayó · 'nocayo' venció su plazo y el banco ya está subido más allá de ese día · 'espera' lo demás (incluye: venció pero falta subir el banco)
-function pcEstado(r){ if(r.en_banco) return 'banco'; return (r.banco_hasta && r.banco_hasta>addDays(r.fecha,PC_PLAZO))? 'nocayo' : 'espera'; }
-const pcFirma = d => d.map(x=>x.id+(x.en_banco?'1':'0')+(x.banco_hasta||'')).join('|');
+// Semáforo (27-nov-2026): solo lo firme (transferencia o efectivo) cuenta al momento. Un cheque, o un abono que la app no reconoce, queda
+// «por confirmar» 2 días hábiles; y si el banco regresa el depósito, el pago queda «devuelto». Sin esos datos (base anterior) todo sigue como antes.
+function pcEstado(r){ if(r.en_banco) return r.devuelto? 'devuelto' : r.firme===false? 'confirmar' : 'banco'; return (r.banco_hasta && r.banco_hasta>addDays(r.fecha,PC_PLAZO))? 'nocayo' : 'espera'; }
+const pcFirma = d => d.map(x=>x.id+(x.en_banco?'1':'0')+(x.banco_hasta||'')+(x.firme===false?'c':'')+(x.devuelto?'d':'')).join('|');
+const pcQueEs = r => r.banco_clase==='cheque'? 'un cheque' : 'un movimiento que la app no reconoce como transferencia ni como efectivo';
 const pcFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /pagos_clientes_lista|schema cache/i.test(String((e.raw&&e.raw.message)||e.message||'')));
 // En el navegador, una función que no existe (o que no arrancó) no llega como 404: el navegador corta la llamada y solo dice "Failed to fetch" (visto el 25-nov-2026).
 const pcFaltaFuncion = j => !!j && (j.sinRespuesta || j.code==='NOT_FOUND' || /\(404\)|not found/i.test(String(j.error||j.message||'')));
@@ -5308,15 +5313,19 @@ async function pagosClientes(){
   cont.append(fil);
   const mes=hoy.slice(0,7), pasado=addDays(mes+'-01',-1).slice(0,7); const enPer=r=>PC.per==='todo' || r.fecha.slice(0,7)===(PC.per==='mes'? mes : pasado);
   // Lo que no ha caído se ve siempre, sea del mes que sea: es lo que hay que atender.
-  const rows=PC.datos.filter(r=>(!PC.est || r.estacion_id===PC.est) && (!r.en_banco || enPer(r))).map(r=>Object.assign({e:pcEstado(r)}, r));
+  const rows=PC.datos.map(r=>Object.assign({e:pcEstado(r)}, r)).filter(r=>(!PC.est || r.estacion_id===PC.est) && (r.e!=='banco' || enPer(r)));   // lo que hay que atender se ve siempre
   if(!rows.length){ cont.append(h('div',{class:'card empty',id:'pc-vacio',style:'margin-top:14px'}, h('b',{},PC.datos.length? 'No hay pagos en este periodo' : 'Todavía no hay pagos de clientes'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'}, PC.datos.length? 'Prueba con otro periodo.' : 'Cuando un cliente mande su comprobante por WhatsApp, súbelo aquí con «Subir evidencia»: PDF, captura o foto de la hoja.'))); return; }
-  const orden={nocayo:0, espera:1, banco:2}; rows.sort((a,b)=> orden[a.e]-orden[b.e] || (a.fecha<b.fecha?1:a.fecha>b.fecha?-1:0) || (a.creado_en<b.creado_en?1:-1));
-  const T={banco:0, espera:0, nocayo:0}, N={banco:0, espera:0, nocayo:0}; for(const r of rows){ T[r.e]+=Number(r.importe); N[r.e]++; }
-  cont.append(h('div',{class:'tot b-tot pc-tot',id:'pc-tot',style:'margin-top:4px;--n:3'}, bancoDato(`En el banco · ${N.banco}`, fmtMXN(T.banco)), bancoDato(`Avisado, sin caer · ${N.espera}`, fmtMXN(T.espera)), bancoDato(`No cayó en su plazo · ${N.nocayo}`, fmtMXN(T.nocayo), N.nocayo?'neg':'')));
+  const orden={devuelto:-2, nocayo:0, confirmar:0.5, espera:1, banco:2}; rows.sort((a,b)=> orden[a.e]-orden[b.e] || (a.fecha<b.fecha?1:a.fecha>b.fecha?-1:0) || (a.creado_en<b.creado_en?1:-1));
+  const T={banco:0, espera:0, nocayo:0, confirmar:0, devuelto:0}, N={banco:0, espera:0, nocayo:0, confirmar:0, devuelto:0}; for(const r of rows){ T[r.e]+=Number(r.importe); N[r.e]++; }
+  const extra=[]; if(N.confirmar) extra.push(bancoDato(`Por confirmar · ${N.confirmar}`, fmtMXN(T.confirmar))); if(N.devuelto) extra.push(bancoDato(`Devuelto · ${N.devuelto}`, fmtMXN(T.devuelto), 'neg'));   // solo salen cuando hay alguno
+  cont.append(h('div',{class:'tot b-tot pc-tot',id:'pc-tot',style:`margin-top:4px;--n:${3+extra.length}`}, bancoDato(`En el banco · ${N.banco}`, fmtMXN(T.banco)), bancoDato(`Avisado, sin caer · ${N.espera}`, fmtMXN(T.espera)), bancoDato(`No cayó en su plazo · ${N.nocayo}`, fmtMXN(T.nocayo), N.nocayo?'neg':''), ...extra));
   const list=h('div',{class:'list b-tabla pc',id:'pc-lista',style:'margin-top:14px'}, h('div',{class:'b-cab','aria-hidden':'true'}, h('span',{},'Fecha'), h('span',{},'Cliente'), h('span',{class:'r'},'Importe'), h('span',{},'')));
   for(const r of rows){ const abierta=PC.abre===r.id; const vence=addDays(r.fecha,PC_PLAZO);
-    const chip= r.e==='banco'? h('span',{class:'chip ok'},'En el banco') : r.e==='nocayo'? h('span',{class:'chip err'},'No cayó en su plazo') : h('span',{class:'chip warn'},'Avisado, sin caer');
-    const sub=[varias&&!PC.est? nomEst(r.estacion_id) : null, r.e==='espera'&&hoy>vence? 'falta subir el banco' : null, r.ordenante, r.concepto].filter(Boolean).join(' · ');
+    const chip= r.e==='banco'? h('span',{class:'chip ok'},'En el banco') : r.e==='nocayo'? h('span',{class:'chip err'},'No cayó en su plazo')
+      : r.e==='devuelto'? h('span',{class:'chip err',style:'white-space:nowrap'},'Devuelto') : r.e==='confirmar'? h('span',{class:'chip warn'},'Por confirmar') : h('span',{class:'chip warn'},'Avisado, sin caer');
+    const sub=[varias&&!PC.est? nomEst(r.estacion_id) : null, r.e==='espera'&&hoy>vence? 'falta subir el banco' : null,
+      r.e==='confirmar'? (r.banco_clase==='cheque'?'cheque':'sin reconocer')+(r.firme_falta_banco? ' · falta subir el banco' : r.firme_el? ' · firme el '+fmtFecha(r.firme_el) : '') : null,
+      r.e==='devuelto'? 'el banco regresó el depósito' : null, r.ordenante, r.concepto].filter(Boolean).join(' · ');
     const fila=h('div',{class:'item b-fila'+(abierta?' abierta':''),'data-pago':r.id,'data-estado':r.e,role:'button',tabindex:'0','aria-expanded':abierta?'true':'false','aria-label':`Ver el detalle del pago de ${r.cliente_nombre}`},
       h('span',{class:'b-dia'}, h('b',{},fmtFecha(r.fecha))), h('span',{class:'pc-cli'}, h('b',{},r.cliente_nombre), sub? h('span',{class:'small muted'},sub) : null),
       h('span',{class:'r','data-l':'Importe'},fmtMXN(r.importe)), h('span',{class:'b-est'},chip));
@@ -5325,6 +5334,7 @@ async function pagosClientes(){
     list.append(fila); if(abierta) list.append(pcDetalle(r, hoy)); }
   cont.append(list);
   cont.append(h('p',{class:'small muted',style:'margin:12px 0 0;max-width:80ch'}, `Un pago tiene ${PC_PLAZO} días para aparecer en el banco. Si se vence el plazo y el banco ya está subido, queda como «No cayó en su plazo» para revisarlo con el cliente.`));
+  if(N.confirmar||N.devuelto) cont.append(h('p',{class:'small muted',id:'pc-nota-sem',style:'margin:6px 0 0;max-width:80ch'}, 'Una transferencia o un depósito en efectivo cuentan en cuanto aparecen. Un cheque espera 2 días hábiles, porque el banco lo puede regresar; si lo regresa, el pago queda como «Devuelto».'));
 }
 function pcDetalle(r, hoy){
   const vence=addDays(r.fecha,PC_PLAZO); const ln=(k,v)=> v? h('div',{class:'ln'}, h('span',{},k), h('b',{},String(v))) : null;
@@ -5332,7 +5342,13 @@ function pcDetalle(r, hoy){
   const comp=h('div',{}, h('h4',{},'Lo que dice el comprobante'), ln('Quién paga',r.ordenante), ln('Banco',r.banco_origen), ln('Cuenta de origen',r.cuenta_origen4? '···'+r.cuenta_origen4 : null), ln('Concepto',r.concepto), ln('Folio',r.folio), ln('Estado que trae',r.estado_banco),
     h('p',{class:'small muted',style:'margin:10px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap'}, `Lo subió ${r.creado_por_nombre||'la oficina'}${subido? ' el '+subido : ''}`, r.cambios&&Object.keys(r.cambios).length? chipEditado(r.cambios,false) : null));
   const banco=h('div',{}, h('h4',{},'En el banco'));
-  if(r.e==='banco') add(banco, h('p',{class:'pc-ok'}, ico('palomita',18), `Cayó el ${fmtFecha(r.banco_fecha)}${r.banco_cuenta? ' en '+r.banco_cuenta : ''}`),
+  if(r.e==='devuelto') add(banco, h('p',{class:'pc-mal'},'El banco regresó el depósito'),
+    h('p',{class:'small muted',style:'margin:6px 0 0'}, `Cayó el ${fmtFecha(r.banco_fecha)}${r.banco_cuenta? ' en '+r.banco_cuenta : ''}${r.devuelto_fecha? ' y el banco lo regresó el '+fmtFecha(r.devuelto_fecha) : ', pero el banco lo regresó'}. Este pago no cuenta: hay que cobrarlo otra vez al cliente.`));
+  else if(r.e==='confirmar') add(banco, h('p',{style:'margin:0;font-weight:600'},`Cayó el ${fmtFecha(r.banco_fecha)}${r.banco_cuenta? ' en '+r.banco_cuenta : ''}, por confirmar`),
+    h('p',{class:'small muted',style:'margin:6px 0 0'}, r.firme_falta_banco
+      ? `Es ${pcQueEs(r)}. Su espera terminó el ${fmtFecha(r.firme_el)}, pero falta subir el banco hasta ese día para saber que no se regresó.`
+      : `Es ${pcQueEs(r)} y el banco lo puede regresar. Se toma como bueno el ${fmtFecha(r.firme_el)} (2 días hábiles) si no se regresa.`));
+  else if(r.e==='banco') add(banco, h('p',{class:'pc-ok'}, ico('palomita',18), `Cayó el ${fmtFecha(r.banco_fecha)}${r.banco_cuenta? ' en '+r.banco_cuenta : ''}`),
     h('p',{class:'small muted',style:'margin:6px 0 0'}, r.ligado_por==='folio'? 'Se reconoció por el folio de la operación.' : r.ligado_por==='concepto'? 'Se reconoció por el importe y el concepto.' : 'Se reconoció por el importe y la fecha: era el único depósito por esa cantidad.'));
   else if(r.e==='nocayo') add(banco, h('p',{class:'pc-mal'},'No apareció en el banco'),
     h('p',{class:'small muted',style:'margin:6px 0 0'}, `Tenía hasta el ${fmtFecha(vence)} y el banco ya está subido hasta el ${fmtFecha(r.banco_hasta)}. Hay que revisarlo con el cliente: puede que la transferencia no haya salido, que la mandara a otra cuenta o que el importe sea distinto.`));
@@ -5437,7 +5453,9 @@ async function pcWizard(){
   if(w.paso==='listo'){ const p=(w.r&&w.r.pago)||{}; const vence=p.fecha? addDays(p.fecha,PC_PLAZO) : null;
     add(card, h('div',{class:'sechead'}, h('h3',{},'Pago guardado'), cerrar),
       h('p',{style:'margin:0'}, h('b',{},w.r.cliente||p.cliente_nombre||''), p.fecha? ` · ${fmtFecha(p.fecha)} · ${fmtMXN(p.importe)}` : ''),
-      p.en_banco? h('p',{class:'pc-ok',id:'pc-res'}, ico('palomita',18), `Ya está en el banco${p.banco_fecha? ': cayó el '+fmtFecha(p.banco_fecha) : ''}.`)
+      p.en_banco&&p.devuelto? h('p',{class:'pc-mal',id:'pc-res'}, `Cayó en el banco${p.banco_fecha? ' el '+fmtFecha(p.banco_fecha) : ''}, pero el banco regresó el depósito${p.devuelto_fecha? ' el '+fmtFecha(p.devuelto_fecha) : ''}. Este pago no cuenta.`)
+      : p.en_banco&&p.firme===false? h('p',{id:'pc-res',style:'margin:0'}, h('b',{},'Está en el banco, pero todavía no cuenta. '), `Es ${pcQueEs(p)} y el banco lo puede regresar. Se toma como bueno el ${fmtFecha(p.firme_el)} (2 días hábiles) si no se regresa.`)
+      : p.en_banco? h('p',{class:'pc-ok',id:'pc-res'}, ico('palomita',18), `Ya está en el banco${p.banco_fecha? ': cayó el '+fmtFecha(p.banco_fecha) : ''}.`)
         : h('p',{id:'pc-res',style:'margin:0'}, `Queda avisado. Va a contar cuando aparezca en los movimientos del banco${vence? '; tiene hasta el '+fmtFecha(vence) : ''}.`),
       h('div',{class:'row'}, h('button',{class:'btn primary',id:'pc-otro',onclick:()=>{ PC.w={paso:'archivo'}; render(); }},'Subir otra evidencia'), h('button',{class:'btn ghost',id:'pc-ver',onclick:()=>{ PC.w=null; render(); }},'Ver pagos de clientes'))); }
 }
@@ -5481,7 +5499,7 @@ const PSF_ERR={ factura_ya_pagada:'Esa factura ya tiene su pago.', factura_cance
 function psfBloque(sueltos){
   if(!Array.isArray(sueltos)) return;
   let L=sueltos;
-  if(CO.texto){ const q=CO.texto.toLowerCase(), qn=q.replace(/[$,\s]/g,''); L=L.filter(r=>[r.proveedor,r.concepto,r.referencia,r.sugerida_concepto_pago,r.sugerida_proveedor,r.negocio].filter(Boolean).join(' ').toLowerCase().includes(q) || (qn && String(Number(r.monto).toFixed(2)).includes(qn))); }
+  if(CO.texto){ const q=CO.texto.toLowerCase(), qn=q.replace(/[$,\s]/g,''); L=L.filter(r=>[r.concepto,r.referencia,r.sugerida_concepto_pago,r.sugerida_proveedor,r.negocio,r.cuenta].filter(Boolean).join(' ').toLowerCase().includes(q) || (qn && String(Number(r.monto).toFixed(2)).includes(qn))); }
   if(!L.length) return;
   const card=h('div',{class:'card stack',id:'psf',style:'margin-bottom:14px'});
   const tot=L.reduce((s,r)=>s+Number(r.monto),0);
@@ -5489,12 +5507,12 @@ function psfBloque(sueltos){
     h('p',{class:'small muted',style:'margin:0;max-width:80ch'},'Están registrados, pero ninguna factura quedó pagada con ellos. Lígalos a su factura para que aparezca su expediente.'));
   const list=h('div',{class:'list'}); const ver=PSF.todos? L : L.slice(0,5);
   for(const r of ver){
-    const det=[r.negocio, r.cuenta, r.concepto?'concepto '+r.concepto:null, r.referencia?'folio '+r.referencia:null].filter(Boolean).join(' · ');
+    const det=[r.negocio, r.cuenta, r.referencia?'folio '+r.referencia:null].filter(Boolean).join(' · ');
     const acciones=h('div',{class:'row',style:'margin-top:6px'});
     if(r.sugerida_id) acciones.append(h('button',{class:'btn sm primary',onclick:()=>psfConfirmar(r,{ id:r.sugerida_id, concepto_pago:r.sugerida_concepto_pago, total:r.sugerida_total, fecha:r.sugerida_fecha, proveedor:r.sugerida_proveedor })},'Ligar a la factura '+(r.sugerida_concepto_pago||'')));
     acciones.append(h('button',{class:'btn sm ghost',onclick:()=>psfElegir(r)}, r.sugerida_id?'Elegir otra factura':'Elegir factura'), btnArchivo(r.comprobante_drive_id,'Ver comprobante'));
     if(S.rol==='dueno' && r.estado==='registrado') acciones.append(h('button',{class:'btn sm ghost danger',onclick:()=>anularPagoUI(r)},'Anular'));
-    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.proveedor}`), h('span',{class:'small muted'},det),
+    list.append(h('div',{class:'item',style:'cursor:default'}, h('div',{class:'l'}, h('b',{},`${fmtFecha(r.fecha)} · ${r.concepto? 'concepto '+r.concepto : 'sin concepto'}`), h('span',{class:'small muted'},det),
         r.sugerida_id? h('div',{class:'small',style:'margin-top:2px'},`Parece ser de la factura ${r.sugerida_concepto_pago} de ${r.sugerida_proveedor} · ${fmtMonto(r.sugerida_total)}`+(r.sugerida_cuadra?'':' · el importe no coincide')) : null, acciones),
       h('div',{style:'text-align:right'}, h('b',{},fmtMonto(r.monto)), h('div',{},h('span',{class:'chip warn',style:'white-space:nowrap'},'sin factura')))));
   }
@@ -5505,41 +5523,41 @@ function psfBloque(sueltos){
 // Antes de ligar se enseña qué pago con qué factura, y qué va a cambiar.
 function psfConfirmar(r, f){
   document.querySelectorAll('.sheet').forEach(x=>x.remove());
-  const distinto = !!f.proveedor && f.proveedor!==r.proveedor; const cuadra=Math.abs(Number(f.total)-Number(r.monto))<0.01;
+  const cuadra=Math.abs(Number(f.total)-Number(r.monto))<0.01;
   const ln=(k,v)=> v? h('div',{class:'ln',style:'display:flex;justify-content:space-between;gap:12px'}, h('span',{class:'muted'},k), h('b',{style:'text-align:right'},String(v))) : null;
   const nota=(txt)=>h('div',{style:'padding:8px 10px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:14px;display:flex;gap:8px;align-items:flex-start'}, ico('alerta'), h('span',{},txt));
   const btn=h('button',{class:'btn primary'},'Ligar');
   const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Ligar el pago a su factura'),
-    h('div',{}, h('h4',{style:'margin:0 0 4px'},'Pago'), ln('Fecha',fmtFecha(r.fecha)), ln('Proveedor',r.proveedor), ln('Importe',fmtMonto(r.monto)), ln('Concepto',r.concepto)),
+    h('div',{}, h('h4',{style:'margin:0 0 4px'},'Pago'), ln('Fecha',fmtFecha(r.fecha)), ln('Salió de',r.cuenta), ln('Importe',fmtMonto(r.monto)), ln('Concepto',r.concepto), ln('Folio',r.referencia)),
     h('div',{}, h('h4',{style:'margin:0 0 4px'},'Factura'), ln('Concepto de pago',f.concepto_pago||'s/f'), ln('Fecha',fmtFecha(f.fecha)), ln('Proveedor',f.proveedor), ln('Total',fmtMonto(f.total))),
     cuadra? null : nota(`El importe del pago (${fmtMonto(r.monto)}) no coincide con el total de la factura (${fmtMonto(f.total)}).`),
-    distinto? nota(`El pago está con «${r.proveedor}». Al ligarlo pasa a «${f.proveedor}», que es el proveedor de la factura.`) : null,
     h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Cancelar'), btn)));
   btn.addEventListener('click',async()=>{ btn.dataset.ocupado='Ligando…'; btn.disabled=true;
     try{ const j=await rpc('ligar_pago_a_factura',{ p_pago:r.id, p_factura:f.id }); sheet.remove();
-      aviso(`${j&&j.proveedor||f.proveedor} · ${fmtMonto(f.total)}`+(j&&j.proveedor_cambiado?` · el pago pasó de «${j.proveedor_anterior}» a este proveedor`:''),'ok',8000,`Factura ${f.concepto_pago||''} pagada`); render(); }
+      aviso(`${j&&j.proveedor||f.proveedor} · ${fmtMonto(f.total)}`,'ok',8000,`Factura ${f.concepto_pago||''} pagada`); render(); }
     catch(e){ btn.disabled=false; delete btn.dataset.ocupado; const c=String((e.raw&&e.raw.message)||e.message||''); aviso(PSF_ERR[c]||e.message||e.code,'err',10000,'No se pudo ligar'); } });
   document.body.append(sheet);
 }
-// Elegir a mano: facturas sin pagar de ese negocio. Primero las del mismo importe y las de ese proveedor.
-function psfElegir(r){
+// Elegir a mano una factura sin pagar de un negocio. Primero las del mismo importe. La usan «Pagos sin factura» y Agregar pago.
+function facturaSheet(o, alElegir){
   document.querySelectorAll('.sheet').forEach(x=>x.remove());
   const zona=h('div',{class:'list'}); const inp=h('input',{type:'search',placeholder:'Buscar',value:''}); let turno=0;
+  const igual=f=>Math.abs(Number(f.total)-Number(o.monto))<0.01;
   const cargar=async()=>{ const yo=++turno; zona.replaceChildren(omEsperando(['Buscando facturas sin pagar…'],'chico'));
-    let fs=[]; try{ fs=await rpc('buscar_facturas',{ p_texto:inp.value.trim()||null, p_negocio:r.negocio_id, p_estado:'registrada', p_limite:200 })||[]; }
+    let fs=[]; try{ fs=await rpc('buscar_facturas',{ p_texto:inp.value.trim()||null, p_negocio:o.negocio_id, p_estado:'registrada', p_limite:200 })||[]; }
     catch(e){ if(yo===turno) zona.replaceChildren(h('div',{class:'card empty'},'No se pudo buscar: '+(e.message||e.code))); return; }
     if(yo!==turno) return;
-    const peso=f=>(Math.abs(Number(f.total)-Number(r.monto))<0.01?2:0)+(f.proveedor_id===r.proveedor_id?1:0);
-    fs=fs.filter(f=>!f.pago_id).sort((x,y)=>peso(y)-peso(x) || (x.fecha<y.fecha?1:x.fecha>y.fecha?-1:0)).slice(0,60);
-    if(!fs.length){ zona.replaceChildren(h('div',{class:'card empty'}, h('b',{},inp.value.trim()?'Sin resultados':'No hay facturas sin pagar en '+r.negocio), inp.value.trim()?'Prueba con otra palabra.':'Cuando llegue la factura, aquí aparece para ligarla.')); return; }
-    zona.replaceChildren(...fs.map(f=>h('div',{class:'item',onclick:()=>psfConfirmar(r,f)}, h('div',{class:'l'}, h('b',{},`${f.concepto_pago||'s/f'} · ${f.proveedor}`), h('span',{class:'small muted'},`${fmtFecha(f.fecha)}${f.concepto?' · '+f.concepto:''}`)),
-      h('div',{style:'text-align:right'}, h('b',{},fmtMonto(f.total)), Math.abs(Number(f.total)-Number(r.monto))<0.01? h('div',{},h('span',{class:'chip ok',style:'white-space:nowrap'},'mismo importe')) : null)))); };
+    fs=fs.filter(f=>!f.pago_id).sort((x,y)=>(igual(y)?1:0)-(igual(x)?1:0) || (x.fecha<y.fecha?1:x.fecha>y.fecha?-1:0)).slice(0,60);
+    if(!fs.length){ zona.replaceChildren(h('div',{class:'card empty'}, h('b',{},inp.value.trim()?'Sin resultados':'No hay facturas sin pagar en '+o.negocio), inp.value.trim()?'Prueba con otra palabra.':'Cuando llegue la factura, aquí aparece para ligarla.')); return; }
+    zona.replaceChildren(...fs.map(f=>h('div',{class:'item',onclick:()=>{ sheet.remove(); alElegir(f); }}, h('div',{class:'l'}, h('b',{},`${f.concepto_pago||'s/f'} · ${f.proveedor}`), h('span',{class:'small muted'},`${fmtFecha(f.fecha)}${f.concepto?' · '+f.concepto:''}`)),
+      h('div',{style:'text-align:right'}, h('b',{},fmtMonto(f.total)), igual(f)? h('div',{},h('span',{class:'chip ok',style:'white-space:nowrap'},'mismo importe')) : null)))); };
   let espera=null; inp.addEventListener('input',()=>{ clearTimeout(espera); espera=setTimeout(cargar,350); });
   const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('div',{class:'sechead'}, h('h3',{},'Elegir la factura'), h('button',{class:'btn sm ghost',onclick:()=>sheet.remove()},'Cerrar')),
-    h('p',{class:'small muted',style:'margin:0'},`Pago del ${fmtFecha(r.fecha)} · ${r.proveedor} · ${fmtMonto(r.monto)}${r.concepto?' · concepto '+r.concepto:''}`),
-    h('label',{class:'f'}, h('span',{class:'l'},'Factura sin pagar de '+r.negocio), inp), zona));
+    o.pie? h('p',{class:'small muted',style:'margin:0'},o.pie) : null,
+    h('label',{class:'f'}, h('span',{class:'l'},'Factura sin pagar de '+o.negocio), inp), zona));
   document.body.append(sheet); cargar();
 }
+function psfElegir(r){ facturaSheet({ negocio_id:r.negocio_id, negocio:r.negocio, monto:r.monto, pie:`Pago del ${fmtFecha(r.fecha)} · ${fmtMonto(r.monto)}${r.concepto?' · concepto '+r.concepto:''}` }, f=>psfConfirmar(r,f)); }
 async function consultaEstados(){
   let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
   app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }), barraFiltros(negocios));
@@ -6602,7 +6620,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, cortesTablero, adminHoy, adminCortes, verCorte, pdfDelCorte, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, cortesTablero, adminHoy, adminCortes, verCorte, pdfDelCorte, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso, pushAbrir }; // solo para la prueba de humo
 boot();
 })();
 </script>
