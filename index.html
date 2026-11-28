@@ -1101,6 +1101,51 @@ input:focus,select:focus,textarea:focus{outline:3px solid var(--focus-soft);bord
 .pm-cierre{display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center;padding:12px 16px;margin-top:14px}
 .pm-cierre>span{display:inline-flex;align-items:center;gap:8px}.pm-cierre b{font-weight:600}
 .pm-entrega{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+/* Ligar pagos (27-nov-2026): cada renglón es una cuenta, pago = facturas. */
+.lp-tabla{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lp-par{display:grid;grid-template-columns:minmax(0,1fr) 30px minmax(0,1.25fr);align-items:start;gap:8px 16px;padding:18px;border-bottom:1px solid var(--line)}
+.lp-tabla>.lp-par:last-child{border-bottom:0}
+.lp-lado{display:flex;flex-direction:column;gap:4px;min-width:0;text-align:left}
+.lp-lado .k{font-size:14px;color:var(--muted)}
+.lp-lado .t{font-size:14.5px;overflow-wrap:anywhere}
+.lp-imp{font:700 24px/1.15 var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lp-igual{font:700 28px/1 var(--font-mono);font-stretch:80%;color:var(--muted);text-align:center;padding-top:24px}
+.lp-op{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.lp-lado>.lp-op:first-child{border-top:0;padding-top:0}
+.lp-fs .ln{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;font-size:15px;padding:2px 0}
+.lp-fs .ln b{font-weight:600}
+.lp-fs .ln span:last-child{font:600 16px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lp-pie{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.lp-mano{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.lp-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.lp-col h3{margin:0;font-size:17px}
+.lp-buscar{margin:0;position:relative}
+.lp-buscar input{padding-right:44px}
+.lp-lupa{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--muted);line-height:0;pointer-events:none}
+.lp-lista{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);max-height:max(300px,calc(100vh - 500px));overflow:auto;scrollbar-width:thin}
+.lp-col>.btn{align-self:flex-start}
+.lp-fila{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:58px;padding:11px 14px;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .15s}
+.lp-lista>.lp-fila:last-child{border-bottom:0}
+.lp-fila:hover{background:var(--surface2)}
+.lp-fila:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
+.lp-fila[aria-selected="true"],.lp-fila[aria-checked="true"]{background:var(--surface2);box-shadow:inset 0 0 0 2px var(--fg)}
+.lp-fila b{font-weight:600}
+.lp-num{font:700 17px var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lp-marca{width:22px;height:22px;border:1.5px solid var(--line2);border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:transparent;background:var(--surface);flex:none}
+.lp-marca.radio{border-radius:50%}
+.lp-fila[aria-selected="true"] .lp-marca,.lp-fila[aria-checked="true"] .lp-marca{background:var(--fg);border-color:var(--fg);color:var(--surface)}
+.lp-nada{margin:0;padding:22px 16px;text-align:center}
+.lp-cuadre{position:sticky;bottom:14px;z-index:5;margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:12px 24px;flex-wrap:wrap;padding:14px 18px;background:var(--surface);border:1.5px solid var(--fg);border-radius:var(--r);box-shadow:var(--shadow-lg)}
+.lp-cta{display:flex;align-items:flex-end;gap:6px 18px;flex-wrap:wrap}
+.lp-cta div{display:flex;flex-direction:column;gap:4px}
+.lp-cta b{font:700 22px/1.1 var(--font-mono);font-stretch:80%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lp-cta .op{font:700 22px/1.1 var(--font-mono);color:var(--muted)}
+@media (max-width:900px){
+  .lp-par{grid-template-columns:minmax(0,1fr)} .lp-igual{padding:0;text-align:left} .lp-mano{grid-template-columns:minmax(0,1fr)} .lp-lista{max-height:44vh}
+}
+@media (max-width:760px){
+  .lp-cuadre{bottom:calc(78px + env(safe-area-inset-bottom,0px));padding:10px 12px;gap:8px} .lp-cta{gap:4px 8px;flex-wrap:nowrap} .lp-cta b,.lp-cta .op{font-size:15.5px} .lp-cta .small{font-size:13px;white-space:nowrap} .lp-cuadre .row{width:100%} .lp-cuadre .row .btn{min-height:44px} .lp-cuadre .row .btn.primary{flex:1} .lp-cuadre[data-vacio]{position:static}
+}
 @media (max-width:760px){
   .pm .b-cab{display:none} .pm.rev .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .pm.rev .b-dia{display:none} .pm.rev .pm-acc{grid-column:1/3;justify-content:flex-start}
   .pm.res .item.b-fila{grid-template-columns:minmax(0,1fr) auto} .pm.res .pm-nf{display:none} .pm.res .pm-est{grid-area:2/1} .pm.res .b-est{grid-area:2/2} .pm-det .ln{grid-template-columns:70px minmax(0,1fr) auto} .pm-det .ln .c{display:none} .pm-entrega .btn{width:100%}
@@ -1368,7 +1413,7 @@ const OM_LOGO=OM_LIMA;
 let ESTACION = 'Estación';
 const TZ = 'America/Mexico_City';
 // Versión de la app (se cambia en cada publicación; se ve en la esquina de la entrada y en el pie)
-const OM_VERSION='2.24.0';
+const OM_VERSION='2.25.0';
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(attrs)){ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else if(v!==false&&v!=null) e.setAttribute(k,v);} for(const k of kids.flat()){ if(k==null||k===false) continue; e.append(k.nodeType?k:document.createTextNode(String(k))); } return e; };
 const fmtL = n => (Math.round(n*1000)/1000).toLocaleString('es-MX',{minimumFractionDigits:3,maximumFractionDigits:3});
@@ -3067,27 +3112,27 @@ async function renderAdmin(){
     navTareas(),
     ['glog','viaje','Logística',[['lviajes','viaje','Viajes'],['lunidades','unidad','Unidades'],['loperadores','desp','Operadores'],['lclientes','clientes','Clientes'],...(dueno?[['lajustes','config','Ajustes']]:[])]],
     ['gfacturas','factura','Facturas',[['facturas','facturamas','Agregar factura'],['cfacturas','buscar','Consultar facturas']]],
-    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],['proveedores','proveedores','Lista de proveedores'],['pmes','acumulado','Pagos del mes'],['pclientes','clientes','Pagos de clientes']]],
+    ['gpagos','pagos','Pagos',[['apago','pagosmas','Agregar pago'],['comprobantes','comprobantes','Comprobantes de pago'],...(dueno?[['lpagos','liga','Ligar pagos']]:[]),['proveedores','proveedores','Lista de proveedores'],['pmes','acumulado','Pagos del mes'],['pclientes','clientes','Pagos de clientes']]],
     ['gestados','banco','Estados de cuenta',[['aestado','bancomas','Agregar estado de cuenta'],['estados','buscar','Consultar estados de cuenta']]],
     ['gbancos','banco','Bancos',[['bsubir','bancomas','Subir movimientos'],['befectivo','hoy','Efectivo por día'],['bmovs','buscar','Movimientos'],['bdeposito','depositos','Depósito manual']]],
     ['gsat','sat','SAT',[['satcert','candado','Agregar certificado'],['satconsulta','buscar','Consulta de facturas'],['satnuevas','factura','Facturas nuevas'],['sathist','hoy','Historial de solicitudes']]],
     ['gconfig','config','Configuración',[['precios','precio','Precio de combustibles'],['clientes','clientes','Clientes marcados'],...(dueno?[['aceites','aceites','Aceites'],['desp','desp','Despachadores']]:[]),['terminales','pagos','Terminales bancarias'],['ajustes','config','Ajustes avanzados'],...(dueno&&S.config.escanerTickets?[['escaner','camara','Prueba del escáner']]:[])]],
     ['eliminados','anulados','Eliminados y cancelados']]; // 20-nov-2026: todo lo eliminado, cancelado o anulado vive aquí (dueño y Contabilidad), no en las listas de trabajo
   const titulos={chat:'Asistente', hoy:'Hoy', descargas:'Descargas', tareas:'Mis tareas', elaborar:'Elaborar tarea', avisos:'Avisos al kiosko', cortes:'Lista de cortes', depositos:'Depósitos', eliminados:'Eliminados y cancelados', facturas:'Agregar factura', apago:'Agregar pago', aestado:'Agregar estado de cuenta', cfacturas:'Consultar facturas', pagos:'Pagos', comprobantes:'Comprobantes de pago', pclientes:'Pagos de clientes', pmes:'Pagos del mes', estados:'Consultar estados de cuenta', bsubir:'Subir movimientos', befectivo:'Efectivo por día', bmovs:'Movimientos del banco', bdeposito:'Depósito manual', proveedores:'Lista de proveedores', precios:'Precio de combustibles', clientes:'Clientes marcados', satcert:'SAT · Agregar certificado', satconsulta:'SAT · Consulta de facturas', satnuevas:'SAT · Facturas nuevas', sathist:'SAT · Historial de solicitudes', aceites:'Aceites', desp:'Despachadores', terminales:'Terminales bancarias', ajustes:'Ajustes avanzados'};
-  if(dueno) Object.assign(titulos,{ cdia:'Conciliación · Diaria', cacum:'Conciliación · Acumulado', chist:'Conciliación · Histórico' });
+  if(dueno) Object.assign(titulos,{ cdia:'Conciliación · Diaria', cacum:'Conciliación · Acumulado', chist:'Conciliación · Histórico', lpagos:'Ligar pagos' });
   if(dueno && S.config.escanerTickets) titulos.escaner='Prueba del escáner'; // escáner de tickets, etapa 1: con el interruptor apagado esta pantalla no existe
   if(S.rol==='dueno' && adminTab==='tareas') adminTab='elaborar'; // al dueño nadie le manda tareas
   Object.assign(titulos, LOG_TITULOS); if(!dueno) delete titulos.lajustes;
   if(!titulos[adminTab]) adminTab='chat'; // pestañas que ya no existen (p. ej. guardadas de una versión anterior)
-  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','pclientes','pmes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist','eliminados'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
+  const esOficinaTab = ['pagos','apago','aestado','proveedores','facturas','cfacturas','chat','comprobantes','lpagos','pclientes','pmes','estados','bsubir','bmovs','satcert','satconsulta','satnuevas','sathist','eliminados'].includes(adminTab) || !!LOG_PANTALLAS[adminTab];
   const shell=h('div',{class:'om-shell'}); const main=h('div',{class:'om-main'});
-  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='pclientes'){ PC.w=null; PC.abre=null; } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
+  shell.append(navLateral(items, adminTab, k=>{ adminTab=k; if(k==='bdeposito'){ DEP.vista='lista'; DEP.hoja=null; } if(k==='descargas') DESC.detalle=null; if(k==='tareas'){ TAR.vista='lista'; TAR.t=null; } if(k==='pclientes'){ PC.w=null; PC.abre=null; } if(k==='lpagos'){ LP.mov=null; LP.fs=new Set(); } logAlElegir(k); render(); }, 'central'), main); app.append(shell);
   const head=h('div',{}, window.innerWidth<=760? logoModulo('central','movil'):null, esOficinaTab?null:h('p',{class:'eyebrow'},ESTACION), h('h1',{},titulos[adminTab]));
   if(!esOficinaTab && esCentral() && (S.estaciones||[]).length>1){ // Diseño v2: el mismo selector de gasolinera, a la vista en botones (antes lista desplegable).
     const selEst=h('div',{class:'tabs est-filtro',role:'group','aria-label':'Gasolinera'},...S.estaciones.map(e=>h('button',{class:e.id===S.config.estacionId?'on':'','aria-pressed':e.id===S.config.estacionId?'true':'false',onclick:ev=>cambiarGasolinera(e, ev.currentTarget, selEst, head, main)},e.nombre))); head.append(selEst); }
   main.append(head);
   const prev=app; app=main; const finEspera=omEsperaPantalla(main);
-  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, pclientes:pagosClientes, pmes:pagosDelMes, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
+  try{ await (Object.assign({},LOG_PANTALLAS,{hoy:adminHoy, descargas:adminDescargas, tareas:pantallaTareas, elaborar:pantallaElaborar, avisos:pantallaAvisos, cortes:adminCortes, depositos:adminDepositos, aceites:adminAceites, desp:adminDesp, terminales:()=>adminConfig('terminales'), ajustes:()=>adminConfig('ajustes'), eliminados:adminEliminados, escaner:adminEscaner, pagos:consultaPagos, pclientes:pagosClientes, lpagos:ligarPagos, pmes:pagosDelMes, apago:agregarPago, aestado:agregarEstado, precios:adminPrecios, clientes:adminClientes, satcert:satCertificados, satconsulta:satConsulta, satnuevas:satNuevas, sathist:satHistorial, proveedores:adminProveedores, facturas:agregarFactura, cfacturas:consultaFacturas, chat:oficinaChat, comprobantes:consultaComprobantes, estados:consultaEstados, bsubir:bancoSubir, befectivo:bancoEfectivo, bmovs:bancoMovs, bdeposito:bancoDeposito, cdia:concDiaria, cacum:concAcumulado, chist:concHistorico}))[adminTab](); }
   finally{ app=prev; finEspera(); }
 }
 
@@ -3953,6 +3998,7 @@ const ICONS={
   proveedores:'<path d="M3 7h11v10H3zM14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
   hoy:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   concilia:'<path d="M12 4v16M8 20h8M5 7h14M5 7l-2.5 6a2.8 2.8 0 0 0 5 0L5 7ZM19 7l-2.5 6a2.8 2.8 0 0 0 5 0L19 7Z"/>',
+  liga:'<path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7l-1.1 1.1"/><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 0 0 5.7 5.7l1.1-1.1"/>',
   acumulado:'<path d="M4 20h16M6.5 20v-5M11 20v-9M15.5 20v-12M20 6l-3-2.5M20 6l-3.2 1.6"/>',
   historico:'<path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5M4 4.5v3.5h3.5M12 8v4.2l2.8 1.8"/>',
   cortes:'<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M5 21h10M8 7h4M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-3-3"/>',
@@ -5474,6 +5520,9 @@ async function consultaComprobantes(){
   const sueltos=await sueltosP;
   espera.remove();
   psfBloque(sueltos);
+  // 27-nov-2026: una factura pagada sin pago (pago_id nulo) se ligó al banco en Ligar pagos: no tiene comprobante, así que no tiene expediente que armar.
+  const delBanco=rows.filter(r=>r.pago_id===null).length; rows=rows.filter(r=>r.pago_id!==null);
+  if(delBanco) app.append(h('p',{class:'small muted',id:'co-banco',style:'margin:0 0 10px'}, (delBanco===1? '1 factura pagada se ligó al banco y no tiene comprobante.' : `${delBanco} facturas pagadas se ligaron al banco y no tienen comprobante.`)+(S.rol==='dueno'? ' Están en Ligar pagos, en la pestaña Ligadas.' : '')));
   if(!rows.length){ app.append(h('div',{class:'card empty'}, h('b',{},(CO.texto||hayFiltros())?'Sin resultados':'Todavía no hay facturas pagadas'), (CO.texto||hayFiltros())?'':'Cuando una factura tenga su pago ligado, aquí aparece su expediente.')); return; }
   const list=h('div',{class:'list'});
   for(const r of rows){
@@ -5558,6 +5607,202 @@ function facturaSheet(o, alElegir){
   document.body.append(sheet); cargar();
 }
 function psfElegir(r){ facturaSheet({ negocio_id:r.negocio_id, negocio:r.negocio, monto:r.monto, pie:`Pago del ${fmtFecha(r.fecha)} · ${fmtMonto(r.monto)}${r.concepto?' · concepto '+r.concepto:''}` }, f=>psfConfirmar(r,f)); }
+// ---- Ligar pagos (27-nov-2026). Facturas que ya se pagaron y no tienen comprobante: se ligan con su cargo en el banco.
+// Solo el dueño. La cantidad debe cuadrar al centavo: una factura, varias que sumen el pago, o un abono a una sola factura (PPD).
+// Las sugerencias se calculan aquí (qué facturas suman cada pago, y por qué parecen suyas); al ligar, el servidor revisa todo otra vez.
+const LP={ datos:null, t:0, vista:'sug', neg:'', mov:null, fs:new Set(), qC:'', qF:'', verComp:false, ocupado:false, sug:null };
+const LP_ERR={ sin_permiso:'Solo el dueño puede ligar pagos con el banco.', movimiento_invalido:'Ese pago ya no está en Bancos. Actualiza la pantalla.' };
+const lpFaltaBase = e => !!e && (e.code==='PGRST202' || e.code==='42883' || /ligar_pagos|ligar_facturas_banco|schema cache/i.test(String((e.raw&&e.raw.message)||'')));
+const lpCent = n => Math.round(Number(n)*100);
+const lpLlano = s => String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]+/g,' ').trim();
+const LP_COMUN=new Set('SPEI ENVIADO RECIBIDO PAGO PAGOS CUENTA TERCERO BNET BANORTE BBVA BANCOMER SANTANDER BANAMEX HSBC SCOTIABANK BAJIO BANBAJIO INBURSA AZTECA TRANSFERENCIA FACTURA FACTURAS FOLIO REFERENCIA CONCEPTO MEXICO GRUPO SERVICIOS SERVICIO COMERCIALIZADORA OPERADORA DISTRIBUIDORA PROVEEDORA COMPRA ABONO ANTICIPO'.split(' '));
+const lpPalabras = s => lpLlano(s).split(' ').filter(w=>w.length>=5 && !LP_COMUN.has(w));
+const lpFolio = f => f.concepto_pago || [f.serie,f.folio].filter(Boolean).join('') || 's/f';
+const lpDias = (a,b) => Math.round((Date.parse(String(a).slice(0,10)+'T12:00:00Z')-Date.parse(String(b).slice(0,10)+'T12:00:00Z'))/86400000);
+const lpClave = (c,fs) => c.id+'|'+fs.map(f=>f.id).sort().join(',');
+function lpDescartadas(){ try{ return new Set(JSON.parse(localStorage.getItem('om-lp-no')||'[]')); }catch(e){ return new Set(); } }
+function lpDescartar(k){ const s=lpDescartadas(); s.add(k); try{ localStorage.setItem('om-lp-no', JSON.stringify([...s].slice(-400))); }catch(e){} }
+// Huella de cada proveedor: las palabras con que han salido en el banco los pagos suyos que ya se ligaron.
+// Se quitan las que comparten dos proveedores y las que traen muchos pagos (no distinguen a nadie).
+function lpHuellas(D){ const H=new Map(), dueno=new Map(), df=new Map();
+  for(const c of D.cargos||[]) for(const w of new Set(lpLlano(c.texto).split(' '))) df.set(w,(df.get(w)||0)+1);
+  const tope=Math.max(3, Math.round((D.cargos||[]).length*0.15));
+  for(const x of D.huellas||[]) for(const w of lpLlano(x.texto).split(' ')){ if(w.length<6 || LP_COMUN.has(w) || (df.get(w)||0)>tope) continue;
+    if(dueno.has(w) && dueno.get(w)!==x.proveedor_id){ dueno.set(w,null); continue; } if(!dueno.has(w)) dueno.set(w,x.proveedor_id); }
+  for(const [w,p] of dueno){ if(!p) continue; if(!H.has(p)) H.set(p,new Set()); H.get(p).add(w); }
+  return H; }
+// Por qué una factura parece ser de un pago. n: 3 dice su concepto de pago · 2 dice la referencia del proveedor, o sale como otros pagos suyos · 1 dice su nombre · 0 solo el importe.
+function lpSenal(c, f, H){
+  const T=c._t||(c._t=lpLlano(c.texto)), pega=c._p||(c._p=T.replace(/ /g,'')), tok=c._w||(c._w=new Set(T.split(' ')));
+  const con=lpLlano(f.concepto_pago).replace(/ /g,'');
+  if(con.length>=5? pega.includes(con) : (con.length===4 && tok.has(con))) return { n:3, por:'concepto' };
+  const ref=lpLlano(f.referencia_especial).replace(/ /g,''); if(ref.length>=5 && pega.includes(ref)) return { n:2, por:'referencia' };
+  const hu=H.get(f.proveedor_id); if(hu) for(const w of tok) if(hu.has(w)) return { n:2, por:'huella' };
+  for(const w of lpPalabras(f.proveedor)) if(tok.has(w)) return { n:1, por:'nombre' };
+  return { n:0, por:'importe' }; }
+// Conjuntos de 2 a 6 facturas (de un mismo proveedor) que suman exactamente el pago. cand: [{f, s}] en centavos, de mayor a menor.
+function lpCombos(C, cand, tope){ const res=[]; let nodos=0; const suf=new Array(cand.length+1).fill(0); for(let i=cand.length-1;i>=0;i--) suf[i]=suf[i+1]+cand[i].s;
+  const baja=(i, resto, pila)=>{ if(res.length>=tope || ++nodos>40000) return; if(resto===0){ if(pila.length>=2) res.push(pila.slice()); return; } if(pila.length>=6) return;
+    for(let j=i;j<cand.length;j++){ if(cand[j].s>resto) continue; if(suf[j]<resto) break; pila.push(cand[j]); baja(j+1, resto-cand[j].s, pila); pila.pop(); if(res.length>=tope || nodos>40000) return; } };
+  baja(0, C, []); return res; }
+// Las sugerencias: por cada pago del banco sin ligar, las facturas sin pagar del mismo negocio que lo cuadran.
+// nivel: 2 = el texto del banco señala esas facturas y no hay otra igual · 1 = es lo único que cuadra · 0 = hay varias opciones (se elige).
+function lpSugerir(D){ const H=lpHuellas(D), no=lpDescartadas(), out=[]; const porNeg=new Map();
+  for(const f of D.facturas||[]){ if(!porNeg.has(f.negocio_id)) porNeg.set(f.negocio_id,[]); porNeg.get(f.negocio_id).push(f); }
+  for(const c of D.cargos||[]){ if(c.comprobante) continue; const C=lpCent(c.cargo); let ops=[];
+    const cand=(porNeg.get(c.negocio_id)||[]).filter(f=>{ const dd=lpDias(c.fecha,f.fecha); return lpCent(f.saldo)<=C && dd>=-20 && dd<=75; });
+    for(const f of cand) if(lpCent(f.saldo)===C) ops.push({ fs:[f], senal:lpSenal(c,f,H) });
+    const porProv=new Map(); for(const f of cand){ if(lpCent(f.saldo)>=C) continue; if(!porProv.has(f.proveedor_id)) porProv.set(f.proveedor_id,[]); porProv.get(f.proveedor_id).push({ f, s:lpCent(f.saldo) }); }
+    for(const lista of porProv.values()){ if(lista.length<2) continue; lista.sort((a,b)=>b.s-a.s || (a.f.fecha<b.f.fecha?-1:a.f.fecha>b.f.fecha?1:0));
+      for(const cb of lpCombos(C, lista, 3)){ const fs=cb.map(x=>x.f); const ss=fs.map(f=>lpSenal(c,f,H)).sort((a,b)=>b.n-a.n); ops.push({ fs, senal:ss[0] }); } }
+    ops=ops.filter(o=>!no.has(lpClave(c,o.fs))); if(!ops.length) continue;
+    ops.sort((a,b)=>b.senal.n-a.senal.n || a.fs.length-b.fs.length || Math.abs(lpDias(c.fecha,a.fs[0].fecha))-Math.abs(lpDias(c.fecha,b.fs[0].fecha)));
+    const mejor=ops[0].senal.n, punta=ops.filter(o=>o.senal.n===mejor);
+    out.push({ c, ops:(mejor>0? punta : ops).slice(0,3), nivel: (mejor>=2 && punta.length===1)? 2 : ops.length===1? 1 : 0 }); }
+  // Una factura no puede ser de dos pagos: si la misma queda propuesta para dos, las dos sugerencias bajan a "se elige" (salvo la que el banco señala).
+  const veces=new Map(); for(const s of out) for(const f of s.ops[0].fs) veces.set(f.id,(veces.get(f.id)||0)+1);
+  for(const s of out) if(s.nivel<2 && s.ops[0].fs.some(f=>veces.get(f.id)>1)){ s.nivel=0; s.choca=true; }
+  return out.sort((a,b)=>b.nivel-a.nivel || Number(b.c.cargo)-Number(a.c.cargo)); }
+const LP_POR={ concepto:'Dice su concepto de pago', referencia:'Dice la referencia del proveedor', huella:'Sale como otros pagos a este proveedor', nombre:'Dice el nombre del proveedor', importe:'Cuadra el importe' };
+
+async function lpRecargar(){ const d=await rpc('ligar_pagos',{}); LP.datos=d; LP.t=Date.now(); LP.sug=null; }
+// Liga un pago con sus facturas. Si el servidor avisa que ese cargo parece ser de un comprobante ya subido, pregunta antes de seguir.
+async function lpLigar(c, fs, o, btn){ if(LP.ocupado) return false; LP.ocupado=true; o=o||{}; if(btn){ btn.dataset.ocupado='Ligando…'; btn.disabled=true; }
+  const suelta=()=>{ LP.ocupado=false; if(btn && btn.isConnected){ btn.disabled=false; delete btn.dataset.ocupado; } };
+  try{ const j=await rpc('ligar_facturas_banco',{ p_movimiento:c.id, p_facturas:fs.map(f=>f.id), p_abono:!!o.abono, p_confirmar:!!o.confirmar, p_origen:o.origen||'mano' });
+    LP.mov=null; LP.fs=new Set(); await lpRecargar().catch(()=>{}); LP.ocupado=false;
+    const prov=[...new Set(fs.map(f=>f.proveedor))].join(', ');
+    aviso(`${prov} · ${fmtMonto(c.cargo)}`,'ok',8000, j&&j.abono? `Abono ligado a la factura ${lpFolio(fs[0])}` : fs.length===1? `Factura ${lpFolio(fs[0])} pagada` : `${fs.length} facturas pagadas`);
+    render(); return true; }
+  catch(e){ suelta(); const cod=String((e.raw&&e.raw.message)||'');
+    if(cod==='parece_con_comprobante' && !o.confirmar){ lpConfirmarComprobante(c, fs, o, e.message); return false; }
+    aviso(LP_ERR[cod]||e.message||e.code,'err',12000,'No se pudo ligar'); return false; } }
+function lpConfirmarComprobante(c, fs, o, texto){ document.querySelectorAll('.sheet').forEach(x=>x.remove());
+  const btn=h('button',{class:'btn',id:'lp-si-ligar'},'Ligar de todos modos');
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Ese pago parece tener ya su comprobante'), h('p',{class:'small muted',style:'margin:4px 0 0'},`Pago del ${fmtFecha(c.fecha)} · ${c.cuenta} · ${fmtMonto(c.cargo)}`), h('p',{},texto),
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'No ligar'), btn)));
+  btn.addEventListener('click',async()=>{ const bien=await lpLigar(c, fs, Object.assign({},o,{confirmar:true}), btn); if(bien || !LP.ocupado) sheet.remove(); });
+  document.body.append(sheet); }
+function lpDeshacerUI(g){ document.querySelectorAll('.sheet').forEach(x=>x.remove());
+  const motivo=h('textarea',{rows:'3',id:'lp-motivo','aria-label':'Motivo',placeholder:'Por qué se deshace (obligatorio)'});
+  const btn=h('button',{class:'btn danger',id:'lp-si-deshacer'},'Deshacer la liga');
+  const sheet=h('div',{class:'sheet'}, h('div',{class:'in stack'}, h('h3',{},'Deshacer la liga'),
+    h('p',{class:'small muted',style:'margin:4px 0 0'},`Pago del ${fmtFecha(g.fecha)} · ${g.cuenta} · ${fmtMonto(g.cargo)}`),
+    h('p',{}, (g.facturas.length===1? 'La factura vuelve' : `Las ${g.facturas.length} facturas vuelven`)+' a sin pagar y el pago del banco queda libre. La liga no se borra: queda guardada con quién la deshizo, cuándo y por qué.'), motivo,
+    h('div',{class:'row'}, h('button',{class:'btn ghost',onclick:()=>sheet.remove()},'Cancelar'), btn)));
+  btn.addEventListener('click',async()=>{ if(!motivo.value.trim()){ toast('Escribe el motivo.'); motivo.focus(); return; } btn.dataset.ocupado='Deshaciendo…'; btn.disabled=true;
+    try{ await rpc('deshacer_liga_banco',{ p_grupo:g.grupo, p_motivo:motivo.value.trim() }); await lpRecargar().catch(()=>{}); sheet.remove(); toast('Liga deshecha.'); render(); }
+    catch(e){ btn.disabled=false; delete btn.dataset.ocupado; aviso(e.message||e.code,'err',10000,'No se pudo deshacer'); } });
+  document.body.append(sheet); }
+async function ligarPagos(){
+  const cont=h('div',{id:'lp'}); app.append(cont);
+  if(S.rol!=='dueno'){ cont.append(h('div',{class:'card empty'}, h('b',{},'Solo el dueño liga pagos con el banco'))); return; }
+  if(!LP.datos){ cont.append(omEsperando(['Buscando pagos y facturas…','Casi listo…']));
+    try{ await lpRecargar(); }
+    catch(e){ cont.innerHTML='';
+      cont.append(lpFaltaBase(e)
+        ? h('div',{class:'card empty',id:'lp-falta'}, h('b',{},'Esta sección todavía no está activada'), h('p',{class:'small',style:'margin:6px auto 0;max-width:56ch'},'Falta terminar la instalación de Ligar pagos en el servidor (paso 36). En cuanto esté, aquí aparecen los pagos del banco y las facturas sin pagar.'))
+        : h('div',{class:'card empty'}, 'No se pudo cargar: '+(e.message||e.code)));
+      return; }
+    if(!cont.isConnected) return; }
+  else if(Date.now()-LP.t>20000 && !LP.ocupado){ const antes=JSON.stringify(LP.datos); LP.t=Date.now(); lpRecargar().then(()=>{ if(JSON.stringify(LP.datos)!==antes && cont.isConnected && !LP.mov && !LP.fs.size) render(); }).catch(()=>{}); }   // sin parpadeo: se pinta lo último visto y se pone al día atrás
+  cont.innerHTML='';
+  const D0=LP.datos, negs=D0.negocios||[]; if(LP.neg && !negs.some(n=>n.id===LP.neg)) LP.neg='';
+  const deNeg=r=>!LP.neg || r.negocio_id===LP.neg;
+  const D={ facturas:(D0.facturas||[]).filter(deNeg), cargos:(D0.cargos||[]).filter(deNeg), ligadas:(D0.ligadas||[]).filter(deNeg), huellas:D0.huellas||[] };
+  const libres=D.cargos.filter(c=>!c.comprobante), conComp=D.cargos.length-libres.length;
+  if(!LP.sug) LP.sug=lpSugerir(D0); const sug=LP.sug.filter(s=>deNeg(s.c));
+  const suma=(arr,k)=>arr.reduce((s,r)=>s+Number(r[k]),0);
+  add(cont, h('div',{class:'pc-cab'}, h('p',{class:'small muted'},'Facturas que ya pagaste y no tienen comprobante: lígalas con su pago en el banco y dejan de salir como pendientes.')),
+    negs.length>1? h('div',{class:'tabs est-filtro',id:'lp-neg',role:'group','aria-label':'Estación',style:'margin-top:14px'}, ...[['','Todas']].concat(negs.map(n=>[n.id,n.nombre])).map(([id,t])=>h('button',{class:LP.neg===id?'on':'','aria-pressed':LP.neg===id?'true':'false',onclick:()=>{ LP.neg=id; LP.mov=null; LP.fs=new Set(); render(); }},t))) : null,
+    h('div',{class:'tot b-tot',id:'lp-tot',style:'margin-top:14px;--n:3'}, bancoDato(`Facturas sin pagar · ${D.facturas.length}`, fmtMXN(suma(D.facturas,'saldo'))), bancoDato(`Pagos del banco sin ligar · ${libres.length}`, fmtMXN(suma(libres,'cargo'))), bancoDato(`Ligadas · ${D.ligadas.length}`, fmtMXN(suma(D.ligadas,'ligado')))));
+  const TABS=[['sug',`Sugerencias${sug.length?' · '+sug.length:''}`],['mano','A mano'],['ligadas',`Ligadas${D.ligadas.length?' · '+D.ligadas.length:''}`]]; if(!TABS.some(t=>t[0]===LP.vista)) LP.vista='sug';
+  cont.append(h('div',{class:'tabs',id:'lp-tabs',role:'tablist',style:'margin-top:18px'}, ...TABS.map(([k,t])=>h('button',{class:LP.vista===k?'on':'',role:'tab','aria-selected':LP.vista===k?'true':'false','data-vista':k,onclick:()=>{ LP.vista=k; render(); }},t))));
+  const cuerpo=h('div',{id:'lp-cuerpo',style:'margin-top:14px'}); cont.append(cuerpo);
+  const vacio=(titulo,texto,id)=>h('div',{class:'card empty',id:id||'lp-vacio'}, h('b',{},titulo), texto? h('p',{class:'small',style:'margin:6px auto 0;max-width:58ch'},texto) : null);
+  const ladoPago=c=>h('div',{class:'lp-lado'}, h('span',{class:'k'},`Pago del ${fmtFecha(c.fecha)} · ${c.cuenta}`), h('b',{class:'lp-imp'},fmtMonto(c.cargo)), h('span',{class:'t'},c.texto||'Sin texto del banco'));
+  const lineasFs=(fs,k)=>h('div',{class:'lp-fs'}, ...fs.map(f=>h('div',{class:'ln'}, h('span',{}, h('b',{},lpFolio(f)), ` · ${pmDia(f.fecha)}`), h('span',{},fmtMonto(f[k||'saldo'])))));
+
+  // ================= Sugerencias =================
+  if(LP.vista==='sug'){
+    if(!sug.length){ cuerpo.append(!D.cargos.length? vacio('Todavía no hay pagos del banco por ligar','Sube los movimientos en Bancos, en Subir movimientos, y aquí aparecen los pagos que salieron de tus cuentas.')
+        : !D.facturas.length? vacio('No hay facturas sin pagar','Todas tus facturas tienen su pago.')
+        : vacio('Ninguna sugerencia por ahora','Ningún pago del banco cuadra por sí solo con tus facturas sin pagar. Lígalos en la pestaña A mano.')); return; }
+    const tabla=h('div',{class:'lp-tabla',id:'lp-sug'});
+    for(const s of sug){ const c=s.c; const der=h('div',{class:'lp-lado'});
+      if(s.ops.length>1) der.append(h('span',{class:'k'}, s.ops.length===2? 'Dos opciones cuadran: elige cuál' : 'Varias opciones cuadran: elige cuál'));
+      for(const o of s.ops){ const btn=h('button',{class:'btn sm',onclick:()=>lpLigar(c, o.fs, { origen:'sugerencia' }, btn)},'Ligar');
+        const chip= s.nivel===2? h('span',{class:'chip ok'}, ico('palomita',14), LP_POR[o.senal.por]) : s.choca? h('span',{class:'chip warn'}, ico('alerta',14), 'Cuadra también con otro pago') : h('span',{class:'chip'}, o.senal.n? LP_POR[o.senal.por] : s.ops.length===1? 'Es lo único que cuadra' : 'Cuadra el importe');
+        der.append(h('div',{class:'lp-op','data-fs':o.fs.map(f=>f.id).join(',')}, h('span',{class:'k'}, [...new Set(o.fs.map(f=>f.proveedor))].join(', ')+(o.fs.length>1? ` · ${o.fs.length} facturas` : '')), lineasFs(o.fs),
+          h('div',{class:'lp-pie'}, chip, h('div',{class:'row'}, h('button',{class:'btn sm ghost',title:'Quitar esta sugerencia',onclick:()=>{ lpDescartar(lpClave(c,o.fs)); LP.sug=null; render(); }},'No es'), btn)))); }
+      tabla.append(h('div',{class:'lp-par','data-mov':c.id,'data-nivel':String(s.nivel)}, ladoPago(c), h('span',{class:'lp-igual','aria-hidden':'true'},'='), der)); }
+    cuerpo.append(tabla); return; }
+
+  // ================= Ligadas =================
+  if(LP.vista==='ligadas'){
+    if(!D.ligadas.length){ cuerpo.append(vacio('Todavía no has ligado ningún pago','Cuando ligues una factura con su pago del banco, aquí queda, y aquí mismo se puede deshacer.')); return; }
+    const tabla=h('div',{class:'lp-tabla',id:'lp-ligadas'});
+    for(const g of D.ligadas){ const falta=g.facturas.some(f=>!f.pagada), resto=lpCent(g.cargo)-lpCent(g.ligado);
+      tabla.append(h('div',{class:'lp-par','data-grupo':g.grupo}, ladoPago(g), h('span',{class:'lp-igual','aria-hidden':'true'},'='),
+        h('div',{class:'lp-lado'}, h('span',{class:'k'}, [...new Set(g.facturas.map(f=>f.proveedor))].join(', ')), lineasFs(g.facturas,'importe'),
+          h('div',{class:'lp-pie'}, h('div',{class:'row'}, falta? h('span',{class:'chip warn'}, ico('alerta',14), 'Abono: la factura sigue sin pagar') : h('span',{class:'chip ok'}, ico('palomita',14), 'Pagada'),
+              g.sin_renglon? h('span',{class:'chip warn',title:'El archivo del banco de ese día se eliminó o cambió. La liga conserva la copia del renglón.'}, ico('alerta',14), 'Su renglón ya no está en Bancos') : null,
+              resto>0? h('span',{class:'chip warn'}, ico('alerta',14), `Quedan ${fmtMonto(resto/100)} del pago sin factura`) : null),
+            h('button',{class:'btn sm ghost danger',onclick:()=>lpDeshacerUI(g)},'Deshacer')),
+          h('span',{class:'k'},`Ligó ${g.por||''} el ${pmHora(g.ligado_en)}`)))); }
+    cuerpo.append(tabla); return; }
+
+  // ================= A mano =================
+  if(!D.cargos.length && !D.facturas.length){ cuerpo.append(vacio('No hay nada por ligar','No hay pagos del banco sin ligar ni facturas sin pagar.')); return; }
+  const cargosVer=()=>D.cargos.filter(c=>LP.verComp || !c.comprobante || c.id===LP.mov);
+  const movSel=()=>D.cargos.find(c=>c.id===LP.mov)||null; if(LP.mov && !movSel()) LP.mov=null;
+  for(const id of [...LP.fs]) if(!D.facturas.some(f=>f.id===id)) LP.fs.delete(id);
+  const casa=(q,txt)=>{ const a=lpLlano(q); if(!a) return true; const n=String(q).replace(/[$,\s]/g,''); return lpLlano(txt).includes(a) || (/^\d+(\.\d+)?$/.test(n) && txt.includes('#'+n)); };
+  const marca=tipo=>{ const m=h('span',{class:'lp-marca '+tipo,'aria-hidden':'true'}); m.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'; return m; };
+  const listaC=h('div',{class:'lp-lista',id:'lp-cargos',role:'listbox','aria-label':'Pagos del banco sin ligar'}), listaF=h('div',{class:'lp-lista',id:'lp-facturas',role:'group','aria-label':'Facturas sin pagar'});
+  const cuadre=h('div',{class:'lp-cuadre',id:'lp-cuadre','aria-live':'polite'});
+  const TOPE=250;
+  const pintaC=()=>{ const L=cargosVer().filter(c=>casa(LP.qC, `${c.texto} ${c.cuenta} #${Number(c.cargo).toFixed(2)}`)); listaC.replaceChildren();
+    if(!L.length){ listaC.append(h('p',{class:'lp-nada small muted'}, LP.qC? 'Sin resultados' : 'No hay pagos del banco sin ligar')); return; }
+    for(const c of L.slice(0,TOPE)){ const b=h('button',{class:'lp-fila',type:'button',role:'option','data-id':c.id,'aria-selected':LP.mov===c.id?'true':'false',onclick:()=>{ LP.mov= LP.mov===c.id? null : c.id; const n=movSel(); if(n) for(const id of [...LP.fs]){ const f=D.facturas.find(x=>x.id===id); if(f && f.negocio_id!==n.negocio_id) LP.fs.delete(id); } marcar(); }},
+        marca('radio'), h('span',{class:'lp-lado'}, h('b',{},`${pmDia(c.fecha)} · ${c.cuenta}`), h('span',{class:'t small muted'},c.texto||''), c.comprobante? h('span',{},h('span',{class:'chip'},'Ya tiene comprobante'+(c.comprobante.concepto?' · '+c.comprobante.concepto:''))) : null), h('b',{class:'lp-num'},fmtMonto(c.cargo)));
+      listaC.append(b); }
+    if(L.length>TOPE) listaC.append(h('p',{class:'lp-nada small muted'},`Se ven ${TOPE} de ${L.length}. Usa el buscador para encontrar los demás.`)); };
+  const pintaF=()=>{ const n=movSel(); const C=n? lpCent(n.cargo) : null;
+    let L=D.facturas.filter(f=>(!n || f.negocio_id===n.negocio_id) && casa(LP.qF, `${f.proveedor} ${lpFolio(f)} ${f.folio||''} ${f.concepto||''} #${Number(f.saldo).toFixed(2)} #${Number(f.total).toFixed(2)}`));
+    if(n) L=L.slice().sort((a,b)=>(lpCent(b.saldo)===C?1:0)-(lpCent(a.saldo)===C?1:0) || (LP.fs.has(b.id)?1:0)-(LP.fs.has(a.id)?1:0) || Math.abs(lpDias(n.fecha,a.fecha))-Math.abs(lpDias(n.fecha,b.fecha)));
+    listaF.replaceChildren();
+    if(!L.length){ listaF.append(h('p',{class:'lp-nada small muted'}, LP.qF? 'Sin resultados' : n? 'No hay facturas sin pagar de ese negocio' : 'No hay facturas sin pagar')); return; }
+    for(const f of L.slice(0,TOPE)){ const abonada=lpCent(f.saldo)<lpCent(f.total);
+      const b=h('button',{class:'lp-fila',type:'button',role:'checkbox','data-id':f.id,'aria-checked':LP.fs.has(f.id)?'true':'false',onclick:()=>{ if(LP.fs.has(f.id)) LP.fs.delete(f.id); else LP.fs.add(f.id); marcar(); }},
+        marca('caja'), h('span',{class:'lp-lado'}, h('b',{},`${lpFolio(f)} · ${f.proveedor}`), h('span',{class:'t small muted'},`${pmDia(f.fecha)}${f.metodo_pago==='PPD'?' · PPD':''}${abonada?' · con abonos, total '+fmtMonto(f.total):''}${LP.neg?'':' · '+((negs.find(x=>x.id===f.negocio_id)||{}).nombre||'')}`),
+          (C!=null && lpCent(f.saldo)===C)? h('span',{},h('span',{class:'chip ok'},'Mismo importe')) : null), h('b',{class:'lp-num'},fmtMonto(f.saldo)));
+      listaF.append(b); }
+    if(L.length>TOPE) listaF.append(h('p',{class:'lp-nada small muted'},`Se ven ${TOPE} de ${L.length}. Usa el buscador para encontrar las demás.`)); };
+  // La cuenta: pago − facturas = diferencia. El botón solo se enciende cuando cuadra (o cuando es un abono a una sola factura).
+  const pintaCuadre=()=>{ const n=movSel(), fs=D.facturas.filter(f=>LP.fs.has(f.id)); const C=n? lpCent(n.cargo) : 0, F=fs.reduce((s,f)=>s+lpCent(f.saldo),0), dif=C-F;
+    const dato=(k,v,id)=>h('div',{}, h('span',{class:'small muted'},k), h('b',{id:id||null},v)); const op=t=>h('span',{class:'op','aria-hidden':'true'},t);
+    const abono= n && fs.length===1 && F>C; const cuadra= n && fs.length>0 && dif===0;
+    const btn=h('button',{class:'btn primary',id:'lp-ligar',disabled:(cuadra||abono)?null:'disabled'}, abono? 'Ligar como abono' : 'Ligar');
+    btn.addEventListener('click',()=>lpLigar(n, fs, { abono }, btn));
+    const estado= !n && !fs.length? h('span',{class:'small muted',id:'lp-dice'},'Elige un pago del banco y las facturas que cubre.')
+      : !n? h('span',{class:'small muted',id:'lp-dice'},'Ahora elige el pago del banco.') : !fs.length? h('span',{class:'small muted',id:'lp-dice'},'Ahora elige la factura, o las facturas, que cubre ese pago.')
+      : cuadra? h('span',{class:'chip ok',id:'lp-dice'}, ico('palomita',14), 'Cuadra')
+      : abono? h('span',{class:'chip warn',id:'lp-dice'}, ico('alerta',14), `Es un abono: a la factura le quedarían ${fmtMonto((F-C)/100)} por pagar`)
+      : dif>0? h('span',{class:'chip warn',id:'lp-dice'}, ico('alerta',14), `Faltan ${fmtMonto(dif/100)} de facturas`) : h('span',{class:'chip warn',id:'lp-dice'}, ico('alerta',14), `Sobran ${fmtMonto(-dif/100)} de facturas`);
+    if(n||fs.length) delete cuadre.dataset.vacio; else cuadre.dataset.vacio='1';   // en teléfono, vacía no se queda pegada abajo tapando las listas
+    cuadre.replaceChildren(h('div',{class:'lp-cta'}, dato('Pago del banco', n? fmtMonto(n.cargo) : '—','lp-c-pago'), op('−'), dato(fs.length===1? '1 factura' : fs.length? `${fs.length} facturas` : 'Facturas', fs.length? fmtMonto(F/100) : '—','lp-c-fact'), op('='), dato('Diferencia', (n&&fs.length)? fmtMonto(dif/100) : '—','lp-c-dif')),
+      h('div',{class:'row'}, estado, (n||fs.length)? h('button',{class:'btn ghost',id:'lp-limpiar',onclick:()=>{ LP.mov=null; LP.fs=new Set(); marcar(); }},'Limpiar') : null, btn)); };
+  // Al elegir no se redibuja la pantalla: solo cambian las marcas y la cuenta.
+  const marcar=()=>{ for(const b of listaC.querySelectorAll('.lp-fila')) b.setAttribute('aria-selected', b.dataset.id===LP.mov?'true':'false'); pintaF(); pintaCuadre(); };
+  const buscador=(valor, alCambiar, rotulo, id)=>{ const inp=h('input',{type:'search',placeholder:'Buscar','aria-label':rotulo,value:valor,id}); let t=null; inp.addEventListener('input',()=>{ clearTimeout(t); t=setTimeout(()=>alCambiar(inp.value.trim()),180); }); return h('div',{class:'buscar lp-buscar'}, inp, h('span',{class:'lp-lupa','aria-hidden':'true'},ico('buscar'))); };
+  const verComp= conComp? h('button',{class:'btn sm ghost',id:'lp-vercomp','aria-pressed':LP.verComp?'true':'false',onclick:e=>{ LP.verComp=!LP.verComp; e.currentTarget.setAttribute('aria-pressed',LP.verComp?'true':'false'); e.currentTarget.textContent=LP.verComp? 'Ocultar los que ya tienen comprobante' : `Ver ${conComp} que ya ${conComp===1?'tiene':'tienen'} comprobante`; pintaC(); }}, LP.verComp? 'Ocultar los que ya tienen comprobante' : `Ver ${conComp} que ya ${conComp===1?'tiene':'tienen'} comprobante`) : null;
+  cuerpo.append(h('div',{class:'lp-mano'},
+      h('section',{class:'lp-col'}, h('h3',{},'Pagos del banco'), buscador(LP.qC, v=>{ LP.qC=v; pintaC(); }, 'Buscar un pago del banco','lp-qc'), listaC, verComp),
+      h('section',{class:'lp-col'}, h('h3',{},'Facturas sin pagar'), buscador(LP.qF, v=>{ LP.qF=v; pintaF(); }, 'Buscar una factura sin pagar','lp-qf'), listaF)),
+    cuadre);
+  pintaC(); pintaF(); pintaCuadre();
+}
 async function consultaEstados(){
   let negocios=[]; try{ negocios=negociosOficina(await cuentasOficina()); }catch(e){}
   app.append(barraBuscar(EC.texto, 'Buscar', v=>{ EC.texto=v; render(); }), barraFiltros(negocios));
@@ -6620,7 +6865,7 @@ async function revisarVersion(){
 }
 setTimeout(revisarVersion, 2500); setInterval(revisarVersion, 5*60*1000);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') revisarVersion(); });
-if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, cortesTablero, adminHoy, adminCortes, verCorte, pdfDelCorte, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso, pushAbrir }; // solo para la prueba de humo
+if(/[?&]om_test=1\b/.test(location.search)) window.__om={ S, omLoader, renderFotosListas, leerConIA, render, generarPDF, generarPDFNoche, cortesDeLaNoche, botonPDFNoche, sb, rpc, corteDesdeServidor, cortesTablero, adminHoy, adminCortes, verCorte, pdfDelCorte, concCalcular, concTiposDe, CONC, fmtFecha, omEsperaPantalla, pcEstado, PC, omSinPistas, aviso, pushAbrir, LP, lpSugerir, lpCombos }; // solo para la prueba de humo
 boot();
 })();
 </script>
